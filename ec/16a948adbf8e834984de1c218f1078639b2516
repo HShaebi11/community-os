@@ -1,0 +1,33 @@
+docs/MAP.md
+  s_2ef4fc53d9f9c3::t_337b69d22bba0b 1-2,4-6
+  s_2ef4fc53d9f9c3::t_3e2d939b61033d 7
+  s_2ef4fc53d9f9c3::t_6ca5254c5620ff 3
+docs/PRODUCT.md
+  s_2ef4fc53d9f9c3::t_866dc1a9ff7498 1-89
+docs/PRODUCT-SPEC.md
+  s_2ef4fc53d9f9c3::t_de49412b3eb387 57-58
+  s_2ef4fc53d9f9c3::t_df676f91eac075 155,157,159-165
+  s_2ef4fc53d9f9c3::t_e9b04019095f01 32-35
+  s_2ef4fc53d9f9c3::t_69dae63a8a187b 214,216-233
+  s_2ef4fc53d9f9c3::t_48b4c099cbf79d 245-251
+  s_2ef4fc53d9f9c3::t_872b24cdab72d4 1-17,21-31,36-56,59-154,156,158,166-213,215,234-244,252-296
+  s_2ef4fc53d9f9c3::t_5d595dcd96bfca 18-20
+docs/hackathon-london-2026.md
+  s_2ef4fc53d9f9c3::t_68198d6b157b28 1-174
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ec16a948adbf8e834984de1c218f1078639b2516",
+  "prompts": {},
+  "sessions": {
+    "s_2ef4fc53d9f9c3": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "c4a48bab-c8e5-439c-b2c8-976dcfc0079c",
+        "model": "grok-4.6"
+      },
+      "human_author": "Hamza <hshaebi.11@gmail.com>"
+    }
+  }
+}
