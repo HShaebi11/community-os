@@ -58,8 +58,11 @@ export function deskPage(): string {
           const brief = await api("/v1/workspaces/"+state.workspaceId+"/briefing");
           document.getElementById("brief").textContent = JSON.stringify(brief, null, 2);
           const members = await api("/v1/workspaces/"+state.workspaceId+"/members");
-          document.getElementById("people").innerHTML = "<h2>People</h2>" + members.map(m =>
-            "<div class='card'><strong>"+escHtml(m.displayName)+"</strong><div class='muted'>do: "+escHtml(m.do||"—")+" · want: "+escHtml(m.want||"—")+" · offer: "+escHtml(m.offer||"—")+"</div></div>"
+          const cards = await Promise.all(members.map(m => api("/v1/members/"+m.id)));
+          document.getElementById("people").innerHTML = "<h2>People</h2>" + cards.map(m =>
+            "<div class='card'><strong>"+escHtml(m.displayName)+"</strong><div class='muted'>do: "+escHtml(m.do||"—")+" · want: "+escHtml(m.want||"—")+" · offer: "+escHtml(m.offer||"—")+"</div>"+
+            (m.citations && m.citations[0] ? "<div class='muted'>“"+escHtml(m.citations[0].quote)+"”</div>" : "")+
+            "</div>"
           ).join("");
           const demands = await api("/v1/workspaces/"+state.workspaceId+"/demands");
           document.getElementById("demands").innerHTML = "<h2>Demand</h2>" + demands.map(d =>

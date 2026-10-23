@@ -11,6 +11,7 @@ import {
   importWhatsApp,
   ingestDiscord,
   makeOutreachDraft,
+  memberCard,
   refreshMemory,
   rsvp,
   setProposalStatus,
@@ -43,8 +44,16 @@ describe("kernel loop", () => {
 
     const memory = await refreshMemory(store, workspace.id);
     expect(memory.demands.length).toBeGreaterThan(0);
+    const cited = memory.members.find((m) => m.do || m.want || m.offer);
+    expect(cited).toBeTruthy();
+    const card = await memberCard(store, cited!.id);
+    expect(card.citations.length).toBeGreaterThan(0);
+    const citationCount = (await store.listCitations(workspace.id)).length;
+    await refreshMemory(store, workspace.id);
+    expect((await store.listCitations(workspace.id)).length).toBe(citationCount);
     const brief = await briefing(store, workspace.id);
     expect(brief.people).toBe(imported.members.length);
+    expect(brief.resources.some((r) => r.url.includes("example.com/community-os-notes"))).toBe(true);
 
     await store.upsertVenue({
       id: "venue-1",

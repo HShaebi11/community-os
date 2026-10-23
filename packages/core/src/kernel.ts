@@ -77,9 +77,14 @@ export async function ingestDiscord(
   return { ...result, member };
 }
 
+function citationKey(citation: { objectId: string; messageId: string; quote: string }) {
+  return `${citation.objectId}\0${citation.messageId}\0${citation.quote}`;
+}
+
 export async function refreshMemory(store: Store, communityId: string) {
   const messages = await store.listMessages(communityId);
   const members = await store.listMembers(communityId);
+  const seen = new Set((await store.listCitations(communityId)).map(citationKey));
   const byMember = new Map<string, Message[]>();
   for (const message of messages) {
     if (!message.memberId || message.isNoise) continue;
@@ -87,6 +92,23 @@ export async function refreshMemory(store: Store, communityId: string) {
     list.push(message);
     byMember.set(message.memberId, list);
   }
+
+  const insertFresh = async (incoming: Array<{
+    id: string;
+    communityId: string;
+    objectType: string;
+    objectId: string;
+    messageId: string;
+    quote: string;
+  }>) => {
+    const fresh = incoming.filter((citation) => {
+      const key = citationKey(citation);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    if (fresh.length) await store.insertCitations(fresh);
+  };
 
   for (const member of members) {
     const theirs = byMember.get(member.id) ?? [];
@@ -96,21 +118,22 @@ export async function refreshMemory(store: Store, communityId: string) {
     if (extracted.want) patch.want = extracted.want;
     if (extracted.offer) patch.offer = extracted.offer;
     if (Object.keys(patch).length) await store.updateMember(member.id, patch, false);
-    const citations = extracted.citations
-      .map((c) => {
-        const message = theirs.find((m) => m.body.includes(c.quote.slice(0, 40)) || c.quote.includes(m.body.slice(0, 40)));
-        if (!message) return null;
-        return {
-          id: createId(),
-          communityId,
-          objectType: "member",
-          objectId: member.id,
-          messageId: message.id,
-          quote: c.quote,
-        };
-      })
-      .filter((c) => c !== null);
-    await store.insertCitations(citations);
+    await insertFresh(
+      extracted.citations
+        .map((c) => {
+          const message = theirs.find((m) => m.body.includes(c.quote.slice(0, 40)) || c.quote.includes(m.body.slice(0, 40)));
+          if (!message) return null;
+          return {
+            id: createId(),
+            communityId,
+            objectType: "member",
+            objectId: member.id,
+            messageId: message.id,
+            quote: c.quote,
+          };
+        })
+        .filter((c) => c !== null),
+    );
     for (const message of theirs) {
       for (const url of extractUrls(message.body)) {
         await store.upsertResource({
@@ -139,7 +162,7 @@ export async function refreshMemory(store: Store, communityId: string) {
         updatedAt: message.sentAt,
       };
       const saved = await store.upsertDemand(demand);
-      await store.insertCitations([
+      await insertFresh([
         {
           id: createId(),
           communityId,
@@ -152,11 +175,23 @@ export async function refreshMemory(store: Store, communityId: string) {
     }
   }
 
-  return {
+  const result = {
     members: await store.listMembers(communityId),
     demands: await store.listDemands(communityId),
     resources: await store.listResources(communityId),
   };
+  await store.addTimeline({
+    id: createId(),
+    communityId,
+    kind: "memory",
+    payload: {
+      members: result.members.length,
+      demands: result.demands.length,
+      resources: result.resources.length,
+    },
+    createdAt: new Date().toISOString(),
+  });
+  return result;
 }
 
 export async function briefing(store: Store, communityId: string) {
@@ -164,6 +199,7 @@ export async function briefing(store: Store, communityId: string) {
   const demands = await store.listDemands(communityId);
   const messages = await store.listMessages(communityId);
   const events = await store.listEvents(communityId);
+  const resources = await store.listResources(communityId);
   return {
     people: members.length,
     messages: messages.length,
@@ -172,8 +208,16 @@ export async function briefing(store: Store, communityId: string) {
       title: d.title ?? titleFromTopic(d.topic, d.memberIds.length),
       oneLiner: d.oneLiner ?? `${d.memberIds.length} members mentioned ${d.topic}.`,
     })),
+    resources,
     nextEvents: events,
   };
+}
+
+export async function memberCard(store: Store, memberId: string) {
+  const member = await store.getMember(memberId);
+  if (!member) throw new Error("member not found");
+  const citations = await store.listCitations(member.communityId, "member", member.id);
+  return { ...member, citations };
 }
 
 export async function openDemand(store: Store, demandId: string) {
@@ -181,7 +225,9 @@ export async function openDemand(store: Store, demandId: string) {
   if (!demand) throw new Error("demand not found");
   const title = titleFromTopic(demand.topic, demand.memberIds.length);
   const oneLiner = `${demand.memberIds.length} people asked for ${demand.topic} recently.`;
-  return store.upsertDemand({ ...demand, title, oneLiner });
+  const saved = await store.upsertDemand({ ...demand, title, oneLiner });
+  const citations = await store.listCitations(saved.communityId, "demand", saved.id);
+  return { ...saved, citations };
 }
 
 export async function createProposalFromDemand(store: Store, communityId: string, demandId: string) {

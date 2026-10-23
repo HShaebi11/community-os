@@ -25,3 +25,5 @@ npm run dev
 Auth: Better Auth (`/api/auth/*`) plus `POST /v1/auth/dev` for local curl. Data: Neon + Drizzle when `DATABASE_URL` is set; otherwise in-memory.
 
 Slice 0 done check: `POST /v1/auth/dev` → `POST /v1/workspaces` → `POST /v1/workspaces/:id/imports` → `GET /v1/workspaces/:id/members`.
+
+Slice 1 done check: `POST /v1/workspaces/:id/memory` → `GET /v1/members/:id` (citations) → `GET /v1/workspaces/:id/briefing` → `GET /v1/demands/:id`.

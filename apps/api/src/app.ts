@@ -7,7 +7,9 @@ import {
   importWhatsApp,
   ingestDiscord,
   makeOutreachDraft,
+  memberCard,
   MemoryStore,
+  openDemand,
   refreshMemory,
   rsvp,
   setProposalStatus,
@@ -125,7 +127,7 @@ export function createApp(store: Store, auth?: Auth) {
     if (!member || !(await store.isLead(member.communityId, c.get("userId")))) {
       throw new HTTPException(403, { message: "forbidden" });
     }
-    return c.json(member);
+    return c.json(await memberCard(store, member.id));
   });
 
   app.patch("/v1/members/:memberId", requireAuth, async (c) => {
@@ -142,6 +144,13 @@ export function createApp(store: Store, auth?: Auth) {
   });
   app.get("/v1/workspaces/:id/briefing", requireAuth, lead, async (c) => c.json(await briefing(store, c.req.param("id"))));
   app.get("/v1/workspaces/:id/demands", requireAuth, lead, async (c) => c.json(await store.listDemands(c.req.param("id"))));
+  app.get("/v1/demands/:demandId", requireAuth, async (c) => {
+    const demand = await store.getDemand(c.req.param("demandId"));
+    if (!demand || !(await store.isLead(demand.communityId, c.get("userId")))) {
+      throw new HTTPException(403, { message: "forbidden" });
+    }
+    return c.json(await openDemand(store, demand.id));
+  });
   app.get("/v1/workspaces/:id/resources", requireAuth, lead, async (c) => c.json(await store.listResources(c.req.param("id"))));
   app.get("/v1/workspaces/:id/timeline", requireAuth, lead, async (c) => c.json(await store.listTimeline(c.req.param("id"))));
 

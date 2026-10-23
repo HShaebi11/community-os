@@ -85,6 +85,8 @@ export function docsPage(): string {
        <li><code>POST /v1/workspaces/:id/imports</code> (zip or txt body)</li>
        <li><code>GET /v1/workspaces/:id/members</code></li>
        <li><code>POST /v1/workspaces/:id/memory</code></li>
+       <li><code>GET /v1/members/:id</code> (card + citations)</li>
+       <li><code>GET /v1/demands/:id</code> (title + citations)</li>
        <li><code>GET /v1/workspaces/:id/demands</code></li>
        <li><code>POST /v1/workspaces/:id/proposals</code></li>
        <li><code>POST /v1/proposals/:id/go-live</code></li>
