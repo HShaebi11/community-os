@@ -86,7 +86,7 @@ curl -s -X POST $BASE/v1/tokens -H "$AUTH" -H 'content-type: application/json' \
 # 201 { "id", "name", "prefix": "cos_ab12", "token": "cos_…", "createdAt" }
 # `token` is returned exactly once. Store it.
 
-curl -s $BASE/v1/tokens -H "$AUTH"          # [{ id, userId, name, prefix, createdAt, lastUsedAt, revokedAt }] — no secret material
+curl -s $BASE/v1/tokens -H "$AUTH"          # [{ id, userId, name, prefix, createdAt, lastUsedAt, revokedAt }] — active tokens only: revoked ones are omitted (no revocation history) and no secret material is returned
 curl -s -X DELETE $BASE/v1/tokens/$TOKEN_ID -H "$AUTH"   # {"ok":true} — 404 if not yours/gone
 ```
 
@@ -173,7 +173,7 @@ Chat history is append-only evidence. Import is deduplicated by
 
 | Route | Auth | Body → Returns |
 | --- | --- | --- |
-| `POST /v1/workspaces/:id/imports?filename=` | lead | **Raw bytes** (not JSON): a WhatsApp `.txt` transcript or an export `.zip` (transcript + media). Filename decides parsing; `.txt` and text-looking bytes are treated as transcripts, anything else is unzipped — a zip without a chat `.txt` → `400 "No chat.txt in WhatsApp export"`. → `{ inserted, skipped, members: Member[] }`. Zip media lands as `memory://` file records. |
+| `POST /v1/workspaces/:id/imports?filename=` | lead | **Raw bytes** (not JSON): a WhatsApp `.txt` transcript or an export `.zip` (transcript + media). Filename decides parsing; `.txt` and text-looking bytes are treated as transcripts, anything else is unzipped — inside a zip the transcript is the last `.txt` entry whose name contains `chat`, or the first `.txt` entry if none does; `400 "No chat.txt in WhatsApp export"` only when the archive contains no `.txt` at all. → `{ inserted, skipped, members: Member[] }`. Zip media lands as `memory://` file records. |
 | `POST /v1/ingest/discord` | lead of `communityId` | `{ communityId, id, content, timestamp, author: { id, username } }` → `{ inserted, skipped, member }`. One message per call. |
 | `GET /v1/workspaces/:id/messages` | lead | → `Message[]` `{ id, communityId, sourceId, sourceMessageId, authorRaw, memberId, body, sentAt, isNoise }` |
 | `GET /v1/workspaces/:id/files` | lead | → `FileRecord[]` `{ id, communityId, messageId, name, storagePath, mime }` |
@@ -265,7 +265,9 @@ not exist yet — don't fake it client-side.
 - **No workspace export endpoint** (planned: COS-7).
 - **No event editing.** `EventRecord.startsAt` exists but no route sets it;
   there is no `PATCH`/`DELETE` on events, proposals, demands, venues,
-  sponsors, guests, or workspaces.
+  sponsors, or guests. Workspaces do support `PATCH` (name, `joinUrl`) —
+  see above — but the only `DELETE` on the whole API is `DELETE
+  /v1/tokens/:id`.
 - **No way to read autopilot artifacts back.** `saveArtifact`/`listArtifacts`
   exist in the store but only the `POST .../autopilot` response returns them.
 - **No citations route** — citations arrive embedded on member/demand/proposal
