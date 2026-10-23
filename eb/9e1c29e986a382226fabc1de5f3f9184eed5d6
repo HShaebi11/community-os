@@ -1,0 +1,51 @@
+packages/core/src/kernel.ts
+  s_8d4875ad385d83::t_6439dcb09b8662 333-335,340-341,343-346,352-353,369-378,387-457
+  s_8d4875ad385d83::t_0804534a284a7c 458
+apps/web/src/public.ts
+  s_8d4875ad385d83::t_20ae05cf3b7ac6 16,24,41,44,46-48,54,64,101,103-108
+apps/api/src/app.ts
+  s_8d4875ad385d83::t_1543c5d748fd0c 302,304,308-311,318,323,326-334,359
+  s_8d4875ad385d83::t_f5b292df13c782 303,305-307,312-314
+  s_8d4875ad385d83::t_7e228cb089c095 317,322
+  s_8d4875ad385d83::t_817c1612de4dc9 2,5,14-15,17-18
+  s_8d4875ad385d83::t_a66e630fba75fb 237-243
+  s_8d4875ad385d83::t_c7ff76efd0d756 358
+  s_8d4875ad385d83::t_fa825d3251ff12 145-150
+  s_8d4875ad385d83::t_ec7af72f620b6d 16
+  s_8d4875ad385d83::t_d526c48be109b0 381-388
+packages/core/src/memory-store.ts
+  s_8d4875ad385d83::t_7ed3eb93531573 317-323
+  s_8d4875ad385d83::t_a59b6fcee56f31 179-182
+packages/core/src/store.ts
+  s_8d4875ad385d83::t_f54a374dcca84d 81
+  s_8d4875ad385d83::t_64e0e210638f9b 46
+apps/api/src/drizzle-store.ts
+  s_8d4875ad385d83::t_6e187ac9315591 351-357
+  s_8d4875ad385d83::t_06740ab1eff12f 190-194
+apps/web/src/desk.ts
+  s_8d4875ad385d83::t_9dcc7f2e6d076a 57-58,66,69-72,85-87,93-96,102-107
+packages/core/src/kernel.test.ts
+  s_8d4875ad385d83::t_9ac88e7b617978 101-103
+  s_8d4875ad385d83::t_5a2ed6300d9607 86-90,94-100
+  s_8d4875ad385d83::t_187faaafbc3f2a 8,16-18
+apps/api/src/app.test.ts
+  s_8d4875ad385d83::t_a4b40ff408cf82 177-269
+docs/MAP.md
+  s_8d4875ad385d83::t_a6cf1e248e7102 32-33
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "eb9e1c29e986a382226fabc1de5f3f9184eed5d6",
+  "prompts": {},
+  "sessions": {
+    "s_8d4875ad385d83": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "1f261e4b-5af6-40ac-b45f-9cd2a2ab493d",
+        "model": "grok-4.6"
+      },
+      "human_author": "Hamza <hshaebi.11@gmail.com>"
+    }
+  }
+}
