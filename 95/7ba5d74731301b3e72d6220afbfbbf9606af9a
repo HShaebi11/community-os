@@ -1,0 +1,151 @@
+apps/web/src/app/c/[slug]/page.tsx
+  s_66d5a2b979731f::t_7481ed033f12ff 1-51
+apps/web/src/app/not-found.tsx
+  s_66d5a2b979731f::t_990c91170b3c99 1-10
+apps/web/package.json
+  s_66d5a2b979731f::t_87540eb98fb6bb 19
+  s_66d5a2b979731f::t_366a6ee3ac4ca5 6-8,11
+  s_66d5a2b979731f::t_8847b65a151420 12-18,20-21,23-29
+apps/web/src/app/desk/events/page.tsx
+  s_66d5a2b979731f::t_5c7f72f0f6084e 1-74
+apps/api/src/app.ts
+  s_66d5a2b979731f::t_3a86d6c0b0a3cc 307-312
+  s_66d5a2b979731f::t_4b435a0ab6fd38 260
+  s_66d5a2b979731f::t_c52a6cc572409a 237
+  s_66d5a2b979731f::t_5bd5c4a0dc3b59 43-51
+  s_66d5a2b979731f::t_04ca8d3ab53c76 341-344
+  s_66d5a2b979731f::t_0e5e8c29039b70 27-28
+apps/web/src/components/ui/textarea.tsx
+  s_66d5a2b979731f::t_e878b69722ed7e 2
+  s_66d5a2b979731f::t_87540eb98fb6bb 1,3-17
+apps/web/src/lib/api.ts
+  s_66d5a2b979731f::t_3099ffdf76464f 1-55
+apps/web/src/lib/public-api.ts
+  s_66d5a2b979731f::t_43f9bb1743b53a 1-12
+apps/web/src/components/ui/select.tsx
+  s_66d5a2b979731f::t_e878b69722ed7e 4
+  s_66d5a2b979731f::t_87540eb98fb6bb 1-3,5-189
+apps/web/src/lib/types.ts
+  s_66d5a2b979731f::t_8d278dca794f9c 1-43,45-51,53-61,67,69,71,74-75,77-83,85-89,91-95
+apps/web/src/app/globals.css
+  s_66d5a2b979731f::t_560a19a6bbe78c 2
+  s_66d5a2b979731f::t_75818d6cb5c51e 1,3-67
+apps/web/src/components/ui/button.tsx
+  s_66d5a2b979731f::t_e878b69722ed7e 3
+  s_66d5a2b979731f::t_87540eb98fb6bb 1-2,4-63
+apps/web/src/app/desk/people/page.tsx
+  s_66d5a2b979731f::t_bfad2f420d0c76 46,51-52
+  s_66d5a2b979731f::t_e6de8bcabcd9e1 47-50
+  s_66d5a2b979731f::t_a5674a926ded2d 100
+  s_66d5a2b979731f::t_4152b441f274f6 110-112,114-119
+  s_66d5a2b979731f::t_885490b24226ff 1-45,53-92,94-99,101-106,108-109,113,120-127
+  s_66d5a2b979731f::t_3ee84415269e06 93
+  s_66d5a2b979731f::t_833203ba685ca9 107
+apps/web/tsconfig.json
+  s_66d5a2b979731f::t_47e60084245e46 4-8,20-29,31-40
+  s_66d5a2b979731f::t_6e7927f5389198 3,9-10,13-16,18-19
+apps/web/src/app/desk/search/page.tsx
+  s_66d5a2b979731f::t_208776f16ecbfc 1-50
+apps/web/src/app/docs/page.tsx
+  s_66d5a2b979731f::t_6c16abf1b7a2c4 1-48
+apps/web/next.config.ts
+  s_66d5a2b979731f::t_044acf9e17069e 6
+  s_66d5a2b979731f::t_9e20022c6c2de4 1-5,7-15
+apps/web/src/components/ui/card.tsx
+  s_66d5a2b979731f::t_e878b69722ed7e 2
+  s_66d5a2b979731f::t_87540eb98fb6bb 1,3-91
+apps/web/src/components/ui/label.tsx
+  s_66d5a2b979731f::t_87540eb98fb6bb 1-3,5-23
+  s_66d5a2b979731f::t_e878b69722ed7e 4
+apps/web/src/app/desk/layout.tsx
+  s_66d5a2b979731f::t_97d080635c7aa9 1-5
+apps/web/src/app/desk/proposals/page.tsx
+  s_66d5a2b979731f::t_336fbb3b66c01b 1-142
+apps/web/src/app/page.tsx
+  s_66d5a2b979731f::t_096280ebf3607d 1-47
+apps/web/src/app/layout.tsx
+  s_66d5a2b979731f::t_a63b6343c2a7fb 1-19
+package.json
+  s_66d5a2b979731f::t_d4bbbf1494d3be 10
+  s_66d5a2b979731f::t_bf6db39b038675 17-19
+apps/web/src/components/rsvp-form.tsx
+  s_66d5a2b979731f::t_8d3b2ffc25b718 1-53
+apps/web/src/components/kicker.tsx
+  s_66d5a2b979731f::t_313004ce08e4a5 1-11
+apps/web/postcss.config.mjs
+  s_66d5a2b979731f::t_5711056f516cce 1-7
+apps/web/src/components/ui/badge.tsx
+  s_66d5a2b979731f::t_87540eb98fb6bb 1-2,4-47
+  s_66d5a2b979731f::t_e878b69722ed7e 3
+apps/web/src/app/desk/page.tsx
+  s_66d5a2b979731f::t_e6406a62bb43d3 1-86
+apps/web/src/components/desk/desk-shell.tsx
+  s_66d5a2b979731f::t_e6d780765a688b 126
+  s_66d5a2b979731f::t_68296cb9d58dae 1-125,127-218
+README.md
+  s_66d5a2b979731f::t_a0ee54fffa3bef 27,31
+docs/MAP.md
+  s_66d5a2b979731f::t_c7c0a609dcff7c 9-10,27-28,35,37
+  s_2e18d903f62560::t_d3439a914e71f1 36
+apps/web/next-env.d.ts
+  s_66d5a2b979731f::t_e43762421e860f 1-2,5-7
+  s_66d5a2b979731f::t_e23ebf5e0ad286 3-4
+apps/web/src/lib/utils.ts
+  s_66d5a2b979731f::t_c671c151e854ef 1-6
+.gitignore
+  s_66d5a2b979731f::t_0ee0a9c600ae45 3
+  s_66d5a2b979731f::t_cf1997ef16ca51 4
+apps/web/components.json
+  s_66d5a2b979731f::t_68f7df97747b4d 1-21
+apps/web/src/components/ui/input.tsx
+  s_66d5a2b979731f::t_e878b69722ed7e 2
+  s_66d5a2b979731f::t_87540eb98fb6bb 1,3-20
+apps/web/src/components/ui/sonner.tsx
+  s_66d5a2b979731f::t_e878b69722ed7e 1,9-10,15,34-35,37
+  s_66d5a2b979731f::t_87540eb98fb6bb 2-8,11-14,16-33,36
+apps/api/src/app.test.ts
+  s_2e18d903f62560::t_4f851e694a3d23 268-294
+  s_66d5a2b979731f::t_2b3a3e75415b13 230-237
+  s_66d5a2b979731f::t_dda9fa26ffbe0f 243-245
+apps/web/src/app/desk/settings/page.tsx
+  s_66d5a2b979731f::t_b6d44eff96abcb 1-177
+apps/web/src/app/e/[slug]/page.tsx
+  s_66d5a2b979731f::t_8876aa8b6e3cfb 1-53
+apps/web/src/app/m/[slug]/page.tsx
+  s_66d5a2b979731f::t_9f75c5d1c7f8c1 1-34
+apps/web/src/app/desk/demand/page.tsx
+  s_66d5a2b979731f::t_ca1be103a23215 1-63
+apps/web/src/components/ui/separator.tsx
+  s_66d5a2b979731f::t_e878b69722ed7e 4
+  s_66d5a2b979731f::t_87540eb98fb6bb 1-3,5-27
+apps/web/src/app/desk/import/page.tsx
+  s_66d5a2b979731f::t_f8b50f4e7db5d2 1-67
+apps/web/src/components/public-chrome.tsx
+  s_66d5a2b979731f::t_7e7e6eacae4b73 1-22
+package-lock.json
+  s_66d5a2b979731f::t_bd2639e4c93efc 12-15,392,394-395,401-411,413-419,423-435,1485-1522,1539,2084-2127,2224-2227,2230-2233,2243,2246-2249,2259,2262-2265,2267-2270,2275,2278,2281-2284,2286-2289,2297,2300-2303,2305,2316,2319-2322,2324,2335,2338-2341,2343,2348,2351,2354-2357,2359,2364-4203,4209-4258,4262-4332,4340-4363,4365-4372,4374-4505,4512-4513,4515-4518,4526,4528-4531,4539-4546,4548-4552,4554-4557,4565,4567,4569-4570,4572,4577,4580-4664,4668-4669,4673-4680,4682-4685,4689-4690,4694-4701,4703-4706,4710-4711,4715-4722,4724-4727,4729,4731-4732,4736-4743,4745-4748,4750,4752-4753,4756-4764,4766-4769,4771,4773,4777,4781-4788,4790-4793,4795,4797,4801,4805-4812,4814-4817,4819,4821,4825,4829-4836,4838-4841,4843,4845,4849,4853-4860,4862-4865,4867,4869-4870,4873-4881,4883-4886,4888,4890-4891,4894-4902,4904-4931,4933,4935,4939-4943,4945-4948,4950,4952,4956-4960,4962-4965,4967,4969,4973-4977,4979-4982,4984,4986,4990-4994,4996-4999,5001,5003,5008-5011,5013-5016,5018,5020,5028-5031,5033-5036,5038,5040,5048-5051,5053-5056,5060-5062,5067,5069-5071,5073-5076,5078-5082,5087-5091,5093-5104,5106,5108,5111-5121,5123-5126,5128,5130,5135-5138,5140-5146,5149-5152,5154,5157-5160,5162-5169,5206-5225,5360-5385,5390-5401,5412-5423,5516-5535,5553-5565,5576-5642,5714-5720,5773-5778,6402-6408,6418-6431,6521-6530,6770-6792,6817-6825,6864-6870,6976-6985,7302-7316,7439-7543,7545-7547,7550,7734-7810,7839-7928,8050-8059,8066-8071,8076,8146,8213-8225,8305-8320,8374-8407,8421-8443,8457-8487,8558-8567,8572,8593-8602,8684-8726,9140-9157,9186-9223
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "957ba5d74731301b3e72d6220afbfbbf9606af9a",
+  "prompts": {},
+  "sessions": {
+    "s_2e18d903f62560": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "b06fb83a-2fcb-4839-804e-3963dbeb954b",
+        "model": "grok-4.6"
+      },
+      "human_author": "Hamza <hshaebi.11@gmail.com>"
+    },
+    "s_66d5a2b979731f": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "ea927a07-3c55-41b4-9cc2-82c2a69c4700",
+        "model": "grok-4.6"
+      },
+      "human_author": "Hamza <hshaebi.11@gmail.com>"
+    }
+  }
+}
