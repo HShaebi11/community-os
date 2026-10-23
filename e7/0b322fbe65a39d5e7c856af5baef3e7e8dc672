@@ -1,0 +1,288 @@
+apps/mcp/src/tools.test.ts
+  s_2e18d903f62560::t_bca8f4187aba2c 1-90
+docs/PHASE-A.md
+  s_886b129f69f26a::t_715ab213bc23a4 1-37
+apps/mcp/src/tools.ts
+  s_2e18d903f62560::t_4d8ab033868bb8 1-54
+apps/mcp/package.json
+  s_2e18d903f62560::t_47657ba874c9e2 11,18,20-21
+apps/mcp/tsconfig.json
+  s_2e18d903f62560::t_b4ac6cfab60dff 13
+docs/MAP.md
+  s_886b129f69f26a::t_e27754bc8c0690 5-6
+  s_74ac265841cf3c::t_9d57de3ff6f337 10-12,23,25,28,30,41-42
+apps/mcp/vitest.config.ts
+  s_2e18d903f62560::t_cf8776deb65d7f 1-7
+apps/mcp/src/index.ts
+  s_2e18d903f62560::t_fa31886772dd2d 5,28,34
+supabase/.gitignore
+  s_74ac265841cf3c::t_cdc0b36352d2e0 1-8
+supabase/config.toml
+  s_74ac265841cf3c::t_05e08a4ab1671d 1-415
+README.md
+  s_74ac265841cf3c::t_caaaf1bcf61414 5,12,15-38,42-43,46,50,58,64-75
+apps/api/.dev.vars.example
+  s_74ac265841cf3c::t_037b20a5bc9b98 3-19
+apps/api/cloudflare.config.ts
+  s_74ac265841cf3c::t_9769d16adb53e0 16-22
+apps/api/src/app.test.ts
+  s_74ac265841cf3c::t_239bd4114ec785 7,297-491
+apps/api/src/app.ts
+  s_74ac265841cf3c::t_931c2190c9520d 31-33,40-41,45-61,69,90,98-101,104-107,110-139,143-174,199-207,210-214
+apps/api/src/auth.ts
+  s_74ac265841cf3c::t_8a77b5fa851613 3,6,8-45,47,53-103
+apps/api/src/drizzle-store.ts
+  s_74ac265841cf3c::t_6dfd9bc0c1b898 1,3,12,15,57-95,101-109,116-121,123-124,135-146,149-153,158-159
+apps/api/src/email.ts
+  s_74ac265841cf3c::t_59256fb2fef31f 1-86
+apps/api/src/index.ts
+  s_74ac265841cf3c::t_d6823d06435e9d 3,6,8,17-30
+apps/app/components.json
+  s_74ac265841cf3c::t_ced3de2aaf3d88 1-21
+apps/app/next-env.d.ts
+  s_74ac265841cf3c::t_74addcfcf71274 1-7
+apps/app/next.config.ts
+  s_74ac265841cf3c::t_e64d60266d6371 1-18
+apps/app/package.json
+  s_74ac265841cf3c::t_7063b97246b629 1-33
+apps/app/postcss.config.mjs
+  s_74ac265841cf3c::t_e5e5e771816c8e 1-7
+apps/app/public/sample/_chat.txt
+  s_74ac265841cf3c::t_4cc041d7a1f606 1-13
+apps/app/src/app/(auth)/forgot-password/page.tsx
+  s_74ac265841cf3c::t_9f2183c46f6d74 1-79
+apps/app/src/app/(auth)/layout.tsx
+  s_74ac265841cf3c::t_c7680057920e90 1-15
+apps/app/src/app/(auth)/reset-password/page.tsx
+  s_74ac265841cf3c::t_b5832bbd0a211a 1-105
+apps/app/src/app/(auth)/sign-in/page.tsx
+  s_74ac265841cf3c::t_a4b9182a2b3fa9 1-165
+apps/app/src/app/(auth)/sign-up/page.tsx
+  s_74ac265841cf3c::t_fb2b1951068a11 1-103
+apps/app/src/app/(marketing)/about/page.tsx
+  s_74ac265841cf3c::t_2ebe9988e5c6ae 1-50
+apps/app/src/app/(marketing)/changelog/page.tsx
+  s_74ac265841cf3c::t_861686fc99d825 1-74
+apps/app/src/app/(marketing)/docs/page.tsx
+  s_74ac265841cf3c::t_17f9853251c662 1-136
+apps/app/src/app/(marketing)/layout.tsx
+  s_74ac265841cf3c::t_7ca0110ceed21e 1-20
+apps/app/src/app/(marketing)/page.tsx
+  s_74ac265841cf3c::t_875a3ebe558d54 1-191
+apps/app/src/app/(marketing)/pricing/page.tsx
+  s_74ac265841cf3c::t_0ddfc55894fbcb 1-97
+apps/app/src/app/(marketing)/privacy/page.tsx
+  s_74ac265841cf3c::t_92d18abcd419b2 1-51
+apps/app/src/app/(marketing)/terms/page.tsx
+  s_74ac265841cf3c::t_2ba40a4674525c 1-47
+apps/app/src/app/account/page.tsx
+  s_74ac265841cf3c::t_b384187e339635 1-174
+apps/app/src/app/c/[slug]/page.tsx
+  s_74ac265841cf3c::t_df144a0d1e388c 1-59
+apps/app/src/app/desk/page.tsx
+  s_74ac265841cf3c::t_bafb34d1871462 1-29
+apps/app/src/app/e/[slug]/page.tsx
+  s_74ac265841cf3c::t_a01b1fb4721c40 1-96
+apps/app/src/app/globals.css
+  s_74ac265841cf3c::t_4aaa30dbaa8acd 1-71
+apps/app/src/app/invite/[id]/page.tsx
+  s_74ac265841cf3c::t_881bc9d14c85f7 1-160
+apps/app/src/app/layout.tsx
+  s_74ac265841cf3c::t_d82709e919d569 1-19
+apps/app/src/app/m/[slug]/page.tsx
+  s_74ac265841cf3c::t_01081a66310497 1-40
+apps/app/src/app/not-found.tsx
+  s_74ac265841cf3c::t_a3b7245d2584c2 1-21
+apps/app/src/app/onboarding/page.tsx
+  s_74ac265841cf3c::t_c5fd96b2fcdf15 1-491
+apps/app/src/app/w/[slug]/demand/page.tsx
+  s_74ac265841cf3c::t_270003da24ca72 1-96
+apps/app/src/app/w/[slug]/events/page.tsx
+  s_74ac265841cf3c::t_aecda8a4c33d75 1-193
+apps/app/src/app/w/[slug]/import/page.tsx
+  s_74ac265841cf3c::t_297e8175014dd3 1-79
+apps/app/src/app/w/[slug]/layout.tsx
+  s_74ac265841cf3c::t_0872c3787e263a 1-15
+apps/app/src/app/w/[slug]/page.tsx
+  s_74ac265841cf3c::t_3eef10ccc2b507 1-229
+apps/app/src/app/w/[slug]/people/page.tsx
+  s_74ac265841cf3c::t_e1e0c555820872 1-208
+apps/app/src/app/w/[slug]/proposals/page.tsx
+  s_74ac265841cf3c::t_88a67f762709f6 1-254
+apps/app/src/app/w/[slug]/search/page.tsx
+  s_74ac265841cf3c::t_c42d71a5b7bd65 1-88
+apps/app/src/app/w/[slug]/settings/agents/page.tsx
+  s_74ac265841cf3c::t_31ac6a3ae4736d 1-174
+apps/app/src/app/w/[slug]/settings/layout.tsx
+  s_74ac265841cf3c::t_ccefc15861b0d3 1-47
+apps/app/src/app/w/[slug]/settings/page.tsx
+  s_74ac265841cf3c::t_1e3b2b76d94120 1-183
+apps/app/src/app/w/[slug]/settings/team/page.tsx
+  s_74ac265841cf3c::t_2123c4b4933570 1-230
+apps/app/src/components/auth/dev-outbox.tsx
+  s_74ac265841cf3c::t_e606849cf1a956 1-70
+apps/app/src/components/copy-button.tsx
+  s_74ac265841cf3c::t_ac84a143535299 1-36
+apps/app/src/components/desk/citations.tsx
+  s_74ac265841cf3c::t_105ad0a2e6f048 1-21
+apps/app/src/components/desk/journey.tsx
+  s_74ac265841cf3c::t_899ef8e156dad6 1-102
+apps/app/src/components/desk/page-header.tsx
+  s_74ac265841cf3c::t_535dfdcfa77619 1-24
+apps/app/src/components/desk/status-badge.tsx
+  s_74ac265841cf3c::t_8121a7ad85f4a2 1-33
+apps/app/src/components/import-dropzone.tsx
+  s_74ac265841cf3c::t_59c1cdd3aa3e3c 1-94
+apps/app/src/components/kicker.tsx
+  s_74ac265841cf3c::t_8b153b33dce60e 1-9
+apps/app/src/components/marketing/marketing-chrome.tsx
+  s_74ac265841cf3c::t_d892dda8757a8a 1-65
+apps/app/src/components/product-preview.tsx
+  s_74ac265841cf3c::t_a0dd37c82f2b17 1-52
+apps/app/src/components/public-chrome.tsx
+  s_74ac265841cf3c::t_dab95afce2e099 1-39
+apps/app/src/components/rsvp-form.tsx
+  s_74ac265841cf3c::t_506cd8292270d7 1-67
+apps/app/src/components/ui/badge.tsx
+  s_74ac265841cf3c::t_da04c43792215b 1-47
+apps/app/src/components/ui/button.tsx
+  s_74ac265841cf3c::t_d5504e11ccbaf4 1-63
+apps/app/src/components/ui/card.tsx
+  s_74ac265841cf3c::t_1f617c40e17a4b 1-91
+apps/app/src/components/ui/dialog.tsx
+  s_74ac265841cf3c::t_e977d640c60693 1-45
+apps/app/src/components/ui/dropdown-menu.tsx
+  s_74ac265841cf3c::t_7a1dceaf33ac20 1-54
+apps/app/src/components/ui/input.tsx
+  s_74ac265841cf3c::t_b7545746848938 1-20
+apps/app/src/components/ui/label.tsx
+  s_74ac265841cf3c::t_6b65f030cd548a 1-23
+apps/app/src/components/ui/select.tsx
+  s_74ac265841cf3c::t_537715c05d6b33 1-189
+apps/app/src/components/ui/separator.tsx
+  s_74ac265841cf3c::t_ad4d27e1688003 1-27
+apps/app/src/components/ui/sonner.tsx
+  s_74ac265841cf3c::t_2a06855fa6c572 1-37
+apps/app/src/components/ui/tabs.tsx
+  s_74ac265841cf3c::t_69bcdbfcc99066 1-34
+apps/app/src/components/ui/textarea.tsx
+  s_74ac265841cf3c::t_aeb57ac4115206 1-17
+apps/app/src/components/workspace/app-header.tsx
+  s_74ac265841cf3c::t_f2dbed210ff191 1-59
+apps/app/src/components/workspace/workspace-context.tsx
+  s_74ac265841cf3c::t_1bae167fe02707 1-19
+apps/app/src/components/workspace/workspace-shell.tsx
+  s_74ac265841cf3c::t_541026bc6ba297 1-158
+apps/app/src/lib/api.ts
+  s_74ac265841cf3c::t_98a797aef746e7 1-44
+apps/app/src/lib/auth-client.ts
+  s_74ac265841cf3c::t_1738bd547caf96 1-8
+apps/app/src/lib/public-api.ts
+  s_74ac265841cf3c::t_c21006a06ed3fc 1-12
+apps/app/src/lib/types.ts
+  s_74ac265841cf3c::t_17206bf2287172 1-179
+apps/app/src/lib/utils.ts
+  s_74ac265841cf3c::t_7ecd33322ae50d 1-6
+apps/app/src/proxy.ts
+  s_74ac265841cf3c::t_c7507bd2a5c3fa 1-24
+apps/app/tsconfig.json
+  s_74ac265841cf3c::t_3bda8940c6e018 1-41
+apps/web/src/app/c/[slug]/page.tsx
+  s_74ac265841cf3c::t_1d188ffb505fa4 3,18-44,46,48-66,68
+apps/web/src/app/desk/demand/page.tsx
+  s_74ac265841cf3c::t_7163178a50ba3a 3,5,11-13,19-20,25-33,39,48,54-69,71-90,93-95
+apps/web/src/app/desk/events/page.tsx
+  s_74ac265841cf3c::t_29a8b7dec39ed5 4,7,10-12,14-20,23-27,43-55,57-58,61-62,68-184,189-191,195-204
+apps/web/src/app/desk/import/page.tsx
+  s_74ac265841cf3c::t_260a98e7ee4933 3,5-6,9,11-12,14-26,31-34,36,38-40,43-44,46-48,50,52-57,59,66-116,118-159,164-172
+apps/web/src/app/desk/page.tsx
+  s_74ac265841cf3c::t_a22d892c6cd6dd 4,7-8,10-12,14-23,27-30,35-50,55-59,63-85,87-88,92-186,201-211
+apps/web/src/app/desk/people/page.tsx
+  s_74ac265841cf3c::t_f5b7a3e3461053 4,7,12-14,19,21-23,31,42-55,57-59,65-66,73,75-78,85-90,93-128,130-151,153-174,176-178,180,182-184,188-190,194-211
+apps/web/src/app/desk/proposals/page.tsx
+  s_74ac265841cf3c::t_f624101092e69d 3,5,12-16,18-21,26-28,32,38-42,44,55-56,58,62,67,69,75-76,83-84,88-89,92-240,242-258,261
+apps/web/src/app/desk/search/page.tsx
+  s_74ac265841cf3c::t_b32f1aa6d6af28 3-4,11-12,19,21-24,26,30-31,37-79
+apps/web/src/app/desk/settings/page.tsx
+  s_74ac265841cf3c::t_a8a6c93b8690a6 4,19-21,23,32,41-45,58-59,61-62,66,68-69,73-74,80-97,107,119-130,135-155,157-171,174-195
+apps/web/src/app/docs/page.tsx
+  s_74ac265841cf3c::t_bc78801aac835b 5-70,76-101
+apps/web/src/app/e/[slug]/page.tsx
+  s_74ac265841cf3c::t_ddc0cb5568d2a1 3,7,22-25,32-33,35-97
+apps/web/src/app/m/[slug]/page.tsx
+  s_74ac265841cf3c::t_89e0950969fff1 2,16-36
+apps/web/src/app/page.tsx
+  s_74ac265841cf3c::t_e8382cd6fc2ed6 2,5,8-37,41-47,49-50,52,55,57,63-130
+apps/web/src/components/copy-button.tsx
+  s_74ac265841cf3c::t_907eb2db6360a3 1-36
+apps/web/src/components/desk/citations.tsx
+  s_74ac265841cf3c::t_bc1c9f3b7f835e 1-18
+apps/web/src/components/desk/desk-shell.tsx
+  s_74ac265841cf3c::t_35e1c170199498 5-15,29,36-43,54-56,58,70-71,84,101-104,106,108,115-116,120-123,127,131,136-137,144,148-157,161-206,208,212-216,218-238,243-251,254,265-290,295-298
+apps/web/src/components/desk/journey.tsx
+  s_74ac265841cf3c::t_06b04e5424047e 1-111
+apps/web/src/components/desk/page-header.tsx
+  s_74ac265841cf3c::t_dab985f6d9101f 1-24
+apps/web/src/components/desk/status-badge.tsx
+  s_74ac265841cf3c::t_7ae45c4ad7f04f 1-33
+apps/web/src/components/public-chrome.tsx
+  s_74ac265841cf3c::t_c576a4066c9361 5-7,10,15-21,27
+apps/web/src/components/rsvp-form.tsx
+  s_74ac265841cf3c::t_2c1f5a77b725a0 4,16,20,25,33,38,40-45,47-48,50-58,60-62
+apps/web/src/lib/types.ts
+  s_74ac265841cf3c::t_ea1b2ad18a1332 8-13,21,24,34,42,47-48,51-53,58,61-62,65,75-94,108-109,123-124,128,130,132
+package-lock.json
+  s_74ac265841cf3c::t_3bb689d6f309de 148-173,228-340,510-513,5333-5453
+package.json
+  s_74ac265841cf3c::t_21bf184a9ea90a 11,13
+packages/core/src/memory-store.ts
+  s_74ac265841cf3c::t_32bf21ad8a24c1 4,13,30-31,67-103,116,128-135,137-139
+packages/core/src/store.ts
+  s_74ac265841cf3c::t_069f587c61852d 2,11,28-32,37-38
+packages/core/src/types.ts
+  s_74ac265841cf3c::t_de5dcc539ea363 4-14,34
+packages/db/package.json
+  s_74ac265841cf3c::t_ddab383d4c3644 13
+packages/db/scripts/backfill-orgs.ts
+  s_74ac265841cf3c::t_f029a1e6c40e4b 1-53
+packages/db/src/schema.ts
+  s_74ac265841cf3c::t_e1d5bd7f2c5cfa 26,56-104
+packages/db/tsconfig.json
+  s_74ac265841cf3c::t_3bdca588584500 14
+supabase/migrations/20261022234916_rls_app_users_sessions.sql
+  s_74ac265841cf3c::t_845afb00b9355f 1-2
+supabase/migrations/20261023000000_init.sql
+  s_74ac265841cf3c::t_a007c082e00300 1-218
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e70b322fbe65a39d5e7c856af5baef3e7e8dc672",
+  "prompts": {},
+  "sessions": {
+    "s_2e18d903f62560": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "b06fb83a-2fcb-4839-804e-3963dbeb954b",
+        "model": "grok-4.6"
+      },
+      "human_author": "Hamza <hshaebi.11@gmail.com>"
+    },
+    "s_74ac265841cf3c": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "8f3a1276-8d07-4c1a-aec1-dbd33b502212",
+        "model": "grok-4.6"
+      },
+      "human_author": "Hamza <hshaebi.11@gmail.com>"
+    },
+    "s_886b129f69f26a": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "07f964e0-205f-4600-a03b-c7f449cfa427",
+        "model": "grok-4.6"
+      },
+      "human_author": "Hamza <hshaebi.11@gmail.com>"
+    }
+  }
+}
