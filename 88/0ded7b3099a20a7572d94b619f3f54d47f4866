@@ -1,0 +1,174 @@
+packages/core/src/kernel.test.ts
+  s_74ac265841cf3c::t_ddf7c2e8525e37 1-103
+packages/core/src/extract.ts
+  s_74ac265841cf3c::t_aa229d676f21c6 1-85
+apps/web/src/index.ts
+  s_74ac265841cf3c::t_29dff78337256a 1-3
+apps/mcp/src/index.ts
+  s_74ac265841cf3c::t_fc2a017fb9caa2 45
+  s_74ac265841cf3c::t_04f55291fe74d6 1-41,43-44,46-52
+  s_74ac265841cf3c::t_676bdead774b21 42
+.gitignore
+  s_74ac265841cf3c::t_f1d16b4949ba83 1-12
+fixtures/whatsapp-sample/_chat.txt
+  s_74ac265841cf3c::t_83d46a9d901a24 1-13
+packages/core/src/store.ts
+  s_74ac265841cf3c::t_c17a23ddde600d 1-65,67-96
+  s_74ac265841cf3c::t_57a4aebe8ee7fe 66
+packages/whatsapp-import/package.json
+  s_74ac265841cf3c::t_1f2d70a953a82d 1-19
+apps/mcp/package.json
+  s_74ac265841cf3c::t_4f5a31973b4db1 1-20
+packages/whatsapp-import/src/index.ts
+  s_74ac265841cf3c::t_0e5da6b15cadba 1-49
+apps/web/src/desk.ts
+  s_74ac265841cf3c::t_6fe23fa8f3d9c1 1-134
+apps/mcp/tsconfig.json
+  s_74ac265841cf3c::t_d71d221beb0b78 10
+  s_74ac265841cf3c::t_6d69073100fd98 1-9,11-14
+packages/db/drizzle.config.ts
+  s_74ac265841cf3c::t_aec04012b2edc5 1-11
+packages/core/src/noise.ts
+  s_74ac265841cf3c::t_7c1eacdccf5dfc 1-15
+apps/web/tsconfig.json
+  s_74ac265841cf3c::t_0268d11e697299 9
+  s_74ac265841cf3c::t_34db86f6a086db 1-8,10-15
+apps/api/cloudflare.config.ts
+  s_74ac265841cf3c::t_e3f3a548493aba 2-4,18
+  s_74ac265841cf3c::t_7b1b7f1bcfa37e 5-6,8-11,16-17
+  s_74ac265841cf3c::t_54e4c5dc729433 7
+  s_74ac265841cf3c::t_47c76b0146acfd 1,12-15
+apps/api/src/app.test.ts
+  s_74ac265841cf3c::t_90c2ea48b0b9e1 43
+  s_74ac265841cf3c::t_bd494d911632c5 21
+  s_74ac265841cf3c::t_b20325820a4dbc 37
+  s_74ac265841cf3c::t_0ca30948c6d07d 1-20,22-28,30-36,38-42,44-46
+  s_74ac265841cf3c::t_42c301464115a8 29
+packages/core/src/qr.ts
+  s_74ac265841cf3c::t_30e1bfc761c272 1,3-18,20-23,26,29-32,34,37-41,46-47,50-51
+  s_74ac265841cf3c::t_2bef7b7b74bff6 2,19,24-25,27-28,33,35-36,42-45,48-49,52
+apps/api/src/index.ts
+  s_74ac265841cf3c::t_1ee06284aca99f 1,3-4,6-9,12,15-19
+  s_74ac265841cf3c::t_c9ba88dc61ffef 21
+  s_74ac265841cf3c::t_e3f3a548493aba 5,11
+  s_74ac265841cf3c::t_a199092e4ced4b 2
+  s_74ac265841cf3c::t_366456f1124dd6 10,13-14,20
+packages/core/src/whatsapp.ts
+  s_74ac265841cf3c::t_87bd66cba15595 1-82
+apps/api/tsconfig.json
+  s_74ac265841cf3c::t_46c8576240a9ad 2-15
+  s_74ac265841cf3c::t_e3f3a548493aba 1,16
+packages/core/src/memory-store.ts
+  s_74ac265841cf3c::t_3dd205f2dfa5d2 263-266
+  s_74ac265841cf3c::t_1963cfb5a81906 1-262,267-364
+package.json
+  s_74ac265841cf3c::t_fbdee747fe26f3 15-16
+  s_74ac265841cf3c::t_fc8e0ad5fe5b82 1-11,14,17-18
+  s_74ac265841cf3c::t_c114f8cfd847bc 12-13
+packages/core/src/ids.ts
+  s_74ac265841cf3c::t_e8a607643b47f5 1-21
+apps/api/package.json
+  s_74ac265841cf3c::t_e3f3a548493aba 1,29
+  s_74ac265841cf3c::t_2e1c79683cbabd 14,17
+  s_74ac265841cf3c::t_be4adbb6306fbe 2-5,8-13,15-16,19-22,24-28
+  s_74ac265841cf3c::t_7b404770b0885b 6-7
+  s_74ac265841cf3c::t_9c2102c16a7537 18
+  s_74ac265841cf3c::t_420f6a13dac7d1 23
+packages/core/package.json
+  s_74ac265841cf3c::t_a7f2fa85305777 1-17
+apps/api/.dev.vars.example
+  s_74ac265841cf3c::t_774db6d0852cef 1-2
+apps/api/vitest.config.ts
+  s_74ac265841cf3c::t_12d15b106383ae 1-7
+packages/db/src/index.ts
+  s_74ac265841cf3c::t_031e8d4a245bf1 1-12
+LICENSE
+  s_74ac265841cf3c::t_5d288c6fca421b 1-21
+README.md
+  s_74ac265841cf3c::t_758482fa0eb390 32
+  s_74ac265841cf3c::t_9025a76c71d61a 33-34
+  s_74ac265841cf3c::t_2b92e08b38c126 1-30,38-48
+  s_74ac265841cf3c::t_51d5f0d43e982c 31,35-37
+packages/db/package.json
+  s_74ac265841cf3c::t_cd5177b2856cc9 1-16,18-19,21-23
+  s_74ac265841cf3c::t_1ea9840a2ab65b 17,20
+apps/api/src/auth.ts
+  s_74ac265841cf3c::t_bf633c5c41da0a 1,3-22
+  s_74ac265841cf3c::t_8c74676e26d187 2
+apps/web/src/public.ts
+  s_74ac265841cf3c::t_329290079e6ec6 1-82,84-94
+  s_74ac265841cf3c::t_02ce0ef233123e 83
+packages/db/src/schema.ts
+  s_74ac265841cf3c::t_2a547f8767d86f 64-73
+  s_74ac265841cf3c::t_8a564eabffa783 2-63,74-267
+  s_74ac265841cf3c::t_44676204e3fb9f 1
+packages/core/tsconfig.json
+  s_74ac265841cf3c::t_d6237540f99dc0 1-8,10-15
+  s_74ac265841cf3c::t_2258fb18d00497 9
+docs/MAP.md
+  s_74ac265841cf3c::t_80bfa55ddbcaf1 20,24-25
+  s_74ac265841cf3c::t_7af7094ee8b028 7-13,15-19,21-23,26-27
+  s_74ac265841cf3c::t_89f947a866be6c 14
+apps/web/src/layout.ts
+  s_74ac265841cf3c::t_6a3769859de671 1-48
+apps/api/.gitignore
+  s_74ac265841cf3c::t_e3f3a548493aba 1-10
+apps/api/src/drizzle-store.ts
+  s_74ac265841cf3c::t_f3fd3328600b39 1-27,29-161,166-167,169-399,401-475
+  s_74ac265841cf3c::t_e19fa4f704f013 28
+  s_74ac265841cf3c::t_0fae7e6b95ab95 400
+  s_74ac265841cf3c::t_789e9560472564 162-165,168
+packages/db/tsconfig.json
+  s_74ac265841cf3c::t_46e1b5b09845d0 1-15
+packages/core/src/types.ts
+  s_74ac265841cf3c::t_dda73b2e348a76 1-180
+scripts/ensure-cf-plugin.mjs
+  s_74ac265841cf3c::t_74e250b1cb9d22 1-11
+packages/core/src/index.ts
+  s_74ac265841cf3c::t_cc10af62eee35e 1-10
+apps/web/package.json
+  s_74ac265841cf3c::t_831b3039c5162b 1-15
+apps/api/vite.config.ts
+  s_74ac265841cf3c::t_e3f3a548493aba 1-6
+apps/api/src/app.ts
+  s_74ac265841cf3c::t_a792a28049dc88 92
+  s_74ac265841cf3c::t_ecbe7d702a9bf1 65
+  s_74ac265841cf3c::t_197d244749432f 32
+  s_74ac265841cf3c::t_6e2351e8c36113 367-368
+  s_74ac265841cf3c::t_dee82ce728100c 1-13,15-19,21,23-31,33-50,55-64,66-74,76,78-87,89-91,93-99,101,103-118,122,132-139,141-142,147,149-162,165-169,173-184,187-191,193-195,198-200,202-205,207-211,214-219,221-227,229-241,243-252,254-255,257-270,273-338,340-366,369-372
+  s_74ac265841cf3c::t_e990aedb3e547d 271-272
+  s_74ac265841cf3c::t_76b71050814e36 14
+  s_74ac265841cf3c::t_8153d7dc50f566 22
+  s_74ac265841cf3c::t_f927f91e280329 171
+  s_74ac265841cf3c::t_2ac253d4d42d3b 51-54
+  s_74ac265841cf3c::t_ea0958e906ff37 186
+  s_74ac265841cf3c::t_aa29ad2dd085c2 20
+  s_74ac265841cf3c::t_909cd0ce082372 124-130
+  s_74ac265841cf3c::t_44ebd52e339f3a 75,77
+  s_74ac265841cf3c::t_0937bfb9a6fc82 88,100,102,119-121,123,131,140,143-146,148,163-164,170,172,185,192,196-197,201,206,212-213,220,228,242,253,256,339
+packages/core/src/match.ts
+  s_74ac265841cf3c::t_9647b97d1914fd 1-80
+packages/whatsapp-import/tsconfig.json
+  s_74ac265841cf3c::t_5f05c37183dc8f 1-8,10-15
+  s_74ac265841cf3c::t_556e82dce67659 9
+packages/core/src/kernel.ts
+  s_74ac265841cf3c::t_b961b527af17fc 1-371
+package-lock.json
+  s_74ac265841cf3c::t_c807eaf33ffa18 1-6236
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "880ded7b3099a20a7572d94b619f3f54d47f4866",
+  "prompts": {},
+  "sessions": {
+    "s_74ac265841cf3c": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "8f3a1276-8d07-4c1a-aec1-dbd33b502212",
+        "model": "grok-4.6"
+      },
+      "human_author": "Hamza <hshaebi.11@gmail.com>"
+    }
+  }
+}
