@@ -1,0 +1,30 @@
+docs/MAP.md
+  s_6bf5f1ecc777d7::t_96087a5718e89b 30-31
+packages/core/src/kernel.test.ts
+  s_6bf5f1ecc777d7::t_0b80b049688350 71-73
+packages/core/src/kernel.ts
+  s_6bf5f1ecc777d7::t_0238f7e6c2f126 264
+  s_6bf5f1ecc777d7::t_aaed9eab711636 257-263,265-266,270-279,285-286,291-292,294-295,301
+apps/api/src/app.ts
+  s_6bf5f1ecc777d7::t_039060e5d80e53 13
+  s_6bf5f1ecc777d7::t_2fefec2f015c4a 207-210
+apps/api/src/app.test.ts
+  s_6bf5f1ecc777d7::t_a29a21de5cf868 106-138,140-176
+  s_6bf5f1ecc777d7::t_ca35fe4520ccca 139
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "bf8a82eec33996eb19a4be724e562d32547670e0",
+  "prompts": {},
+  "sessions": {
+    "s_6bf5f1ecc777d7": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "d4516f49-d8d2-40ef-b9b3-06080012a93a",
+        "model": "grok-4.6"
+      },
+      "human_author": "Hamza <hshaebi.11@gmail.com>"
+    }
+  }
+}
