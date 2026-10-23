@@ -27,3 +27,5 @@ Auth: Better Auth (`/api/auth/*`) plus `POST /v1/auth/dev` for local curl. Data:
 Slice 0 done check: `POST /v1/auth/dev` → `POST /v1/workspaces` → `POST /v1/workspaces/:id/imports` → `GET /v1/workspaces/:id/members`.
 
 Slice 1 done check: `POST /v1/workspaces/:id/memory` → `GET /v1/members/:id` (citations) → `GET /v1/workspaces/:id/briefing` → `GET /v1/demands/:id`.
+
+Slice 2 done check: `POST /v1/workspaces/:id/proposals` → `GET /v1/proposals/:id` (pack) → `POST /v1/proposals/:id/approve`.

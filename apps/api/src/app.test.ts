@@ -103,4 +103,75 @@ describe("kernel API", () => {
     const list = (await resources.json()) as Array<{ url: string }>;
     expect(list.some((r) => r.url === "https://example.com/community-os-notes")).toBe(true);
   });
+
+  it("curl path: demand → proposal pack → approve → outreach", async () => {
+    const app = createApp(new MemoryStore());
+    const auth = await app.request("/v1/auth/dev", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email: "lead@example.com" }),
+    });
+    const { token } = (await auth.json()) as { token: string };
+    const headers = { authorization: `Bearer ${token}`, "content-type": "application/json" };
+
+    const ws = await app.request("/v1/workspaces", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ name: "Weird Stuff" }),
+    });
+    const workspace = (await ws.json()) as { id: string };
+
+    await app.request(`/v1/workspaces/${workspace.id}/imports?filename=_chat.txt`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${token}`, "content-type": "text/plain" },
+      body: chat,
+    });
+
+    const memoryRes = await app.request(`/v1/workspaces/${workspace.id}/memory`, { method: "POST", headers });
+    const memory = (await memoryRes.json()) as { demands: Array<{ id: string }> };
+    expect(memory.demands.length).toBeGreaterThan(0);
+
+    const venueRes = await app.request(`/v1/workspaces/${workspace.id}/venues`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ name: "Expedite HQ", area: "Hammersmith", capacity: 80 }),
+    });
+    expect(venueRes.status).toBe(201);
+
+    const created = await app.request(`/v1/workspaces/${workspace.id}/proposals`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ demandId: memory.demands[0].id }),
+    });
+    expect(created.status).toBe(201);
+    const pack = (await created.json()) as {
+      id: string;
+      status: string;
+      explanation: string | null;
+      speakers: unknown[];
+      venue: { name: string } | null;
+      citations: Array<{ quote: string }>;
+    };
+    expect(pack.status).toBe("draft");
+    expect(pack.speakers.length).toBeGreaterThan(0);
+    expect(pack.venue?.name).toBe("Expedite HQ");
+    expect(pack.explanation).toBeTruthy();
+    expect(pack.citations.length).toBeGreaterThan(0);
+
+    const got = await app.request(`/v1/proposals/${pack.id}`, { headers });
+    expect(got.status).toBe(200);
+    const opened = (await got.json()) as { id: string; speakers: unknown[] };
+    expect(opened.id).toBe(pack.id);
+    expect(opened.speakers.length).toBe(pack.speakers.length);
+
+    const approved = await app.request(`/v1/proposals/${pack.id}/approve`, { method: "POST", headers });
+    expect(approved.status).toBe(200);
+    const approvedPack = (await approved.json()) as { status: string };
+    expect(approvedPack.status).toBe("approved");
+
+    const outreach = await app.request(`/v1/proposals/${pack.id}/outreach`, { method: "POST", headers });
+    expect(outreach.status).toBe(200);
+    const drafted = (await outreach.json()) as { outreachDraft: string | null };
+    expect(drafted.outreachDraft).toMatch(/Weird Stuff/);
+  });
 });

@@ -254,31 +254,51 @@ export async function createProposalFromDemand(store: Store, communityId: string
     payload: { proposalId: proposal.id, demandId: demand.id },
     createdAt: new Date().toISOString(),
   });
-  return proposal;
+  return openProposal(store, proposal.id);
+}
+
+export async function openProposal(store: Store, proposalId: string) {
+  const proposal = await store.getProposal(proposalId);
+  if (!proposal) throw new Error("proposal not found");
+  const speakers = (await Promise.all(proposal.speakerIds.map((id) => store.getMember(id)))).filter(Boolean) as Member[];
+  const venue = proposal.venueId ? await store.getVenue(proposal.venueId) : null;
+  const citations = await store.listCitations(proposal.communityId, "demand", proposal.demandId);
+  return { ...proposal, speakers, venue, citations };
 }
 
 export async function setProposalStatus(store: Store, proposalId: string, status: Proposal["status"]) {
-  return store.updateProposal(proposalId, { status });
+  const proposal = await store.getProposal(proposalId);
+  if (!proposal) throw new Error("proposal not found");
+  if (status === "approved" && proposal.status !== "draft") {
+    throw new Error("only a draft proposal can be approved");
+  }
+  if (status !== "approved") {
+    throw new Error("use go-live to publish an approved proposal");
+  }
+  await store.updateProposal(proposalId, { status });
+  return openProposal(store, proposalId);
 }
 
 export async function makeOutreachDraft(store: Store, proposalId: string, communityName: string) {
   const proposal = await store.getProposal(proposalId);
   if (!proposal) throw new Error("proposal not found");
-  const speakers = (await Promise.all(proposal.speakerIds.map((id) => store.getMember(id)))).filter(Boolean) as Member[];
-  const venue = proposal.venueId ? await store.getVenue(proposal.venueId) : null;
+  if (proposal.outreachDraft) return openProposal(store, proposalId);
+  const pack = await openProposal(store, proposalId);
   const demand = await store.getDemand(proposal.demandId);
   const draft = draftOutreach({
     communityName,
     topic: demand?.topic ?? "this",
-    speakers: speakers.map((s) => s.displayName),
-    venue: venue?.name ?? null,
+    speakers: pack.speakers.map((s) => s.displayName),
+    venue: pack.venue?.name ?? null,
   });
-  return store.updateProposal(proposalId, { outreachDraft: draft });
+  await store.updateProposal(proposalId, { outreachDraft: draft });
+  return openProposal(store, proposalId);
 }
 
 export async function goLive(store: Store, proposalId: string, origin: string) {
   const proposal = await store.getProposal(proposalId);
   if (!proposal) throw new Error("proposal not found");
+  if (proposal.status !== "approved") throw new Error("approve the proposal before going live");
   await store.updateProposal(proposalId, { status: "live" });
   const demand = await store.getDemand(proposal.demandId);
   const workspace = await store.getWorkspace(proposal.communityId);

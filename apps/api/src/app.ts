@@ -10,6 +10,7 @@ import {
   memberCard,
   MemoryStore,
   openDemand,
+  openProposal,
   refreshMemory,
   rsvp,
   setProposalStatus,
@@ -203,6 +204,10 @@ export function createApp(store: Store, auth?: Auth) {
     return c.json(await createProposalFromDemand(store, c.req.param("id"), body.demandId), 201);
   });
   app.get("/v1/workspaces/:id/proposals", requireAuth, lead, async (c) => c.json(await store.listProposals(c.req.param("id"))));
+  app.get("/v1/proposals/:proposalId", requireAuth, async (c) => {
+    const proposal = await requireProposalLead(store, c.req.param("proposalId"), c.get("userId"));
+    return c.json(await openProposal(store, proposal.id));
+  });
   app.post("/v1/proposals/:proposalId/approve", requireAuth, async (c) => {
     const proposal = await requireProposalLead(store, c.req.param("proposalId"), c.get("userId"));
     return c.json(await setProposalStatus(store, proposal.id, "approved"));

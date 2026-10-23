@@ -68,6 +68,9 @@ describe("kernel loop", () => {
     const demand = memory.demands[0];
     const proposal = await createProposalFromDemand(store, workspace.id, demand.id);
     expect(proposal.status).toBe("draft");
+    expect(proposal.speakers.length).toBeGreaterThan(0);
+    expect(proposal.explanation).toMatch(/“/);
+    await expect(goLive(store, proposal.id, "http://localhost:5173")).rejects.toThrow(/approve/);
     await setProposalStatus(store, proposal.id, "approved");
     const drafted = await makeOutreachDraft(store, proposal.id, workspace.name);
     expect(drafted.outreachDraft).toMatch(/Weird Stuff/);
