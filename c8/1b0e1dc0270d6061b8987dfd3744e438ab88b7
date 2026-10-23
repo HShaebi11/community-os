@@ -1,0 +1,23 @@
+README.md
+  s_8a0aa2403e06a7::t_430c7566292bbf 67-68
+docs/API.md
+  s_8a0aa2403e06a7::t_f6fd450d40931e 1-302
+docs/MAP.md
+  s_8a0aa2403e06a7::t_5d48b31824d21b 5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c81b0e1dc0270d6061b8987dfd3744e438ab88b7",
+  "prompts": {},
+  "sessions": {
+    "s_8a0aa2403e06a7": {
+      "agent_id": {
+        "tool": "devin",
+        "id": "s_8a0aa2403e06a7",
+        "model": "unknown"
+      },
+      "human_author": "Hamza <hshaebi.11@gmail.com>"
+    }
+  }
+}
