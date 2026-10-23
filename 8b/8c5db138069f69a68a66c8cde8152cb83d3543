@@ -1,0 +1,19 @@
+apps/api/src/kernel-loop.test.ts
+  s_8265d880b5e1ee::t_576d5fdf02f4ba 1-131
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8b8c5db138069f69a68a66c8cde8152cb83d3543",
+  "prompts": {},
+  "sessions": {
+    "s_8265d880b5e1ee": {
+      "agent_id": {
+        "tool": "devin",
+        "id": "s_8265d880b5e1ee",
+        "model": "unknown"
+      },
+      "human_author": "Hamza <hshaebi.11@gmail.com>"
+    }
+  }
+}
