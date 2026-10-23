@@ -24,8 +24,8 @@ import {
   type Store,
 } from "@community-os/core";
 import { parseWhatsAppExport } from "@community-os/whatsapp-import";
-import { communityPage, deskPage, docsPage, eventPage, homePage, memberPage } from "@community-os/web";
-import { Hono, type MiddlewareHandler } from "hono";
+import { Hono, type Context, type MiddlewareHandler } from "hono";
+import { cors } from "hono/cors";
 import { HTTPException } from "hono/http-exception";
 import type { Auth } from "./auth.ts";
 
@@ -40,6 +40,15 @@ export type AppEnv = {
 export function createApp(store: Store, auth?: Auth) {
   const app = new Hono<AppEnv>();
 
+  app.use(
+    "*",
+    cors({
+      origin: (origin) => origin || "*",
+      allowHeaders: ["Content-Type", "Authorization", "X-Public-Origin"],
+      allowMethods: ["GET", "POST", "PATCH", "OPTIONS"],
+    }),
+  );
+
   app.use("*", async (c, next) => {
     c.set("store", store);
     await next();
@@ -51,10 +60,6 @@ export function createApp(store: Store, auth?: Auth) {
     console.error(JSON.stringify({ message: "request failed", error: message, path: c.req.path }));
     return c.json({ error: message }, status);
   });
-
-  app.get("/", (c) => c.html(homePage()));
-  app.get("/desk", (c) => c.html(deskPage()));
-  app.get("/docs", (c) => c.html(docsPage()));
 
   if (auth) {
     app.on(["POST", "GET"], "/api/auth/*", (c) => auth.handler(c.req.raw));
@@ -229,8 +234,7 @@ export function createApp(store: Store, auth?: Auth) {
   });
   app.post("/v1/proposals/:proposalId/go-live", requireAuth, async (c) => {
     const proposal = await requireProposalLead(store, c.req.param("proposalId"), c.get("userId"));
-    const origin = new URL(c.req.url).origin;
-    return c.json(await goLive(store, proposal.id, origin));
+    return c.json(await goLive(store, proposal.id, requestOrigin(c)));
   });
 
   app.get("/v1/workspaces/:id/events", requireAuth, lead, async (c) => c.json(await store.listEvents(c.req.param("id"))));
@@ -253,7 +257,7 @@ export function createApp(store: Store, auth?: Auth) {
     if (!event || !(await store.isLead(event.communityId, c.get("userId")))) {
       throw new HTTPException(403, { message: "forbidden" });
     }
-    return c.json(await generateAutopilot(store, event.id, new URL(c.req.url).origin));
+    return c.json(await generateAutopilot(store, event.id, requestOrigin(c)));
   });
 
   app.post("/v1/ingest/discord", requireAuth, async (c) => {
@@ -300,11 +304,13 @@ export function createApp(store: Store, auth?: Auth) {
   });
 
   app.get("/v1/public/communities/:slug", async (c) => {
-    return c.json(await publicOr404(() => publicCommunity(store, c.req.param("slug"), new URL(c.req.url).origin)));
+    return c.json(await publicOr404(() => publicCommunity(store, c.req.param("slug"), requestOrigin(c))));
   });
-  app.get("/v1/public/events/:slug", async (c) =>
-    c.json(await publicOr404(() => publicEvent(store, c.req.param("slug")))),
-  );
+  app.get("/v1/public/events/:slug", async (c) => {
+    const event = await publicOr404(() => publicEvent(store, c.req.param("slug")));
+    await recordEventPageView(store, event.slug);
+    return c.json(event);
+  });
   app.post("/v1/public/events/:slug/rsvp", async (c) => {
     const body = await c.req.json<{ name?: string; email?: string }>();
     return c.json(await rsvp(store, c.req.param("slug"), { name: body.name ?? "", email: body.email ?? "" }), 201);
@@ -312,52 +318,6 @@ export function createApp(store: Store, auth?: Auth) {
   app.get("/v1/public/members/:slug", async (c) =>
     c.json(await publicOr404(() => publicMember(store, c.req.param("slug")))),
   );
-
-  app.get("/c/:slug", async (c) => {
-    const community = await publicOr404(() => publicCommunity(store, c.req.param("slug"), new URL(c.req.url).origin));
-    return c.html(communityPage(community));
-  });
-
-  app.get("/e/:slug", async (c) => {
-    const event = await publicOr404(() => publicEvent(store, c.req.param("slug")));
-    await recordEventPageView(store, event.slug);
-    return c.html(
-      eventPage({
-        title: event.title,
-        slug: event.slug,
-        communityName: event.community.name,
-        communitySlug: event.community.slug,
-        explanation: event.explanation,
-        venue: event.venue,
-        qrSvg: event.qrSvg,
-        speakers: event.speakers,
-        rsvpOk: c.req.query("rsvp") === "1",
-      }),
-    );
-  });
-
-  app.post("/e/:slug/rsvp", async (c) => {
-    const contentType = c.req.header("content-type") ?? "";
-    let name = "";
-    let email = "";
-    if (contentType.includes("application/json")) {
-      const body = await c.req.json<{ name: string; email: string }>();
-      name = body.name;
-      email = body.email;
-    } else {
-      const form = await c.req.parseBody();
-      name = String(form.name ?? "");
-      email = String(form.email ?? "");
-    }
-    const guest = await rsvp(store, c.req.param("slug"), { name, email });
-    if (contentType.includes("application/json")) return c.json(guest, 201);
-    return c.redirect(`/e/${c.req.param("slug")}?rsvp=1`);
-  });
-
-  app.get("/m/:slug", async (c) => {
-    const member = await publicOr404(() => publicMember(store, c.req.param("slug")));
-    return c.html(memberPage({ name: member.name, do: member.do, offer: member.offer }));
-  });
 
   app.get("/v1/search", requireAuth, async (c) => {
     const q = (c.req.query("q") ?? "").toLowerCase();
@@ -376,6 +336,10 @@ export function createApp(store: Store, auth?: Auth) {
   });
 
   return app;
+}
+
+function requestOrigin(c: Context): string {
+  return c.req.header("x-public-origin") || c.req.header("origin") || new URL(c.req.url).origin;
 }
 
 async function publicOr404<T>(fn: () => Promise<T>): Promise<T> {

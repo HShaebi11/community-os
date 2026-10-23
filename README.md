@@ -24,11 +24,11 @@ curl -s http://localhost:5173/v1/workspaces/$WS/imports?filename=_chat.txt \
 curl -s http://localhost:5173/v1/workspaces/$WS/members -H "authorization: Bearer $TOKEN"
 ```
 
-Open `/desk` for the lead UI. After go-live, `/c/{slug}` and `/e/{slug}` are the public face.
+Open `http://localhost:3000/desk` for the lead UI (Next.js + shadcn). After go-live, `/c/{slug}` and `/e/{slug}` on the same origin are the public face. The API stays on `:5173`; Next rewrites `/v1` to it.
 
 ## Stack
 
-Cloudflare Workers + Hono. **Neon** (Lakebase Postgres) + **Drizzle** + **Better Auth**.
+Cloudflare Workers + Hono for the API. Next.js + shadcn for the desk and public pages. **Neon** (Lakebase Postgres) + **Drizzle** + **Better Auth**.
 
 Database: [community-os](https://console.neon.tech/app/projects/delicate-mud-18770479) in **The Interfaces Company** (`aws-eu-west-2`). Schema: `community_os`.
 
