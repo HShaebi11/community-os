@@ -1,0 +1,13 @@
+[21/10/2026, 18:01:12] Maya: Hey everyone — I’m Maya, I build agent evals at a small lab.
+[21/10/2026, 18:01:40] Ilya: welcome Maya
+[21/10/2026, 18:02:01] Ilya: ok
+[21/10/2026, 18:04:22] Peter: We should do an AI workshop. People keep asking in DMs.
+[21/10/2026, 18:05:10] Maya: I can teach a 90 min workshop on evals. Happy to speak.
+[21/10/2026, 18:06:02] Oli: looking for a venue near Old Street for ~40 people
+[21/10/2026, 18:07:44] Fatema: I have a space in Hammersmith, I can host on Thursdays.
+[21/10/2026, 18:09:01] Charlie: we should run a speaker night, I want more intros
+[21/10/2026, 18:10:18] Ilya: +
+[21/10/2026, 18:12:55] Peter: Docs we trust: https://example.com/community-os-notes
+[21/10/2026, 18:14:02] Maya: I’m a founder / engineer. I want an AI workshop this month.
+[21/10/2026, 19:01:00] Oli: cool
+[21/10/2026, 19:22:11] Fatema: I run community nights. I can host the workshop if Maya teaches.

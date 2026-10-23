@@ -1,0 +1,29 @@
+{
+  "name": "api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node ../../scripts/ensure-cf-plugin.mjs && cf dev",
+    "build": "node ../../scripts/ensure-cf-plugin.mjs && cf build",
+    "deploy": "cf deploy",
+    "test": "vitest run",
+    "typecheck": "cf workers types && tsc --noEmit"
+  },
+  "dependencies": {
+    "@community-os/core": "0.1.0",
+    "@community-os/db": "0.1.0",
+    "@community-os/web": "0.1.0",
+    "@community-os/whatsapp-import": "0.1.0",
+    "better-auth": "^1.4.10",
+    "drizzle-orm": "^0.45.2",
+    "hono": "^4.11.3"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "beta",
+    "@types/node": "^24.9.2",
+    "cf": "^1.0.0-beta.18",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.0",
+    "vitest": "^3.2.4"
+  }
+}

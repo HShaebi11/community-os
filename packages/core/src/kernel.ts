@@ -1,0 +1,371 @@
+import { extractFromMessages, scoreApplication, titleFromTopic } from "./extract.ts";
+import { createId, sha256Hex, slugify } from "./ids.ts";
+import { draftOutreach, explainProposal, matchSpeakers, matchVenues, newsletter, promoPost, runSheet } from "./match.ts";
+import { extractUrls, isNoiseMessage } from "./noise.ts";
+import { qrSvg } from "./qr.ts";
+import type { Store } from "./store.ts";
+import type { Demand, EventRecord, FileRecord, Member, Message, Proposal } from "./types.ts";
+import { parseWhatsAppTranscript } from "./whatsapp.ts";
+
+export async function importWhatsApp(
+  store: Store,
+  communityId: string,
+  transcript: string,
+  attached: Array<{ name: string; storagePath: string; mime: string }>,
+) {
+  const parsed = parseWhatsAppTranscript(transcript);
+  let source = (await store.listSources(communityId)).find((s) => s.kind === "whatsapp");
+  if (!source) source = await store.createSource({ communityId, kind: "whatsapp", name: "WhatsApp export" });
+
+  const messages: Message[] = [];
+  for (const row of parsed) {
+    const member = await store.upsertMember(communityId, row.authorRaw, row.sentAt);
+    messages.push({
+      id: createId(),
+      communityId,
+      sourceId: source.id,
+      sourceMessageId: row.sourceMessageId,
+      authorRaw: row.authorRaw,
+      memberId: member.id,
+      body: row.body,
+      sentAt: row.sentAt,
+      isNoise: isNoiseMessage(row.body, row.authorRaw),
+    });
+  }
+  const result = await store.insertMessages(messages);
+
+  const files: FileRecord[] = attached.map((file) => ({
+    id: createId(),
+    communityId,
+    messageId: null,
+    name: file.name,
+    storagePath: file.storagePath,
+    mime: file.mime,
+  }));
+  await store.insertFiles(files);
+  await store.addTimeline({
+    id: createId(),
+    communityId,
+    kind: "import",
+    payload: { inserted: result.inserted, skipped: result.skipped, source: "whatsapp" },
+    createdAt: new Date().toISOString(),
+  });
+  return { ...result, members: await store.listMembers(communityId) };
+}
+
+export async function ingestDiscord(
+  store: Store,
+  communityId: string,
+  payload: { id: string; content: string; timestamp: string; author: { id: string; username: string } },
+) {
+  let source = (await store.listSources(communityId)).find((s) => s.kind === "discord");
+  if (!source) source = await store.createSource({ communityId, kind: "discord", name: "Discord" });
+  const member = await store.upsertMember(communityId, payload.author.username, payload.timestamp);
+  const result = await store.insertMessages([
+    {
+      id: createId(),
+      communityId,
+      sourceId: source.id,
+      sourceMessageId: payload.id,
+      authorRaw: payload.author.username,
+      memberId: member.id,
+      body: payload.content,
+      sentAt: payload.timestamp,
+      isNoise: isNoiseMessage(payload.content, payload.author.username),
+    },
+  ]);
+  return { ...result, member };
+}
+
+export async function refreshMemory(store: Store, communityId: string) {
+  const messages = await store.listMessages(communityId);
+  const members = await store.listMembers(communityId);
+  const byMember = new Map<string, Message[]>();
+  for (const message of messages) {
+    if (!message.memberId || message.isNoise) continue;
+    const list = byMember.get(message.memberId) ?? [];
+    list.push(message);
+    byMember.set(message.memberId, list);
+  }
+
+  for (const member of members) {
+    const theirs = byMember.get(member.id) ?? [];
+    const extracted = extractFromMessages(theirs.map((m) => m.body));
+    const patch: Partial<Pick<Member, "do" | "want" | "offer">> = {};
+    if (extracted.do) patch.do = extracted.do;
+    if (extracted.want) patch.want = extracted.want;
+    if (extracted.offer) patch.offer = extracted.offer;
+    if (Object.keys(patch).length) await store.updateMember(member.id, patch, false);
+    const citations = extracted.citations
+      .map((c) => {
+        const message = theirs.find((m) => m.body.includes(c.quote.slice(0, 40)) || c.quote.includes(m.body.slice(0, 40)));
+        if (!message) return null;
+        return {
+          id: createId(),
+          communityId,
+          objectType: "member",
+          objectId: member.id,
+          messageId: message.id,
+          quote: c.quote,
+        };
+      })
+      .filter((c) => c !== null);
+    await store.insertCitations(citations);
+    for (const message of theirs) {
+      for (const url of extractUrls(message.body)) {
+        await store.upsertResource({
+          id: createId(),
+          communityId,
+          url,
+          title: url.replace(/^https?:\/\//, "").slice(0, 80),
+          messageId: message.id,
+        });
+      }
+    }
+  }
+
+  for (const message of messages) {
+    if (message.isNoise || !message.memberId) continue;
+    const extracted = extractFromMessages([message.body]);
+    for (const topic of extracted.demandTopics) {
+      const demand: Demand = {
+        id: createId(),
+        communityId,
+        topic,
+        title: null,
+        oneLiner: null,
+        memberIds: [message.memberId],
+        messageIds: [message.id],
+        updatedAt: message.sentAt,
+      };
+      const saved = await store.upsertDemand(demand);
+      await store.insertCitations([
+        {
+          id: createId(),
+          communityId,
+          objectType: "demand",
+          objectId: saved.id,
+          messageId: message.id,
+          quote: extracted.citations.find((c) => c.kind === "demand")?.quote ?? message.body.slice(0, 180),
+        },
+      ]);
+    }
+  }
+
+  return {
+    members: await store.listMembers(communityId),
+    demands: await store.listDemands(communityId),
+    resources: await store.listResources(communityId),
+  };
+}
+
+export async function briefing(store: Store, communityId: string) {
+  const members = await store.listMembers(communityId);
+  const demands = await store.listDemands(communityId);
+  const messages = await store.listMessages(communityId);
+  const events = await store.listEvents(communityId);
+  return {
+    people: members.length,
+    messages: messages.length,
+    topDemands: demands.slice(0, 5).map((d) => ({
+      ...d,
+      title: d.title ?? titleFromTopic(d.topic, d.memberIds.length),
+      oneLiner: d.oneLiner ?? `${d.memberIds.length} members mentioned ${d.topic}.`,
+    })),
+    nextEvents: events,
+  };
+}
+
+export async function openDemand(store: Store, demandId: string) {
+  const demand = await store.getDemand(demandId);
+  if (!demand) throw new Error("demand not found");
+  const title = titleFromTopic(demand.topic, demand.memberIds.length);
+  const oneLiner = `${demand.memberIds.length} people asked for ${demand.topic} recently.`;
+  return store.upsertDemand({ ...demand, title, oneLiner });
+}
+
+export async function createProposalFromDemand(store: Store, communityId: string, demandId: string) {
+  const demand = await openDemand(store, demandId);
+  const members = await store.listMembers(communityId);
+  const venues = await store.listVenues(communityId);
+  const speakers = matchSpeakers(members, demand.topic).slice(0, 3);
+  const venue = matchVenues(venues, Math.max(demand.memberIds.length, 10))[0] ?? null;
+  const quotes = (await store.listCitations(communityId, "demand", demand.id)).map((c) => c.quote);
+  const proposal = await store.createProposal({
+    id: createId(),
+    communityId,
+    demandId: demand.id,
+    venueId: venue?.id ?? null,
+    speakerIds: speakers.map((s) => s.id),
+    status: "draft",
+    explanation: explainProposal({ topic: demand.topic, speakers, venue, quotes }),
+    outreachDraft: null,
+  });
+  await store.addTimeline({
+    id: createId(),
+    communityId,
+    kind: "proposal",
+    payload: { proposalId: proposal.id, demandId: demand.id },
+    createdAt: new Date().toISOString(),
+  });
+  return proposal;
+}
+
+export async function setProposalStatus(store: Store, proposalId: string, status: Proposal["status"]) {
+  return store.updateProposal(proposalId, { status });
+}
+
+export async function makeOutreachDraft(store: Store, proposalId: string, communityName: string) {
+  const proposal = await store.getProposal(proposalId);
+  if (!proposal) throw new Error("proposal not found");
+  const speakers = (await Promise.all(proposal.speakerIds.map((id) => store.getMember(id)))).filter(Boolean) as Member[];
+  const venue = proposal.venueId ? await store.getVenue(proposal.venueId) : null;
+  const demand = await store.getDemand(proposal.demandId);
+  const draft = draftOutreach({
+    communityName,
+    topic: demand?.topic ?? "this",
+    speakers: speakers.map((s) => s.displayName),
+    venue: venue?.name ?? null,
+  });
+  return store.updateProposal(proposalId, { outreachDraft: draft });
+}
+
+export async function goLive(store: Store, proposalId: string, origin: string) {
+  const proposal = await store.getProposal(proposalId);
+  if (!proposal) throw new Error("proposal not found");
+  await store.updateProposal(proposalId, { status: "live" });
+  const demand = await store.getDemand(proposal.demandId);
+  const workspace = await store.getWorkspace(proposal.communityId);
+  const title = demand?.title ?? `${workspace?.name ?? "Community"}: ${demand?.topic ?? "event"}`;
+  const event: EventRecord = {
+    id: createId(),
+    communityId: proposal.communityId,
+    proposalId: proposal.id,
+    slug: `${slugify(title)}-${createId().slice(0, 6)}`,
+    title,
+    startsAt: null,
+    qrSvg: "",
+    publishedAt: new Date().toISOString(),
+  };
+  event.qrSvg = qrSvg(`${origin}/e/${event.slug}`);
+  const saved = await store.createEvent(event);
+  await store.addTimeline({
+    id: createId(),
+    communityId: proposal.communityId,
+    kind: "published",
+    payload: { eventId: saved.id, proposalId: proposal.id },
+    createdAt: new Date().toISOString(),
+  });
+  return saved;
+}
+
+export async function rsvp(
+  store: Store,
+  slug: string,
+  input: { name: string; email: string },
+) {
+  const event = await store.getEventBySlug(slug);
+  if (!event) throw new Error("event not found");
+  const members = await store.listMembers(event.communityId);
+  const member =
+    members.find((m) => m.displayName.toLowerCase() === input.name.toLowerCase()) ??
+    members.find((m) => (m.notes ?? "").toLowerCase().includes(input.email.toLowerCase())) ??
+    null;
+  const guest = await store.createGuest({
+    id: createId(),
+    eventId: event.id,
+    communityId: event.communityId,
+    memberId: member?.id ?? null,
+    name: input.name,
+    email: input.email.toLowerCase(),
+    source: "native",
+  });
+  await store.addTimeline({
+    id: createId(),
+    communityId: event.communityId,
+    kind: "rsvp",
+    payload: { eventId: event.id, guestId: guest.id, memberId: guest.memberId },
+    createdAt: new Date().toISOString(),
+  });
+  return guest;
+}
+
+export async function eventChain(store: Store, slug: string) {
+  const event = await store.getEventBySlug(slug);
+  if (!event) throw new Error("event not found");
+  const proposal = await store.getProposal(event.proposalId);
+  const demand = proposal ? await store.getDemand(proposal.demandId) : null;
+  const messages = demand
+    ? (await Promise.all(demand.messageIds.map((id) => store.getMessage(id)))).filter(Boolean)
+    : [];
+  return { event, proposal, demand, messages };
+}
+
+export async function generateAutopilot(store: Store, eventId: string, origin: string) {
+  const event = await store.getEvent(eventId);
+  if (!event) throw new Error("event not found");
+  const proposal = await store.getProposal(event.proposalId);
+  const workspace = await store.getWorkspace(event.communityId);
+  const speakers = proposal
+    ? ((await Promise.all(proposal.speakerIds.map((id) => store.getMember(id)))).filter(Boolean) as Member[])
+    : [];
+  const venue = proposal?.venueId ? await store.getVenue(proposal.venueId) : null;
+  const url = `${origin}/e/${event.slug}`;
+  const artifacts = await Promise.all([
+    store.saveArtifact({
+      id: createId(),
+      eventId,
+      communityId: event.communityId,
+      kind: "run_sheet",
+      body: runSheet({
+        title: event.title,
+        speakers: speakers.map((s) => s.displayName),
+        venue: venue?.name ?? null,
+        startsAt: event.startsAt,
+      }),
+    }),
+    store.saveArtifact({
+      id: createId(),
+      eventId,
+      communityId: event.communityId,
+      kind: "post",
+      body: promoPost({ title: event.title, url, communityName: workspace?.name ?? "Community" }),
+    }),
+    store.saveArtifact({
+      id: createId(),
+      eventId,
+      communityId: event.communityId,
+      kind: "newsletter",
+      body: newsletter({ title: event.title, url, explanation: proposal?.explanation ?? event.title }),
+    }),
+  ]);
+  return artifacts;
+}
+
+export async function submitApplication(
+  store: Store,
+  communityId: string,
+  input: { applicant: string; answers: string; communityName: string },
+) {
+  const hashed = await sha256Hex(input.applicant.trim().toLowerCase());
+  const blocked = await store.findBlocklist(communityId, hashed);
+  if (blocked?.confirmed) {
+    return store.createApplication({
+      id: createId(),
+      communityId,
+      applicant: input.applicant,
+      answers: input.answers,
+      score: 0,
+      decision: "decline",
+      reason: "On the confirmed blocklist.",
+    });
+  }
+  const scored = scoreApplication(input.answers, input.communityName);
+  return store.createApplication({
+    id: createId(),
+    communityId,
+    applicant: input.applicant,
+    answers: input.answers,
+    ...scored,
+  });
+}

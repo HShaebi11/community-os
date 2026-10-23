@@ -1,0 +1,19 @@
+{
+  "name": "@community-os/whatsapp-import",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@community-os/core": "0.1.0",
+    "fflate": "^0.8.2"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}
