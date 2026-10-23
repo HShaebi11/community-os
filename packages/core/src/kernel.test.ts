@@ -21,6 +21,7 @@ import {
   setProposalStatus,
   submitApplication,
 } from "./kernel.ts";
+import { clipQuote } from "./extract.ts";
 import { MemoryStore } from "./memory-store.ts";
 import { parseWhatsAppTranscript } from "./whatsapp.ts";
 
@@ -130,5 +131,92 @@ describe("kernel loop", () => {
     await store.updateMember(member.id, { do: "Model-set: would overwrite" }, false);
     const again = await store.getMember(member.id);
     expect(again?.do).toBe("Lead-set: hosts nights");
+    await store.updateMember(member.id, { want: null }, true);
+    await store.updateMember(member.id, { want: "Model-set: refill" }, false);
+    const cleared = await store.getMember(member.id);
+    expect(cleared?.want).toBeNull();
+  });
+});
+
+describe("trusted memory", () => {
+  it("member cards cite the chat lines behind do, want and offer", async () => {
+    const store = new MemoryStore();
+    const lead = await store.upsertUser("lead@example.com");
+    const workspace = await store.createWorkspace({ name: "Weird Stuff", createdBy: lead.id });
+    await importWhatsApp(store, workspace.id, fixture, []);
+    await refreshMemory(store, workspace.id);
+
+    const filled = (await store.listMembers(workspace.id)).filter((m) => m.do || m.want || m.offer);
+    expect(filled.length).toBeGreaterThan(0);
+    for (const member of filled) {
+      const card = await memberCard(store, member.id);
+      expect(card.citations.length).toBeGreaterThan(0);
+      for (const citation of card.citations) {
+        const message = await store.getMessage(citation.messageId);
+        expect(message).toBeTruthy();
+        expect(message!.memberId).toBe(member.id);
+        expect(clipQuote(message!.body)).toBe(citation.quote);
+      }
+    }
+  });
+
+  it("cites a chat line that wraps onto a second line", async () => {
+    const store = new MemoryStore();
+    const lead = await store.upsertUser("lead@example.com");
+    const workspace = await store.createWorkspace({ name: "Lab", createdBy: lead.id });
+    const transcript = "[22/10/2026, 10:00:00] Ada: I teach evening classes\nand can host the group";
+    await importWhatsApp(store, workspace.id, transcript, []);
+    await refreshMemory(store, workspace.id);
+
+    const ada = (await store.listMembers(workspace.id)).find((m) => m.displayName === "Ada")!;
+    expect(ada.offer).toBe("I teach evening classes and can host the group");
+    const card = await memberCard(store, ada.id);
+    const citation = card.citations.find((c) => c.quote.includes("host the group"));
+    expect(citation).toBeTruthy();
+    const message = await store.getMessage(citation!.messageId);
+    expect(message?.body).toContain("\n");
+  });
+
+  it("a lead edit survives a second memory refresh", async () => {
+    const store = new MemoryStore();
+    const lead = await store.upsertUser("lead@example.com");
+    const workspace = await store.createWorkspace({ name: "Lab", createdBy: lead.id });
+    await importWhatsApp(store, workspace.id, fixture, []);
+    const first = await refreshMemory(store, workspace.id);
+    const maya = first.members.find((m) => m.displayName === "Maya")!;
+    const charlie = first.members.find((m) => m.displayName === "Charlie")!;
+    expect(maya.do).toBeTruthy();
+    expect(charlie.want).toBeTruthy();
+
+    // The same call PATCH /v1/members/:id makes.
+    await store.updateMember(maya.id, { do: "Runs eval nights", notes: "Met her at the lab." }, true);
+    await store.updateMember(charlie.id, { want: null }, true);
+    // A patch cannot clear the locks or reach non-editable fields.
+    await store.updateMember(maya.id, { leadLockedFields: [], communityId: "other" } as unknown as { do: string }, true);
+
+    await ingestDiscord(store, workspace.id, {
+      id: "d2",
+      content: "I can run the next demo night",
+      timestamp: new Date().toISOString(),
+      author: { id: "u2", username: "Ravi" },
+    });
+    const second = await refreshMemory(store, workspace.id);
+
+    const after = second.members.find((m) => m.id === maya.id)!;
+    expect(after.do).toBe("Runs eval nights");
+    expect(after.notes).toBe("Met her at the lab.");
+    expect(after.communityId).toBe(workspace.id);
+    expect(after.leadLockedFields).toEqual(expect.arrayContaining(["do", "notes"]));
+    expect(after.want).toBe(maya.want);
+
+    const cleared = second.members.find((m) => m.id === charlie.id)!;
+    expect(cleared.want).toBeNull();
+
+    const ravi = second.members.find((m) => m.displayName === "Ravi")!;
+    expect(ravi.offer).toBe("I can run the next demo night");
+
+    const citations = (await store.listCitations(workspace.id)).length;
+    await refreshMemory(store, workspace.id);
+    expect((await store.listCitations(workspace.id)).length).toBe(citations);
   });
 });

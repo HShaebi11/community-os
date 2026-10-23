@@ -21,7 +21,7 @@ export function extractFromMessages(bodies: string[]): ExtractedFields {
   const demandTopics = new Set<string>();
 
   for (const body of bodies) {
-    const quote = clip(body);
+    const quote = clipQuote(body);
     if (!doField && DO.test(body)) {
       doField = quote;
       citations.push({ quote, kind: "do" });
@@ -68,7 +68,7 @@ export function titleFromTopic(topic: string, people: number): string {
   return `${people} people want ${topic}`;
 }
 
-function clip(body: string): string {
+export function clipQuote(body: string): string {
   const one = body.replace(/\s+/g, " ").trim();
   return one.length > 180 ? `${one.slice(0, 177)}...` : one;
 }

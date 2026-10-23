@@ -1,4 +1,4 @@
-import { extractFromMessages, scoreApplication, titleFromTopic } from "./extract.ts";
+import { clipQuote, extractFromMessages, scoreApplication, titleFromTopic } from "./extract.ts";
 import { createId, sha256Hex, slugify } from "./ids.ts";
 import { draftOutreach, explainProposal, matchSpeakers, matchVenues, newsletter, promoPost, runSheet } from "./match.ts";
 import { extractUrls, isNoiseMessage } from "./noise.ts";
@@ -121,7 +121,7 @@ export async function refreshMemory(store: Store, communityId: string) {
     await insertFresh(
       extracted.citations
         .map((c) => {
-          const message = theirs.find((m) => m.body.includes(c.quote.slice(0, 40)) || c.quote.includes(m.body.slice(0, 40)));
+          const message = theirs.find((m) => clipQuote(m.body) === c.quote);
           if (!message) return null;
           return {
             id: createId(),
