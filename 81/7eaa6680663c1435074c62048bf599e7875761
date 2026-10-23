@@ -1,0 +1,19 @@
+docs/API.md
+  s_6aa9a3eaf6dc40::t_acedc0552b2f86 89,176,268-270
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "817eaa6680663c1435074c62048bf599e7875761",
+  "prompts": {},
+  "sessions": {
+    "s_6aa9a3eaf6dc40": {
+      "agent_id": {
+        "tool": "devin",
+        "id": "s_6aa9a3eaf6dc40",
+        "model": "unknown"
+      },
+      "human_author": "Hamza <hshaebi.11@gmail.com>"
+    }
+  }
+}
