@@ -28,16 +28,37 @@ import { Hono, type Context, type MiddlewareHandler } from "hono";
 import { cors } from "hono/cors";
 import { HTTPException } from "hono/http-exception";
 import type { Auth } from "./auth.ts";
+import { devOutbox } from "./email.ts";
+
+export type AuthKind = "session" | "token" | "cookie";
 
 export type AppEnv = {
   Variables: {
     store: Store;
     userId: string;
     email: string;
+    userName: string | null;
+    authKind: AuthKind;
   };
 };
 
-export function createApp(store: Store, auth?: Auth) {
+export type AppOptions = {
+  allowDevAuth?: boolean;
+  appOrigins?: string[];
+  providers?: { google: boolean; email: "resend" | "log" };
+};
+
+const LOOPBACK_ORIGIN = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/;
+
+export function isTrustedOrigin(origin: string, appOrigins: string[], allowDevAuth: boolean): boolean {
+  if (appOrigins.includes(origin)) return true;
+  return allowDevAuth && LOOPBACK_ORIGIN.test(origin);
+}
+
+export function createApp(store: Store, auth?: Auth, opts: AppOptions = {}) {
+  const allowDevAuth = opts.allowDevAuth ?? !auth;
+  const appOrigins = opts.appOrigins ?? [];
+  const providers = opts.providers ?? { google: false, email: "log" };
   const app = new Hono<AppEnv>();
 
   app.use(
@@ -45,7 +66,7 @@ export function createApp(store: Store, auth?: Auth) {
     cors({
       origin: (origin) => origin || "*",
       allowHeaders: ["Content-Type", "Authorization", "X-Public-Origin"],
-      allowMethods: ["GET", "POST", "PATCH", "OPTIONS"],
+      allowMethods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     }),
   );
 
@@ -66,6 +87,7 @@ export function createApp(store: Store, auth?: Auth) {
   }
 
   app.post("/v1/auth/dev", async (c) => {
+    if (!allowDevAuth) throw new HTTPException(404, { message: "not found" });
     const body = await c.req.json<{ email?: string }>();
     if (!body.email) throw new HTTPException(400, { message: "email required" });
     const user = await store.upsertUser(body.email);
@@ -73,19 +95,83 @@ export function createApp(store: Store, auth?: Auth) {
     return c.json({ token: session.token, userId: user.id, email: user.email });
   });
 
+  app.get("/v1/auth/providers", (c) =>
+    c.json({ password: true, magicLink: true, google: providers.google, email: providers.email, devAuth: allowDevAuth }),
+  );
+
   app.get("/v1/health", (c) => c.json({ ok: true, product: "community-os" }));
+
+  if (allowDevAuth) {
+    app.get("/v1/dev/outbox", (c) => c.json(devOutbox));
+  }
 
   const requireAuth: MiddlewareHandler<AppEnv> = async (c, next) => {
     const header = c.req.header("authorization") ?? "";
-    const token = header.startsWith("Bearer ") ? header.slice(7) : "";
-    const session = token ? await store.getSession(token) : null;
-    if (!session) throw new HTTPException(401, { message: "unauthorized" });
-    c.set("userId", session.userId);
-    c.set("email", session.email);
+    const bearer = header.startsWith("Bearer ") ? header.slice(7) : "";
+    if (bearer.startsWith("cos_")) {
+      const session = await store.getSessionByApiTokenHash(await sha256Hex(bearer));
+      if (!session) throw new HTTPException(401, { message: "unauthorized" });
+      c.set("userId", session.userId);
+      c.set("email", session.email);
+      c.set("userName", session.name ?? null);
+      c.set("authKind", "token");
+    } else if (bearer) {
+      const session = await store.getSession(bearer);
+      if (!session) throw new HTTPException(401, { message: "unauthorized" });
+      c.set("userId", session.userId);
+      c.set("email", session.email);
+      c.set("userName", session.name ?? null);
+      c.set("authKind", "session");
+    } else if (auth) {
+      const result = await auth.api.getSession({ headers: c.req.raw.headers });
+      if (!result) throw new HTTPException(401, { message: "unauthorized" });
+      if (c.req.method !== "GET" && c.req.method !== "HEAD") {
+        const origin = c.req.header("origin") ?? "";
+        if (!isTrustedOrigin(origin, appOrigins, allowDevAuth))
+          throw new HTTPException(403, { message: "untrusted origin" });
+      }
+      c.set("userId", result.user.id);
+      c.set("email", result.user.email);
+      c.set("userName", result.user.name ?? null);
+      c.set("authKind", "cookie");
+    } else {
+      throw new HTTPException(401, { message: "unauthorized" });
+    }
     await next();
   };
 
-  app.get("/v1/me", requireAuth, async (c) => c.json({ userId: c.get("userId"), email: c.get("email") }));
+  app.get("/v1/me", requireAuth, async (c) =>
+    c.json({ userId: c.get("userId"), email: c.get("email"), name: c.get("userName"), authKind: c.get("authKind") }),
+  );
+
+  const requireSessionOrCookie: MiddlewareHandler<AppEnv> = async (c, next) => {
+    if (c.get("authKind") === "token") throw new HTTPException(403, { message: "tokens cannot manage tokens" });
+    await next();
+  };
+
+  app.post("/v1/tokens", requireAuth, requireSessionOrCookie, async (c) => {
+    const body = await c.req.json<{ name?: string }>().catch(() => ({}) as { name?: string });
+    const bytes = crypto.getRandomValues(new Uint8Array(32));
+    const token = `cos_${btoa(String.fromCharCode(...bytes)).replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "")}`;
+    const created = await store.createApiToken({
+      userId: c.get("userId"),
+      name: body.name || "token",
+      prefix: token.slice(0, 8),
+      tokenHash: await sha256Hex(token),
+    });
+    return c.json(
+      { id: created.id, name: created.name, prefix: created.prefix, token, createdAt: created.createdAt },
+      201,
+    );
+  });
+
+  app.get("/v1/tokens", requireAuth, async (c) => c.json(await store.listApiTokens(c.get("userId"))));
+
+  app.delete("/v1/tokens/:id", requireAuth, requireSessionOrCookie, async (c) => {
+    const ok = await store.revokeApiToken(c.req.param("id"), c.get("userId"));
+    if (!ok) throw new HTTPException(404, { message: "token not found" });
+    return c.json({ ok: true });
+  });
 
   app.post("/v1/workspaces", requireAuth, async (c) => {
     const body = await c.req.json<{ name?: string; joinUrl?: string }>();
@@ -110,7 +196,21 @@ export function createApp(store: Store, auth?: Auth) {
     await next();
   };
 
+  app.get("/v1/workspaces/by-slug/:slug", requireAuth, async (c) => {
+    const workspace = await store.getWorkspaceBySlug(c.req.param("slug"));
+    if (!workspace) throw new HTTPException(404, { message: "workspace not found" });
+    const list = await store.listWorkspacesForUser(c.get("userId"));
+    const entry = list.find((w) => w.id === workspace.id);
+    if (!entry) throw new HTTPException(404, { message: "workspace not found" });
+    return c.json(entry);
+  });
+
   app.get("/v1/workspaces/:id", requireAuth, lead, async (c) => c.json(await store.getWorkspace(c.req.param("id"))));
+
+  app.patch("/v1/workspaces/:id", requireAuth, lead, async (c) => {
+    const body = await c.req.json<{ name?: string; joinUrl?: string | null }>();
+    return c.json(await store.updateWorkspace(c.req.param("id"), { name: body.name, joinUrl: body.joinUrl }));
+  });
 
   app.post("/v1/workspaces/:id/imports", requireAuth, lead, async (c) => {
     const bytes = new Uint8Array(await c.req.arrayBuffer());

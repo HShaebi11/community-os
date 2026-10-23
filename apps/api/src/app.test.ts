@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { MemoryStore } from "@community-os/core";
 import { describe, expect, it } from "vitest";
 import { createApp } from "./app.ts";
+import type { Auth } from "./auth.ts";
 
 const chat = readFileSync(
   join(dirname(fileURLToPath(import.meta.url)), "../../../fixtures/whatsapp-sample/_chat.txt"),
@@ -291,5 +292,200 @@ describe("kernel API", () => {
     expect(search.status).toBe(200);
     const hits = (await search.json()) as Array<{ type: string }>;
     expect(hits.some((h) => h.type === "member" || h.type === "demand")).toBe(true);
+  });
+});
+
+describe("auth modes and workspace admin", () => {
+  async function devToken(app: ReturnType<typeof createApp>, email = "lead@example.com") {
+    const res = await app.request("/v1/auth/dev", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+    const { token } = (await res.json()) as { token: string };
+    return { authorization: `Bearer ${token}`, "content-type": "application/json" };
+  }
+
+  it("hides dev auth when allowDevAuth is false", async () => {
+    const app = createApp(new MemoryStore(), undefined, { allowDevAuth: false });
+    const res = await app.request("/v1/auth/dev", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email: "lead@example.com" }),
+    });
+    expect(res.status).toBe(404);
+    const providers = await app.request("/v1/auth/providers");
+    const body = (await providers.json()) as { devAuth: boolean };
+    expect(body.devAuth).toBe(false);
+  });
+
+  it("agent token lifecycle: mint, use, list, no mint from token, revoke", async () => {
+    const app = createApp(new MemoryStore());
+    const headers = await devToken(app);
+
+    const created = await app.request("/v1/tokens", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ name: "mcp" }),
+    });
+    expect(created.status).toBe(201);
+    const token = (await created.json()) as { id: string; token: string; prefix: string };
+    expect(token.token.startsWith("cos_")).toBe(true);
+    expect(token.prefix).toBe(token.token.slice(0, 8));
+
+    const cos = { authorization: `Bearer ${token.token}`, "content-type": "application/json" };
+    const workspaces = await app.request("/v1/workspaces", { headers: cos });
+    expect(workspaces.status).toBe(200);
+
+    const list = await app.request("/v1/tokens", { headers });
+    const tokens = (await list.json()) as Array<Record<string, unknown>>;
+    expect(tokens.length).toBe(1);
+    expect(tokens[0].token).toBeUndefined();
+    expect(tokens[0].tokenHash).toBeUndefined();
+
+    const minted = await app.request("/v1/tokens", { method: "POST", headers: cos, body: JSON.stringify({ name: "x" }) });
+    expect(minted.status).toBe(403);
+
+    const revoked = await app.request(`/v1/tokens/${token.id}`, { method: "DELETE", headers });
+    expect(revoked.status).toBe(200);
+    const after = await app.request("/v1/workspaces", { headers: cos });
+    expect(after.status).toBe(401);
+  });
+
+  it("workspaces list includes the caller role", async () => {
+    const app = createApp(new MemoryStore());
+    const headers = await devToken(app);
+    await app.request("/v1/workspaces", { method: "POST", headers, body: JSON.stringify({ name: "Weird Stuff" }) });
+    const res = await app.request("/v1/workspaces", { headers });
+    const list = (await res.json()) as Array<{ role: string }>;
+    expect(list[0].role).toBe("owner");
+  });
+
+  it("by-slug resolves for a lead and 404s for another user", async () => {
+    const app = createApp(new MemoryStore());
+    const headers = await devToken(app);
+    const created = await app.request("/v1/workspaces", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ name: "Weird Stuff" }),
+    });
+    const workspace = (await created.json()) as { slug: string };
+
+    const res = await app.request(`/v1/workspaces/by-slug/${workspace.slug}`, { headers });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { slug: string; role: string };
+    expect(body.slug).toBe(workspace.slug);
+    expect(body.role).toBe("owner");
+
+    const other = await devToken(app, "other@example.com");
+    const denied = await app.request(`/v1/workspaces/by-slug/${workspace.slug}`, { headers: other });
+    expect([403, 404]).toContain(denied.status);
+  });
+
+  it("PATCH workspace updates the name and rejects non-leads", async () => {
+    const app = createApp(new MemoryStore());
+    const headers = await devToken(app);
+    const created = await app.request("/v1/workspaces", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ name: "Weird Stuff" }),
+    });
+    const workspace = (await created.json()) as { id: string };
+
+    const patched = await app.request(`/v1/workspaces/${workspace.id}`, {
+      method: "PATCH",
+      headers,
+      body: JSON.stringify({ name: "Weirder Stuff", joinUrl: "https://chat.example.com/x" }),
+    });
+    expect(patched.status).toBe(200);
+    const body = (await patched.json()) as { name: string; joinUrl: string };
+    expect(body.name).toBe("Weirder Stuff");
+    expect(body.joinUrl).toBe("https://chat.example.com/x");
+
+    const other = await devToken(app, "other@example.com");
+    const denied = await app.request(`/v1/workspaces/${workspace.id}`, {
+      method: "PATCH",
+      headers: other,
+      body: JSON.stringify({ name: "Hijack" }),
+    });
+    expect(denied.status).toBe(403);
+  });
+
+  it("cookie auth enforces the Origin check on writes", async () => {
+    const stubAuth = {
+      api: {
+        getSession: async () => ({
+          user: { id: "cookie-user", email: "cookie@example.com", name: "Cookie" },
+          session: { id: "s1" },
+        }),
+      },
+    } as unknown as Auth;
+    const app = createApp(new MemoryStore(), stubAuth, {
+      allowDevAuth: true,
+      appOrigins: ["http://localhost:3002"],
+    });
+
+    const evil = await app.request("/v1/workspaces", {
+      method: "POST",
+      headers: { "content-type": "application/json", origin: "https://evil.test" },
+      body: JSON.stringify({ name: "Nope" }),
+    });
+    expect(evil.status).toBe(403);
+
+    const trusted = await app.request("/v1/workspaces", {
+      method: "POST",
+      headers: { "content-type": "application/json", origin: "http://localhost:3002" },
+      body: JSON.stringify({ name: "From Cookie" }),
+    });
+    expect(trusted.status).toBe(201);
+
+    const me = await app.request("/v1/me");
+    expect(me.status).toBe(200);
+    const meBody = (await me.json()) as { authKind: string; userId: string };
+    expect(meBody.authKind).toBe("cookie");
+    expect(meBody.userId).toBe("cookie-user");
+
+    const headers = await devToken(app);
+    const bearer = await app.request("/v1/workspaces", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ name: "From Bearer" }),
+    });
+    expect(bearer.status).toBe(201);
+  });
+
+  it("allowDevAuth trusts cookie writes from any loopback origin", async () => {
+    const stubAuth = {
+      api: {
+        getSession: async () => ({
+          user: { id: "cookie-user", email: "cookie@example.com", name: "Cookie" },
+          session: { id: "s1" },
+        }),
+      },
+    } as unknown as Auth;
+    const appOrigins = ["http://localhost:3002"];
+
+    const devApp = createApp(new MemoryStore(), stubAuth, { allowDevAuth: true, appOrigins });
+    const preview = await devApp.request("/v1/workspaces", {
+      method: "POST",
+      headers: { "content-type": "application/json", origin: "http://127.0.0.1:57919" },
+      body: JSON.stringify({ name: "Preview Community" }),
+    });
+    expect(preview.status).toBe(201);
+
+    const prodApp = createApp(new MemoryStore(), stubAuth, { allowDevAuth: false, appOrigins });
+    const denied = await prodApp.request("/v1/workspaces", {
+      method: "POST",
+      headers: { "content-type": "application/json", origin: "http://127.0.0.1:57919" },
+      body: JSON.stringify({ name: "Preview Community" }),
+    });
+    expect(denied.status).toBe(403);
+
+    const evil = await devApp.request("/v1/workspaces", {
+      method: "POST",
+      headers: { "content-type": "application/json", origin: "https://evil.test" },
+      body: JSON.stringify({ name: "Nope" }),
+    });
+    expect(evil.status).toBe(403);
   });
 });

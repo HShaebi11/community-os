@@ -10,6 +10,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "push": "drizzle-kit push",
+    "backfill": "tsx scripts/backfill-orgs.ts",
     "generate": "drizzle-kit generate"
   },
   "dependencies": {

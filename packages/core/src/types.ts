@@ -1,6 +1,17 @@
 export type SourceKind = "whatsapp" | "discord" | "slack" | "native";
 export type ProposalStatus = "draft" | "approved" | "live";
 export type ApplicationDecision = "pending" | "accept" | "ask" | "decline";
+export type LeadRole = "owner" | "admin" | "member";
+
+export type ApiToken = {
+  id: string;
+  userId: string;
+  name: string;
+  prefix: string;
+  createdAt: string;
+  lastUsedAt: string | null;
+  revokedAt: string | null;
+};
 
 export type Workspace = {
   id: string;
@@ -20,6 +31,7 @@ export type Session = {
   token: string;
   userId: string;
   email: string;
+  name?: string | null;
   createdAt: string;
 };
 

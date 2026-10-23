@@ -1,4 +1,5 @@
 import type {
+  ApiToken,
   Application,
   AutopilotArtifact,
   BlocklistEntry,
@@ -7,6 +8,7 @@ import type {
   EventRecord,
   FileRecord,
   Guest,
+  LeadRole,
   Member,
   Message,
   Proposal,
@@ -23,11 +25,17 @@ export type Store = {
   upsertUser(email: string): Promise<User>;
   createSession(user: User): Promise<Session>;
   getSession(token: string): Promise<Session | null>;
+  getSessionByApiTokenHash(tokenHash: string): Promise<Session | null>;
+
+  createApiToken(input: { userId: string; name: string; prefix: string; tokenHash: string }): Promise<ApiToken>;
+  listApiTokens(userId: string): Promise<ApiToken[]>;
+  revokeApiToken(id: string, userId: string): Promise<boolean>;
 
   createWorkspace(input: { name: string; createdBy: string; joinUrl?: string }): Promise<Workspace>;
   getWorkspace(id: string): Promise<Workspace | null>;
   getWorkspaceBySlug(slug: string): Promise<Workspace | null>;
-  listWorkspacesForUser(userId: string): Promise<Workspace[]>;
+  updateWorkspace(id: string, patch: { name?: string; joinUrl?: string | null }): Promise<Workspace>;
+  listWorkspacesForUser(userId: string): Promise<Array<Workspace & { role: LeadRole }>>;
   isLead(workspaceId: string, userId: string): Promise<boolean>;
 
   createSource(input: { communityId: string; kind: Source["kind"]; name: string }): Promise<Source>;

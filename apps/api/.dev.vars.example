@@ -1,2 +1,19 @@
 DATABASE_URL=
 BETTER_AUTH_SECRET=
+
+# Public base URL for Better Auth links and cookies: the app origin (Next), not the API origin.
+BETTER_AUTH_URL=http://localhost:3002
+
+# Comma-separated origins allowed for cookie-authenticated non-GET requests and Better Auth.
+APP_ORIGINS=http://localhost:3002,http://localhost:3000
+
+# Email sending. Without a key, emails are logged and kept in GET /v1/dev/outbox.
+RESEND_API_KEY=
+EMAIL_FROM=Community OS <onboarding@resend.dev>
+
+# Google OAuth. The Google sign-in button only appears when both are set.
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+
+# Enables POST /v1/auth/dev and GET /v1/dev/outbox. Local default is true; never enable in production.
+ALLOW_DEV_AUTH=true

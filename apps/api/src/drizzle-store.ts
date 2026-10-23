@@ -1,5 +1,6 @@
-import { createId, slugify, type Store, type User } from "@community-os/core";
+import { createId, slugify, type LeadRole, type Store, type User } from "@community-os/core";
 import {
+  apiTokens,
   applications,
   artifacts,
   blocklist,
@@ -8,8 +9,10 @@ import {
   events,
   files,
   guests,
+  member,
   members,
   messages,
+  organization,
   proposals,
   resources,
   session,
@@ -18,7 +21,6 @@ import {
   timeline,
   user,
   venues,
-  workspaceLeads,
   workspaces,
   type Database,
 } from "@community-os/db";
@@ -52,33 +54,74 @@ export function createDrizzleStore(db: Database): Store {
       if (!s || s.expiresAt < new Date()) return null;
       const u = await db.select().from(user).where(eq(user.id, s.userId)).limit(1);
       if (!u[0]) return null;
-      return { token: s.token, userId: s.userId, email: u[0].email, createdAt: s.createdAt.toISOString() };
+      return { token: s.token, userId: s.userId, email: u[0].email, name: u[0].name, createdAt: s.createdAt.toISOString() };
+    },
+    async getSessionByApiTokenHash(tokenHash) {
+      const rows = await db.select().from(apiTokens).where(eq(apiTokens.tokenHash, tokenHash)).limit(1);
+      const t = rows[0];
+      if (!t || t.revokedAt) return null;
+      const u = await db.select().from(user).where(eq(user.id, t.userId)).limit(1);
+      if (!u[0]) return null;
+      await db.update(apiTokens).set({ lastUsedAt: new Date() }).where(eq(apiTokens.id, t.id));
+      return { token: t.id, userId: t.userId, email: u[0].email, name: u[0].name, createdAt: t.createdAt.toISOString() };
+    },
+    async createApiToken(input) {
+      const row = { id: createId(), ...input, createdAt: new Date() };
+      await db.insert(apiTokens).values(row);
+      return { ...row, createdAt: row.createdAt.toISOString(), lastUsedAt: null, revokedAt: null };
+    },
+    async listApiTokens(userId) {
+      const rows = await db.select().from(apiTokens).where(eq(apiTokens.userId, userId));
+      return rows
+        .filter((t) => !t.revokedAt)
+        .map((t) => ({
+          id: t.id,
+          userId: t.userId,
+          name: t.name,
+          prefix: t.prefix,
+          createdAt: t.createdAt.toISOString(),
+          lastUsedAt: t.lastUsedAt?.toISOString() ?? null,
+          revokedAt: t.revokedAt?.toISOString() ?? null,
+        }));
+    },
+    async revokeApiToken(id, userId) {
+      const rows = await db
+        .select()
+        .from(apiTokens)
+        .where(and(eq(apiTokens.id, id), eq(apiTokens.userId, userId)))
+        .limit(1);
+      if (!rows[0] || rows[0].revokedAt) return false;
+      await db.update(apiTokens).set({ revokedAt: new Date() }).where(eq(apiTokens.id, id));
+      return true;
     },
     async createWorkspace(input) {
       let slug = slugify(input.name);
       const id = createId();
       const createdAt = new Date();
-      try {
-        await db.insert(workspaces).values({
+      const slugTaken = async (s: string) => {
+        const ws = await db.select({ id: workspaces.id }).from(workspaces).where(eq(workspaces.slug, s)).limit(1);
+        const org = await db.select({ id: organization.id }).from(organization).where(eq(organization.slug, s)).limit(1);
+        return Boolean(ws[0] || org[0]);
+      };
+      if (await slugTaken(slug)) slug = `${slug}-${id.slice(0, 6)}`;
+      await db.batch([
+        db.insert(organization).values({ id, name: input.name, slug, createdAt }),
+        db.insert(workspaces).values({
           id,
           name: input.name,
           slug,
           joinUrl: input.joinUrl ?? null,
           createdBy: input.createdBy,
           createdAt,
-        });
-      } catch {
-        slug = `${slug}-${id.slice(0, 6)}`;
-        await db.insert(workspaces).values({
-          id,
-          name: input.name,
-          slug,
-          joinUrl: input.joinUrl ?? null,
-          createdBy: input.createdBy,
+        }),
+        db.insert(member).values({
+          id: createId(),
+          organizationId: id,
+          userId: input.createdBy,
+          role: "owner",
           createdAt,
-        });
-      }
-      await db.insert(workspaceLeads).values({ workspaceId: id, userId: input.createdBy });
+        }),
+      ]);
       return { id, name: input.name, slug, joinUrl: input.joinUrl ?? null, createdBy: input.createdBy, createdAt: createdAt.toISOString() };
     },
     async getWorkspace(id) {
@@ -89,19 +132,31 @@ export function createDrizzleStore(db: Database): Store {
       const rows = await db.select().from(workspaces).where(eq(workspaces.slug, slug)).limit(1);
       return rows[0] ? mapWorkspace(rows[0]) : null;
     },
+    async updateWorkspace(id, patch) {
+      const rows = await db.select().from(workspaces).where(eq(workspaces.id, id)).limit(1);
+      if (!rows[0]) throw new Error("workspace not found");
+      const set: Partial<typeof workspaces.$inferInsert> = {};
+      if (patch.name !== undefined) set.name = patch.name;
+      if (patch.joinUrl !== undefined) set.joinUrl = patch.joinUrl;
+      if (Object.keys(set).length) await db.update(workspaces).set(set).where(eq(workspaces.id, id));
+      if (patch.name !== undefined) {
+        await db.update(organization).set({ name: patch.name }).where(eq(organization.id, id));
+      }
+      return { ...mapWorkspace(rows[0]), ...set };
+    },
     async listWorkspacesForUser(userId) {
       const rows = await db
-        .select({ workspace: workspaces })
-        .from(workspaceLeads)
-        .innerJoin(workspaces, eq(workspaceLeads.workspaceId, workspaces.id))
-        .where(eq(workspaceLeads.userId, userId));
-      return rows.map((r) => mapWorkspace(r.workspace));
+        .select({ workspace: workspaces, role: member.role })
+        .from(member)
+        .innerJoin(workspaces, eq(member.organizationId, workspaces.id))
+        .where(eq(member.userId, userId));
+      return rows.map((r) => ({ ...mapWorkspace(r.workspace), role: r.role as LeadRole }));
     },
     async isLead(workspaceId, userId) {
       const rows = await db
         .select()
-        .from(workspaceLeads)
-        .where(and(eq(workspaceLeads.workspaceId, workspaceId), eq(workspaceLeads.userId, userId)))
+        .from(member)
+        .where(and(eq(member.organizationId, workspaceId), eq(member.userId, userId)))
         .limit(1);
       return Boolean(rows[0]);
     },

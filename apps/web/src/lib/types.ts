@@ -5,7 +5,12 @@ export type Workspace = {
   joinUrl: string | null;
 };
 
-export type Citation = { quote?: string };
+export type Citation = {
+  id?: string;
+  quote?: string;
+  objectType?: string;
+  messageId?: string;
+};
 
 export type MemberCard = {
   id: string;
@@ -13,8 +18,10 @@ export type MemberCard = {
   do: string | null;
   want: string | null;
   offer: string | null;
+  notes: string | null;
   publicOptIn: boolean;
   publicSlug: string | null;
+  lastActive: string | null;
   citations?: Citation[];
 };
 
@@ -24,6 +31,7 @@ export type Demand = {
   title?: string | null;
   oneLiner?: string | null;
   memberIds: string[];
+  citations?: Citation[];
 };
 
 export type Venue = {
@@ -31,24 +39,30 @@ export type Venue = {
   name: string;
   area: string | null;
   capacity: number | null;
+  contact?: string | null;
 };
 
 export type ProposalPack = {
   id: string;
-  status: string;
+  demandId: string;
+  status: "draft" | "approved" | "live";
   explanation: string | null;
   outreachDraft?: string | null;
-  speakers: Array<{ displayName: string }>;
-  venue: { name: string } | null;
+  speakers: Array<{ id: string; displayName: string; publicSlug?: string | null }>;
+  venue: { id: string; name: string; area?: string | null; capacity?: number | null } | null;
+  citations?: Citation[];
 };
 
 export type CommunityEvent = {
   id: string;
+  proposalId: string;
   slug: string;
   title: string;
+  startsAt: string | null;
+  publishedAt?: string;
 };
 
-export type Guest = { name: string; email: string };
+export type Guest = { id?: string; name: string; email: string; memberId?: string | null };
 
 export type Briefing = {
   people: number;
@@ -56,6 +70,26 @@ export type Briefing = {
   resources?: Array<{ url: string; title?: string | null }>;
   topDemands?: Demand[];
   nextEvents?: CommunityEvent[];
+};
+
+export type TimelineEvent = {
+  id: string;
+  kind: string;
+  payload: Record<string, unknown>;
+  createdAt: string;
+};
+
+export type EventChain = {
+  event: CommunityEvent;
+  proposal: { id: string; status: string; explanation: string | null } | null;
+  demand: { id: string; topic: string; title: string | null } | null;
+  messages: Array<{ id: string; authorRaw: string; body: string; sentAt: string }>;
+};
+
+export type AutopilotArtifact = {
+  id: string;
+  kind: "run_sheet" | "post" | "newsletter";
+  body: string;
 };
 
 export type PublicCommunity = {
@@ -71,6 +105,8 @@ export type PublicEvent = {
   title: string;
   explanation: string | null;
   qrSvg: string;
+  startsAt: string | null;
+  publishedAt?: string;
   community: { name: string; slug: string };
   venue: { name: string; area: string | null } | null;
   speakers: Array<{ name: string; slug: string | null }>;
@@ -84,12 +120,14 @@ export type PublicMember = {
 
 export type SearchHit = {
   type: string;
-  member?: { displayName: string };
-  demand?: { title?: string | null; topic: string };
+  member?: { id: string; displayName: string };
+  demand?: { id: string; title?: string | null; topic: string };
 };
 
 export type Application = {
+  id?: string;
   applicant: string;
-  decision: string;
+  decision: "pending" | "accept" | "ask" | "decline";
   reason: string;
+  score?: number;
 };

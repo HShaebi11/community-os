@@ -1,6 +1,7 @@
 import { createId, slugify } from "./ids.ts";
 import type { Store } from "./store.ts";
 import type {
+  ApiToken,
   Application,
   AutopilotArtifact,
   BlocklistEntry,
@@ -9,6 +10,7 @@ import type {
   EventRecord,
   FileRecord,
   Guest,
+  LeadRole,
   Member,
   Message,
   Proposal,
@@ -25,7 +27,8 @@ export class MemoryStore implements Store {
   users = new Map<string, User>();
   sessions = new Map<string, Session>();
   workspaces = new Map<string, Workspace>();
-  leads = new Map<string, Set<string>>();
+  leads = new Map<string, Map<string, LeadRole>>();
+  apiTokens = new Map<string, ApiToken & { tokenHash: string }>();
   sources = new Map<string, Source>();
   messages = new Map<string, Message>();
   files = new Map<string, FileRecord>();
@@ -61,6 +64,43 @@ export class MemoryStore implements Store {
     return this.sessions.get(token) ?? null;
   }
 
+  async getSessionByApiTokenHash(tokenHash: string): Promise<Session | null> {
+    const token = [...this.apiTokens.values()].find((t) => t.tokenHash === tokenHash && !t.revokedAt);
+    if (!token) return null;
+    token.lastUsedAt = new Date().toISOString();
+    const user = this.users.get(token.userId);
+    if (!user) return null;
+    return { token: token.id, userId: user.id, email: user.email, createdAt: token.createdAt };
+  }
+
+  async createApiToken(input: { userId: string; name: string; prefix: string; tokenHash: string }): Promise<ApiToken> {
+    const token: ApiToken & { tokenHash: string } = {
+      id: createId(),
+      userId: input.userId,
+      name: input.name,
+      prefix: input.prefix,
+      tokenHash: input.tokenHash,
+      createdAt: new Date().toISOString(),
+      lastUsedAt: null,
+      revokedAt: null,
+    };
+    this.apiTokens.set(token.id, token);
+    return token;
+  }
+
+  async listApiTokens(userId: string): Promise<ApiToken[]> {
+    return [...this.apiTokens.values()]
+      .filter((t) => t.userId === userId && !t.revokedAt)
+      .map(({ tokenHash: _tokenHash, ...t }) => t);
+  }
+
+  async revokeApiToken(id: string, userId: string): Promise<boolean> {
+    const token = this.apiTokens.get(id);
+    if (!token || token.userId !== userId || token.revokedAt) return false;
+    token.revokedAt = new Date().toISOString();
+    return true;
+  }
+
   async createWorkspace(input: { name: string; createdBy: string; joinUrl?: string }): Promise<Workspace> {
     let slug = slugify(input.name);
     if ([...this.workspaces.values()].some((w) => w.slug === slug)) slug = `${slug}-${createId().slice(0, 6)}`;
@@ -73,7 +113,7 @@ export class MemoryStore implements Store {
       createdAt: new Date().toISOString(),
     };
     this.workspaces.set(workspace.id, workspace);
-    this.leads.set(workspace.id, new Set([input.createdBy]));
+    this.leads.set(workspace.id, new Map([[input.createdBy, "owner"]]));
     return workspace;
   }
 
@@ -85,8 +125,18 @@ export class MemoryStore implements Store {
     return [...this.workspaces.values()].find((w) => w.slug === slug) ?? null;
   }
 
+  async updateWorkspace(id: string, patch: { name?: string; joinUrl?: string | null }) {
+    const workspace = this.workspaces.get(id);
+    if (!workspace) throw new Error("workspace not found");
+    if (patch.name !== undefined) workspace.name = patch.name;
+    if (patch.joinUrl !== undefined) workspace.joinUrl = patch.joinUrl;
+    return workspace;
+  }
+
   async listWorkspacesForUser(userId: string) {
-    return [...this.workspaces.values()].filter((w) => this.leads.get(w.id)?.has(userId));
+    return [...this.workspaces.values()]
+      .filter((w) => this.leads.get(w.id)?.has(userId))
+      .map((w) => ({ ...w, role: this.leads.get(w.id)!.get(userId)! }));
   }
 
   async isLead(workspaceId: string, userId: string) {

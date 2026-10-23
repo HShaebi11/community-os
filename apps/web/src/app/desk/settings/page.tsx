@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ShieldCheck } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -15,21 +16,20 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Kicker } from "@/components/kicker";
+import { DecisionBadge } from "@/components/desk/status-badge";
+import { PageHeader } from "@/components/desk/page-header";
+import { Empty } from "@/components/kicker";
 import { api, getWorkspaceId, setWorkspaceId } from "@/lib/api";
-import type { Application, CommunityEvent, Workspace } from "@/lib/types";
+import type { Application, Workspace } from "@/lib/types";
 
 export default function SettingsPage() {
   const [who, setWho] = useState("");
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
-  const [name, setName] = useState("");
-  const [joinUrl, setJoinUrl] = useState("");
-  const [events, setEvents] = useState<CommunityEvent[]>([]);
   const [apps, setApps] = useState<Application[]>([]);
   const [applicant, setApplicant] = useState("");
   const [answers, setAnswers] = useState("");
-  const [autos, setAutos] = useState<Record<string, string>>({});
+  const [scoring, setScoring] = useState(false);
 
   async function load() {
     try {
@@ -38,12 +38,13 @@ export default function SettingsPage() {
       const list = await api<Workspace[]>("/v1/workspaces");
       setWorkspaces(list);
       const id = getWorkspaceId();
-      if (!id) return;
+      if (!id) {
+        setWorkspace(null);
+        setApps([]);
+        return;
+      }
       const ws = await api<Workspace>(`/v1/workspaces/${id}`);
       setWorkspace(ws);
-      setName(ws.name);
-      setJoinUrl(ws.joinUrl ?? "");
-      setEvents(await api<CommunityEvent[]>(`/v1/workspaces/${id}/events`));
       setApps(await api<Application[]>(`/v1/workspaces/${id}/applications`));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "failed");
@@ -54,50 +55,46 @@ export default function SettingsPage() {
     void load();
   }, []);
 
-  async function createAnother() {
-    try {
-      const data = await api<Workspace>("/v1/workspaces", {
-        method: "POST",
-        body: JSON.stringify({ name, joinUrl }),
-      });
-      setWorkspaceId(data.id);
-      await load();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "failed");
-    }
-  }
-
-  async function autopilot(id: string) {
-    try {
-      const arts = await api<Array<{ kind: string; body: string }>>(`/v1/events/${id}/autopilot`, { method: "POST" });
-      setAutos((a) => ({ ...a, [id]: arts.map((x) => `${x.kind}\n${x.body}`).join("\n\n") }));
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "failed");
-    }
-  }
-
-  async function apply() {
+  async function score(e: React.FormEvent) {
+    e.preventDefault();
     const id = getWorkspaceId();
-    if (!id) return;
+    if (!id || !applicant.trim() || !answers.trim()) return;
+    setScoring(true);
     try {
       await api(`/v1/workspaces/${id}/applications`, {
         method: "POST",
-        body: JSON.stringify({ applicant, answers }),
+        body: JSON.stringify({ applicant: applicant.trim(), answers: answers.trim() }),
       });
+      setApplicant("");
+      setAnswers("");
       await load();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "failed");
+    } finally {
+      setScoring(false);
     }
   }
 
   return (
     <section>
-      <Kicker>Workspace</Kicker>
-      <h1 className="mb-4 text-3xl tracking-tight">Settings</h1>
-      <Card className="mb-4 gap-2 py-4">
-        <CardContent className="space-y-3">
-          <p className="text-muted-foreground">{who}</p>
-          <div>
+      <PageHeader kicker="Workspace" title="Settings" lede="Switch communities, check the gate, keep the door tidy." />
+
+      <Card className="mb-8 gap-3 py-5">
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-muted-foreground text-sm">Signed in as {who}</p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setWorkspaceId(null);
+                window.location.reload();
+              }}
+            >
+              New community
+            </Button>
+          </div>
+          <div className="space-y-1.5">
             <Label>Workspace</Label>
             <Select
               value={workspace?.id}
@@ -107,7 +104,7 @@ export default function SettingsPage() {
               }}
             >
               <SelectTrigger className="w-full">
-                <SelectValue placeholder="— pick —" />
+                <SelectValue placeholder="Choose a community…" />
               </SelectTrigger>
               <SelectContent>
                 {workspaces.map((w) => (
@@ -119,59 +116,83 @@ export default function SettingsPage() {
             </Select>
           </div>
           {workspace ? (
-            <p className="text-muted-foreground">
-              {workspace.name} · <Link href={`/c/${workspace.slug}`}>/c/{workspace.slug}</Link>
+            <p className="text-muted-foreground text-sm">
+              Public front door:{" "}
+              <Link href={`/c/${workspace.slug}`}>/c/{workspace.slug}</Link>
+              {workspace.joinUrl ? (
+                <>
+                  {" "}
+                  · join link points to{" "}
+                  <a href={workspace.joinUrl} target="_blank" rel="noreferrer">
+                    the chat
+                  </a>
+                </>
+              ) : null}
             </p>
           ) : null}
-          <div>
-            <Label>Community name</Label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} />
-          </div>
-          <div>
-            <Label>Join link</Label>
-            <Input
-              placeholder="https://chat.whatsapp.com/..."
-              value={joinUrl}
-              onChange={(e) => setJoinUrl(e.target.value)}
-            />
-          </div>
-          <Button onClick={() => void createAnother()}>Create another workspace</Button>
         </CardContent>
       </Card>
-      <Card className="gap-2 py-4">
-        <CardContent className="space-y-4">
-          <h2 className="font-semibold">Later (autopilot + gatekeeper)</h2>
-          {events.length === 0 ? <p className="text-muted-foreground">Go live first.</p> : null}
-          {events.map((e) => (
-            <div key={e.id} className="space-y-2">
-              <span className="text-muted-foreground">{e.title}</span>{" "}
-              <Button variant="outline" onClick={() => void autopilot(e.id)}>
-                Autopilot drafts
-              </Button>
-              {autos[e.id] ? (
-                <pre className="text-muted-foreground overflow-x-auto text-sm whitespace-pre-wrap">{autos[e.id]}</pre>
-              ) : null}
+
+      <div className="mb-3 flex items-center gap-2">
+        <ShieldCheck className="size-5" />
+        <h2 className="text-lg font-semibold">Gatekeeper</h2>
+      </div>
+      <p className="text-muted-foreground mb-4 text-sm">
+        Score a membership application before you let someone in. Confirmed blocklist entries are declined
+        automatically.
+      </p>
+      <Card className="gap-3 py-5">
+        <CardContent>
+          <form onSubmit={(e) => void score(e)} className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="applicant">Applicant</Label>
+              <Input
+                id="applicant"
+                required
+                placeholder="name or handle"
+                value={applicant}
+                onChange={(e) => setApplicant(e.target.value)}
+              />
             </div>
-          ))}
-          <h2 className="font-semibold">Gatekeeper</h2>
-          <div>
-            <Label>Applicant</Label>
-            <Input value={applicant} onChange={(e) => setApplicant(e.target.value)} />
-          </div>
-          <div>
-            <Label>Answers</Label>
-            <Textarea value={answers} onChange={(e) => setAnswers(e.target.value)} />
-          </div>
-          <Button onClick={() => void apply()}>Score application</Button>
-          {apps.map((a) => (
-            <Card key={`${a.applicant}-${a.reason}`} className="gap-2 py-3">
-              <CardContent>
-                {a.applicant} · {a.decision} · {a.reason}
+            <div className="space-y-1.5">
+              <Label htmlFor="answers">Their answers</Label>
+              <Textarea
+                id="answers"
+                required
+                rows={4}
+                placeholder="Paste the application answers…"
+                value={answers}
+                onChange={(e) => setAnswers(e.target.value)}
+              />
+            </div>
+            <Button type="submit" disabled={scoring}>
+              {scoring ? "Scoring…" : "Score application"}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+      <div className="mt-4 space-y-3">
+        {apps.length === 0 ? (
+          <Empty>No applications scored yet.</Empty>
+        ) : (
+          apps.map((a, i) => (
+            <Card key={a.id ?? i} className="gap-2 py-4">
+              <CardContent className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p className="font-medium">{a.applicant}</p>
+                  <p className="text-muted-foreground text-sm">{a.reason}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {typeof a.score === "number" ? (
+                    <span className="text-muted-foreground text-sm">{a.score}/100</span>
+                  ) : null}
+                  <DecisionBadge decision={a.decision} />
+                </div>
               </CardContent>
             </Card>
-          ))}
-        </CardContent>
-      </Card>
+          ))
+        )}
+      </div>
     </section>
   );
 }

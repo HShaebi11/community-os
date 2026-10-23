@@ -1,17 +1,30 @@
 "use client";
 
 import Link from "next/link";
+import { ChevronDown, ChevronUp, PartyPopper, Sparkles, UserCheck } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Empty, Kicker } from "@/components/kicker";
+import { PageHeader } from "@/components/desk/page-header";
+import { CopyButton } from "@/components/copy-button";
+import { Empty } from "@/components/kicker";
 import { api, getWorkspaceId } from "@/lib/api";
-import type { CommunityEvent, Guest } from "@/lib/types";
+import type { AutopilotArtifact, CommunityEvent, EventChain, Guest } from "@/lib/types";
+
+const ART_LABEL: Record<string, string> = {
+  run_sheet: "Run sheet",
+  post: "Promo post",
+  newsletter: "Newsletter",
+};
 
 export default function EventsPage() {
-  const [rows, setRows] = useState<Array<{ event: CommunityEvent; guests: Guest[] }>>([]);
-  const [chains, setChains] = useState<Record<string, string>>({});
+  const [rows, setRows] = useState<Array<{ event: CommunityEvent; guests: Guest[] }> | null>(null);
+  const [chains, setChains] = useState<Record<string, EventChain>>({});
+  const [autos, setAutos] = useState<Record<string, AutopilotArtifact[]>>({});
+  const [open, setOpen] = useState<Record<string, boolean>>({});
+  const [busy, setBusy] = useState<string | null>(null);
 
   useEffect(() => {
     const id = getWorkspaceId();
@@ -27,48 +40,165 @@ export default function EventsPage() {
     })();
   }, []);
 
-  async function showChain(id: string) {
+  async function toggleChain(id: string) {
+    setOpen((o) => ({ ...o, [id]: !o[id] }));
+    if (chains[id]) return;
     try {
-      const chain = await api<{ messages?: Array<{ body?: string; quote?: string }> }>(`/v1/events/${id}/chain`);
-      const lines = (chain.messages || []).slice(0, 8).map((m) => m.body || m.quote || JSON.stringify(m));
-      setChains((c) => ({ ...c, [id]: lines.join("\n") || JSON.stringify(chain, null, 2) }));
+      const chain = await api<EventChain>(`/v1/events/${id}/chain`);
+      setChains((c) => ({ ...c, [id]: chain }));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "failed");
     }
   }
 
+  async function autopilot(id: string) {
+    setBusy(id);
+    try {
+      const arts = await api<AutopilotArtifact[]>(`/v1/events/${id}/autopilot`, { method: "POST" });
+      setAutos((a) => ({ ...a, [id]: arts }));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "failed");
+    } finally {
+      setBusy(null);
+    }
+  }
+
   return (
     <section>
-      <Kicker>Front door</Kicker>
-      <h1 className="mb-2 text-3xl tracking-tight">Events</h1>
-      <p className="text-muted-foreground mb-4">Native pages, QR, guests. The chain back to chat is private.</p>
-      <div className="space-y-3">
-        {rows.length === 0 ? (
-          <Empty>Nothing live yet. Approve a proposal, then go live.</Empty>
-        ) : (
-          rows.map(({ event, guests }) => (
-            <Card key={event.id} className="gap-2 py-4">
-              <CardContent className="space-y-2">
-                <Link href={`/e/${event.slug}`}>{event.title}</Link>
-                <p className="text-muted-foreground">
-                  {guests.length} guests · <Link href={`/e/${event.slug}`}>/e/{event.slug}</Link>
-                </p>
-                {guests.map((g) => (
-                  <div key={g.email} className="text-muted-foreground border-b py-1 text-sm last:border-0">
-                    {g.name} · {g.email}
+      <PageHeader
+        kicker="Step 5 · The door"
+        title="Events"
+        lede="Native pages with QR and a guest list you own. The chain back to the chat stays private."
+      />
+      {rows === null ? (
+        <p className="text-muted-foreground">Loading…</p>
+      ) : rows.length === 0 ? (
+        <Empty>
+          Nothing live yet. <Link href="/desk/proposals">Approve a pack</Link> and go live.
+        </Empty>
+      ) : (
+        <div className="space-y-4">
+          {rows.map(({ event, guests }) => (
+            <Card key={event.id} className="gap-4 py-5">
+              <CardContent className="space-y-4">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div>
+                    <Link href={`/e/${event.slug}`} className="text-lg font-semibold">
+                      {event.title}
+                    </Link>
+                    <p className="text-muted-foreground text-sm">
+                      {event.publishedAt ? `Live since ${new Date(event.publishedAt).toLocaleDateString()}` : "Live"} ·{" "}
+                      <PartyPopper className="inline size-3.5 align-[-2px]" /> {guests.length}{" "}
+                      {guests.length === 1 ? "guest" : "guests"}
+                    </p>
                   </div>
-                ))}
-                <Button variant="outline" onClick={() => void showChain(event.id)}>
-                  Show chain
-                </Button>
-                {chains[event.id] ? (
-                  <pre className="text-muted-foreground overflow-x-auto text-sm whitespace-pre-wrap">{chains[event.id]}</pre>
+                  <div className="flex items-center gap-2">
+                    <code className="text-muted-foreground text-sm">/e/{event.slug}</code>
+                    <CopyButton text={`${window.location.origin}/e/${event.slug}`} label="Copy link" />
+                  </div>
+                </div>
+
+                {guests.length > 0 ? (
+                  <div className="bg-background rounded-md border p-3">
+                    <p className="text-muted-foreground mb-2 text-xs tracking-wide uppercase">Guest list</p>
+                    <ul className="divide-border divide-y">
+                      {guests.map((g) => (
+                        <li key={g.email} className="flex items-center justify-between gap-2 py-1.5 text-sm">
+                          <span>{g.name}</span>
+                          <span className="text-muted-foreground flex items-center gap-2">
+                            {g.memberId ? (
+                              <Badge variant="outline" className="border-[var(--ok)] text-[var(--ok)]">
+                                <UserCheck className="size-3" /> member
+                              </Badge>
+                            ) : null}
+                            {g.email}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground text-sm italic">
+                    No RSVPs yet — share the link where the chat lives.
+                  </p>
+                )}
+
+                <div className="border-border flex flex-wrap gap-2 border-t pt-3">
+                  <Button
+                    variant="outline"
+                    onClick={() => void autopilot(event.id)}
+                    disabled={busy === event.id}
+                  >
+                    <Sparkles className="size-4" />
+                    {busy === event.id ? "Drafting…" : autos[event.id] ? "Regenerate autopilot" : "Autopilot drafts"}
+                  </Button>
+                  <Button variant="ghost" onClick={() => void toggleChain(event.id)}>
+                    {open[event.id] ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+                    Chain to chat
+                  </Button>
+                </div>
+
+                {autos[event.id] ? (
+                  <div className="grid gap-3">
+                    {autos[event.id].map((a) => (
+                      <div key={a.id} className="bg-background space-y-2 rounded-md border p-3">
+                        <div className="flex items-center justify-between">
+                          <p className="text-muted-foreground text-xs tracking-wide uppercase">
+                            {ART_LABEL[a.kind] ?? a.kind}
+                          </p>
+                          <CopyButton text={a.body} label="Copy" />
+                        </div>
+                        <pre className="text-muted-foreground overflow-x-auto text-sm whitespace-pre-wrap">{a.body}</pre>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+
+                {open[event.id] ? (
+                  <div className="bg-background rounded-md border p-3">
+                    {!chains[event.id] ? (
+                      <p className="text-muted-foreground text-sm">Loading…</p>
+                    ) : (
+                      <ol className="border-border space-y-3 border-l pl-4">
+                        <ChainStep label="Event" value={chains[event.id].event.title} />
+                        {chains[event.id].proposal ? (
+                          <ChainStep
+                            label="Proposal"
+                            value={chains[event.id].proposal?.explanation ?? chains[event.id].proposal?.status ?? ""}
+                          />
+                        ) : null}
+                        {chains[event.id].demand ? (
+                          <ChainStep
+                            label="Demand"
+                            value={chains[event.id].demand?.title ?? chains[event.id].demand?.topic ?? ""}
+                          />
+                        ) : null}
+                        {chains[event.id].messages.map((m) => (
+                          <ChainStep
+                            key={m.id}
+                            label={`${m.authorRaw} said`}
+                            value={`“${m.body.slice(0, 160)}${m.body.length > 160 ? "…" : ""}”`}
+                          />
+                        ))}
+                      </ol>
+                    )}
+                  </div>
                 ) : null}
               </CardContent>
             </Card>
-          ))
-        )}
-      </div>
+          ))}
+        </div>
+      )}
     </section>
+  );
+}
+
+function ChainStep({ label, value }: { label: string; value: string }) {
+  return (
+    <li className="relative">
+      <span className="bg-primary absolute top-1.5 -left-[1.42rem] size-2 rounded-full" aria-hidden />
+      <p className="text-muted-foreground text-xs tracking-wide uppercase">{label}</p>
+      <p className="text-sm">{value}</p>
+    </li>
   );
 }
