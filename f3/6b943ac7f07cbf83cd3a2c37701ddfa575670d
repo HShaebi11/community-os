@@ -1,0 +1,35 @@
+docs/MAP.md
+  s_15ae2dc09d7d7f::t_6928c6c00d6198 28-29
+apps/web/src/desk.ts
+  s_15ae2dc09d7d7f::t_5b20d9d6b73753 61-65
+apps/web/src/public.ts
+  s_15ae2dc09d7d7f::t_21a56a5da6151d 88-89
+packages/core/src/kernel.test.ts
+  s_15ae2dc09d7d7f::t_fe2ce529149f9d 14
+  s_15ae2dc09d7d7f::t_442eea0edfec31 47-53,56
+apps/api/src/app.test.ts
+  s_15ae2dc09d7d7f::t_de3a2e15cffa12 46-105
+apps/api/src/app.ts
+  s_15ae2dc09d7d7f::t_d844ee7f90eaf7 130
+  s_15ae2dc09d7d7f::t_f9a78ce9cf662c 10,12
+  s_15ae2dc09d7d7f::t_9509e28a092673 147-153
+packages/core/src/kernel.ts
+  s_15ae2dc09d7d7f::t_c052c6257918ff 80-83,87,96-112,121-136,165,178,183-194
+  s_15ae2dc09d7d7f::t_7d20d77ef9208a 202,211,216-222,228-230
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f36b943ac7f07cbf83cd3a2c37701ddfa575670d",
+  "prompts": {},
+  "sessions": {
+    "s_15ae2dc09d7d7f": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "488cfd1f-6f19-491d-b7cd-f623d9d8df9f",
+        "model": "grok-4.6"
+      },
+      "human_author": "Hamza <hshaebi.11@gmail.com>"
+    }
+  }
+}
