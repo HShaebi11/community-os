@@ -1,0 +1,25 @@
+packages/core/src/extract.ts
+  s_c1c0a60e53ece5::t_23308f94018ee0 24,71
+packages/core/src/kernel.test.ts
+  s_c1c0a60e53ece5::t_9e00572d09ab85 24,134-220
+packages/core/src/kernel.ts
+  s_c1c0a60e53ece5::t_7b677c232762c9 1,124
+packages/core/src/memory-store.ts
+  s_c1c0a60e53ece5::t_33d0f420a0708c 26-28,239-241,243-246
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "59d02489262598d01487d7a48612ef7ddd7f406b",
+  "prompts": {},
+  "sessions": {
+    "s_c1c0a60e53ece5": {
+      "agent_id": {
+        "tool": "devin",
+        "id": "s_c1c0a60e53ece5",
+        "model": "unknown"
+      },
+      "human_author": "Hamza <hshaebi.11@gmail.com>"
+    }
+  }
+}
