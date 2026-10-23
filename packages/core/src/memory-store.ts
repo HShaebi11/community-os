@@ -176,6 +176,10 @@ export class MemoryStore implements Store {
     return [...this.members.values()].find((m) => m.communityId === communityId && m.publicSlug === slug) ?? null;
   }
 
+  async getMemberByPublicSlug(slug: string) {
+    return [...this.members.values()].find((m) => m.publicSlug === slug && m.publicOptIn) ?? null;
+  }
+
   async updateMember(id: string, patch: Parameters<Store["updateMember"]>[1], byLead: boolean) {
     const member = this.members.get(id);
     if (!member) throw new Error("member not found");
@@ -307,6 +311,13 @@ export class MemoryStore implements Store {
 
   async createGuest(guest: Guest) {
     this.guests.set(guest.id, guest);
+    return guest;
+  }
+
+  async updateGuest(id: string, patch: Partial<Pick<Guest, "name" | "memberId">>) {
+    const guest = this.guests.get(id);
+    if (!guest) throw new Error("guest not found");
+    Object.assign(guest, patch);
     return guest;
   }
 

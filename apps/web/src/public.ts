@@ -13,6 +13,7 @@ export function communityPage(input: {
   name: string;
   slug: string;
   joinUrl: string | null;
+  qrSvg: string;
   events: Array<{ slug: string; title: string }>;
 }): string {
   return page(
@@ -20,6 +21,7 @@ export function communityPage(input: {
     `<h1>${esc(input.name)}</h1>
      <p class="muted">The official front door. Chat still lives where it already lives.</p>
      ${input.joinUrl ? `<p><a class="btn" href="${esc(input.joinUrl)}">Join the chat</a></p>` : ""}
+     <div class="qr">${input.qrSvg}</div>
      <h2>Next events</h2>
      ${
        input.events.length
@@ -36,14 +38,20 @@ export function eventPage(input: {
   communityName: string;
   communitySlug: string;
   explanation: string | null;
+  venue: { name: string; area: string | null } | null;
   qrSvg: string;
   speakers: Array<{ name: string; slug: string | null }>;
+  rsvpOk?: boolean;
 }): string {
+  const where = input.venue
+    ? `${esc(input.venue.name)}${input.venue.area ? ` · ${esc(input.venue.area)}` : ""}`
+    : null;
   return page(
     input.title,
     `<p class="muted"><a href="/c/${esc(input.communitySlug)}">${esc(input.communityName)}</a></p>
      <h1>${esc(input.title)}</h1>
      ${input.explanation ? `<p>${esc(input.explanation)}</p>` : ""}
+     ${where ? `<p><strong>Where:</strong> ${where}</p>` : ""}
      <h2>Speakers</h2>
      <ul>${input.speakers
        .map((s) =>
@@ -53,6 +61,7 @@ export function eventPage(input: {
        )
        .join("")}</ul>
      <div class="qr">${input.qrSvg}</div>
+     ${input.rsvpOk ? `<p class="card">You're on the list. See you there.</p>` : ""}
      <form class="card" method="post" action="/e/${esc(input.slug)}/rsvp">
        <h2>RSVP</h2>
        <label>Name</label><input name="name" required/>
@@ -89,7 +98,14 @@ export function docsPage(): string {
        <li><code>GET /v1/demands/:id</code> (title + citations)</li>
        <li><code>GET /v1/workspaces/:id/demands</code></li>
        <li><code>POST /v1/workspaces/:id/proposals</code></li>
+       <li><code>POST /v1/proposals/:id/approve</code></li>
        <li><code>POST /v1/proposals/:id/go-live</code></li>
+       <li><code>GET /v1/events/:id/chain</code> (lead, private)</li>
+       <li><code>GET /v1/events/:id/guests</code></li>
+       <li><code>GET /v1/public/communities/:slug</code></li>
+       <li><code>GET /v1/public/events/:slug</code></li>
+       <li><code>POST /v1/public/events/:slug/rsvp</code></li>
+       <li><code>GET /v1/public/members/:slug</code></li>
        <li><code>POST /v1/ingest/discord</code></li>
      </ul>`,
   );

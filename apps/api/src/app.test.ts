@@ -174,4 +174,97 @@ describe("kernel API", () => {
     const drafted = (await outreach.json()) as { outreachDraft: string | null };
     expect(drafted.outreachDraft).toMatch(/Weird Stuff/);
   });
+
+  it("curl path: go-live → public pages → RSVP → guests", async () => {
+    const app = createApp(new MemoryStore());
+    const auth = await app.request("/v1/auth/dev", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email: "lead@example.com" }),
+    });
+    const { token } = (await auth.json()) as { token: string };
+    const headers = { authorization: `Bearer ${token}`, "content-type": "application/json" };
+
+    const ws = await app.request("/v1/workspaces", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ name: "Weird Stuff" }),
+    });
+    const workspace = (await ws.json()) as { id: string; slug: string };
+
+    await app.request(`/v1/workspaces/${workspace.id}/imports?filename=_chat.txt`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${token}`, "content-type": "text/plain" },
+      body: chat,
+    });
+    const memoryRes = await app.request(`/v1/workspaces/${workspace.id}/memory`, { method: "POST", headers });
+    const memory = (await memoryRes.json()) as { demands: Array<{ id: string }>; members: Array<{ id: string }> };
+    await app.request(`/v1/workspaces/${workspace.id}/venues`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ name: "Expedite HQ", area: "Hammersmith", capacity: 80 }),
+    });
+    const created = await app.request(`/v1/workspaces/${workspace.id}/proposals`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ demandId: memory.demands[0].id }),
+    });
+    const pack = (await created.json()) as { id: string; speakers: Array<{ id: string }> };
+    await app.request(`/v1/proposals/${pack.id}/approve`, { method: "POST", headers });
+    const live = await app.request(`/v1/proposals/${pack.id}/go-live`, { method: "POST", headers });
+    expect(live.status).toBe(200);
+    const event = (await live.json()) as { id: string; slug: string; title: string };
+
+    const html = await app.request(`/e/${event.slug}`);
+    expect(html.status).toBe(200);
+    const page = await html.text();
+    expect(page).toContain(event.title);
+    expect(page).toContain("Expedite HQ");
+    expect(page).toContain("<form");
+
+    const rsvpRes = await app.request(`/v1/public/events/${event.slug}/rsvp`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: "Guest", email: "guest@example.com" }),
+    });
+    expect(rsvpRes.status).toBe(201);
+    const guests = await app.request(`/v1/events/${event.id}/guests`, { headers });
+    const list = (await guests.json()) as Array<{ email: string }>;
+    expect(list.some((g) => g.email === "guest@example.com")).toBe(true);
+
+    const pub = await app.request(`/v1/public/events/${event.slug}`);
+    expect(pub.status).toBe(200);
+    const body = (await pub.json()) as Record<string, unknown>;
+    expect(body.messages).toBeUndefined();
+    expect(body.demand).toBeUndefined();
+
+    const community = await app.request(`/v1/public/communities/${workspace.slug}`);
+    expect(community.status).toBe(200);
+    const communityPage = await app.request(`/c/${workspace.slug}`);
+    expect(communityPage.status).toBe(200);
+    expect(await communityPage.text()).toContain("<svg");
+
+    const hidden = await app.request(`/v1/public/members/not-a-member`);
+    expect(hidden.status).toBe(404);
+
+    const opted = await app.request(`/v1/members/${pack.speakers[0].id}`, {
+      method: "PATCH",
+      headers,
+      body: JSON.stringify({ publicOptIn: true }),
+    });
+    const member = (await opted.json()) as { publicSlug: string; publicOptIn: boolean };
+    expect(member.publicOptIn).toBe(true);
+    expect(member.publicSlug).toBeTruthy();
+    const card = await app.request(`/m/${member.publicSlug}`);
+    expect(card.status).toBe(200);
+    const publicMember = await app.request(`/v1/public/members/${member.publicSlug}`);
+    expect(publicMember.status).toBe(200);
+    const publicBody = (await publicMember.json()) as Record<string, unknown>;
+    expect(publicBody.want).toBeUndefined();
+
+    const chain = await app.request(`/v1/events/${event.id}/chain`, { headers });
+    expect(chain.status).toBe(200);
+    const privateChain = (await chain.json()) as { messages: unknown[] };
+    expect(privateChain.messages.length).toBeGreaterThan(0);
+  });
 });

@@ -43,6 +43,7 @@ export type Store = {
   listMembers(communityId: string): Promise<Member[]>;
   getMember(id: string): Promise<Member | null>;
   getMemberBySlug(communityId: string, slug: string): Promise<Member | null>;
+  getMemberByPublicSlug(slug: string): Promise<Member | null>;
   updateMember(
     id: string,
     patch: Partial<Pick<Member, "do" | "want" | "offer" | "notes" | "displayName" | "publicOptIn" | "publicSlug">>,
@@ -77,6 +78,7 @@ export type Store = {
   listEvents(communityId: string): Promise<EventRecord[]>;
 
   createGuest(guest: Guest): Promise<Guest>;
+  updateGuest(id: string, patch: Partial<Pick<Guest, "name" | "memberId">>): Promise<Guest>;
   listGuests(eventId: string): Promise<Guest[]>;
 
   addTimeline(event: TimelineEvent): Promise<void>;

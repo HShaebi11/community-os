@@ -54,7 +54,8 @@ export function deskPage(): string {
         const me = await api("/v1/me");
         who.textContent = me.email;
         if (state.workspaceId) {
-          ws.textContent = "Workspace " + state.workspaceId;
+          const workspace = await api("/v1/workspaces/"+state.workspaceId);
+          ws.innerHTML = "Workspace "+state.workspaceId+" · <a href='/c/"+escHtml(workspace.slug)+"'>/c/"+escHtml(workspace.slug)+"</a>";
           const brief = await api("/v1/workspaces/"+state.workspaceId+"/briefing");
           document.getElementById("brief").textContent = JSON.stringify(brief, null, 2);
           const members = await api("/v1/workspaces/"+state.workspaceId+"/members");
@@ -62,8 +63,13 @@ export function deskPage(): string {
           document.getElementById("people").innerHTML = "<h2>People</h2>" + cards.map(m =>
             "<div class='card'><strong>"+escHtml(m.displayName)+"</strong><div class='muted'>do: "+escHtml(m.do||"—")+" · want: "+escHtml(m.want||"—")+" · offer: "+escHtml(m.offer||"—")+"</div>"+
             (m.citations && m.citations[0] ? "<div class='muted'>“"+escHtml(m.citations[0].quote)+"”</div>" : "")+
+            (m.publicOptIn && m.publicSlug ? "<p><a href='/m/"+escHtml(m.publicSlug)+"'>Public ID</a></p>" : "<button data-public='"+m.id+"'>Public ID</button>")+
             "</div>"
           ).join("");
+          document.querySelectorAll("[data-public]").forEach(btn => btn.onclick = async () => {
+            await api("/v1/members/"+btn.dataset.public, { method:"PATCH", body: JSON.stringify({ publicOptIn: true }) });
+            refresh();
+          });
           const demands = await api("/v1/workspaces/"+state.workspaceId+"/demands");
           document.getElementById("demands").innerHTML = "<h2>Demand</h2>" + demands.map(d =>
             "<div class='card'><strong>"+escHtml(d.title || d.topic)+"</strong> · "+d.memberIds.length+" people<button data-demand='"+d.id+"'>Open proposal</button></div>"
@@ -76,10 +82,16 @@ export function deskPage(): string {
           document.getElementById("proposals").innerHTML = "<h2>Proposals</h2>" + proposals.map(p =>
             "<div class='card'><div class='muted'>"+escHtml(p.status)+"</div><p>"+escHtml(p.explanation||"")+"</p>"+
             (p.outreachDraft ? "<pre class='muted'>"+escHtml(p.outreachDraft)+"</pre>" : "<button data-draft='"+p.id+"'>Draft outreach</button>")+
-            (p.status!=="live" ? "<button data-live='"+p.id+"'>Go live</button>" : "")+"</div>"
+            (p.status==="draft" ? "<button data-approve='"+p.id+"'>Approve</button>" : "")+
+            (p.status==="approved" ? "<button data-live='"+p.id+"'>Go live</button>" : "")+
+            "</div>"
           ).join("");
           document.querySelectorAll("[data-draft]").forEach(btn => btn.onclick = async () => {
             await api("/v1/proposals/"+btn.dataset.draft+"/outreach", { method:"POST" });
+            refresh();
+          });
+          document.querySelectorAll("[data-approve]").forEach(btn => btn.onclick = async () => {
+            await api("/v1/proposals/"+btn.dataset.approve+"/approve", { method:"POST" });
             refresh();
           });
           document.querySelectorAll("[data-live]").forEach(btn => btn.onclick = async () => {
@@ -87,8 +99,12 @@ export function deskPage(): string {
             location.href = "/e/"+ev.slug;
           });
           const events = await api("/v1/workspaces/"+state.workspaceId+"/events");
-          document.getElementById("events").innerHTML = "<h2>Events</h2>" + events.map(e =>
-            "<div class='card'><a href='/e/"+e.slug+"'>"+escHtml(e.title)+"</a> <button data-auto='"+e.id+"'>Autopilot drafts</button><pre class='muted' id='auto-"+e.id+"'></pre></div>"
+          const guestLists = await Promise.all(events.map(e => api("/v1/events/"+e.id+"/guests")));
+          document.getElementById("events").innerHTML = "<h2>Events</h2>" + events.map((e, i) =>
+            "<div class='card'><a href='/e/"+e.slug+"'>"+escHtml(e.title)+"</a>"+
+            "<p class='muted'>"+guestLists[i].length+" guests</p>"+
+            guestLists[i].map(g => "<div class='muted'>"+escHtml(g.name)+" · "+escHtml(g.email)+"</div>").join("")+
+            " <button data-auto='"+e.id+"'>Autopilot drafts</button><pre class='muted' id='auto-"+e.id+"'></pre></div>"
           ).join("");
           document.querySelectorAll("[data-auto]").forEach(btn => btn.onclick = async () => {
             const arts = await api("/v1/events/"+btn.dataset.auto+"/autopilot", { method:"POST" });

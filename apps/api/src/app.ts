@@ -1,16 +1,21 @@
 import {
+  assignPublicSlug,
   briefing,
   createProposalFromDemand,
-  eventChain,
+  eventChainById,
   generateAutopilot,
   goLive,
   importWhatsApp,
   ingestDiscord,
   makeOutreachDraft,
   memberCard,
-  MemoryStore,
   openDemand,
   openProposal,
+  publicCommunity,
+  publicEvent,
+  MemoryStore,
+  publicMember,
+  recordEventPageView,
   refreshMemory,
   rsvp,
   setProposalStatus,
@@ -137,7 +142,12 @@ export function createApp(store: Store, auth?: Auth) {
       throw new HTTPException(403, { message: "forbidden" });
     }
     const patch = await c.req.json();
-    return c.json(await store.updateMember(member.id, patch, true));
+    const updated = await store.updateMember(member.id, patch, true);
+    if (updated.publicOptIn && !updated.publicSlug) {
+      await assignPublicSlug(store, updated.id);
+      return c.json(await store.getMember(updated.id));
+    }
+    return c.json(updated);
   });
 
   app.post("/v1/workspaces/:id/memory", requireAuth, lead, async (c) => {
@@ -224,6 +234,13 @@ export function createApp(store: Store, auth?: Auth) {
   });
 
   app.get("/v1/workspaces/:id/events", requireAuth, lead, async (c) => c.json(await store.listEvents(c.req.param("id"))));
+  app.get("/v1/events/:eventId/chain", requireAuth, async (c) => {
+    const event = await store.getEvent(c.req.param("eventId"));
+    if (!event || !(await store.isLead(event.communityId, c.get("userId")))) {
+      throw new HTTPException(403, { message: "forbidden" });
+    }
+    return c.json(await eventChainById(store, event.id));
+  });
   app.get("/v1/events/:eventId/guests", requireAuth, async (c) => {
     const event = await store.getEvent(c.req.param("eventId"));
     if (!event || !(await store.isLead(event.communityId, c.get("userId")))) {
@@ -282,42 +299,39 @@ export function createApp(store: Store, auth?: Auth) {
     );
   });
 
-  app.get("/v1/public/events/:slug", async (c) => c.json(await eventChain(store, c.req.param("slug"))));
+  app.get("/v1/public/communities/:slug", async (c) => {
+    return c.json(await publicOr404(() => publicCommunity(store, c.req.param("slug"), new URL(c.req.url).origin)));
+  });
+  app.get("/v1/public/events/:slug", async (c) =>
+    c.json(await publicOr404(() => publicEvent(store, c.req.param("slug")))),
+  );
+  app.post("/v1/public/events/:slug/rsvp", async (c) => {
+    const body = await c.req.json<{ name?: string; email?: string }>();
+    return c.json(await rsvp(store, c.req.param("slug"), { name: body.name ?? "", email: body.email ?? "" }), 201);
+  });
+  app.get("/v1/public/members/:slug", async (c) =>
+    c.json(await publicOr404(() => publicMember(store, c.req.param("slug")))),
+  );
 
   app.get("/c/:slug", async (c) => {
-    const workspace = await store.getWorkspaceBySlug(c.req.param("slug"));
-    if (!workspace) throw new HTTPException(404, { message: "not found" });
-    const events = await store.listEvents(workspace.id);
-    return c.html(
-      communityPage({
-        name: workspace.name,
-        slug: workspace.slug,
-        joinUrl: workspace.joinUrl,
-        events: events.map((e) => ({ slug: e.slug, title: e.title })),
-      }),
-    );
+    const community = await publicOr404(() => publicCommunity(store, c.req.param("slug"), new URL(c.req.url).origin));
+    return c.html(communityPage(community));
   });
 
   app.get("/e/:slug", async (c) => {
-    const chain = await eventChain(store, c.req.param("slug"));
-    const workspace = await store.getWorkspace(chain.event.communityId);
-    const speakers = chain.proposal
-      ? (
-          await Promise.all(chain.proposal.speakerIds.map((id) => store.getMember(id)))
-        ).filter(Boolean)
-      : [];
+    const event = await publicOr404(() => publicEvent(store, c.req.param("slug")));
+    await recordEventPageView(store, event.slug);
     return c.html(
       eventPage({
-        title: chain.event.title,
-        slug: chain.event.slug,
-        communityName: workspace?.name ?? "Community",
-        communitySlug: workspace?.slug ?? "",
-        explanation: chain.proposal?.explanation ?? null,
-        qrSvg: chain.event.qrSvg,
-        speakers: speakers.map((s) => ({
-          name: s!.displayName,
-          slug: s!.publicOptIn ? s!.publicSlug : null,
-        })),
+        title: event.title,
+        slug: event.slug,
+        communityName: event.community.name,
+        communitySlug: event.community.slug,
+        explanation: event.explanation,
+        venue: event.venue,
+        qrSvg: event.qrSvg,
+        speakers: event.speakers,
+        rsvpOk: c.req.query("rsvp") === "1",
       }),
     );
   });
@@ -341,13 +355,8 @@ export function createApp(store: Store, auth?: Auth) {
   });
 
   app.get("/m/:slug", async (c) => {
-    for (const workspace of await listAllWorkspaces(store)) {
-      const member = await store.getMemberBySlug(workspace.id, c.req.param("slug"));
-      if (member?.publicOptIn) {
-        return c.html(memberPage({ name: member.displayName, do: member.do, offer: member.offer }));
-      }
-    }
-    throw new HTTPException(404, { message: "not found" });
+    const member = await publicOr404(() => publicMember(store, c.req.param("slug")));
+    return c.html(memberPage({ name: member.name, do: member.do, offer: member.offer }));
   });
 
   app.get("/v1/search", requireAuth, async (c) => {
@@ -369,18 +378,20 @@ export function createApp(store: Store, auth?: Auth) {
   return app;
 }
 
+async function publicOr404<T>(fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch (err) {
+    throw new HTTPException(404, { message: err instanceof Error ? err.message : "not found" });
+  }
+}
+
 async function requireProposalLead(store: Store, proposalId: string, userId: string) {
   const proposal = await store.getProposal(proposalId);
   if (!proposal || !(await store.isLead(proposal.communityId, userId))) {
     throw new HTTPException(403, { message: "forbidden" });
   }
   return proposal;
-}
-
-async function listAllWorkspaces(store: Store) {
-  const users = store instanceof MemoryStore ? [...store.workspaces.values()] : [];
-  if (users.length) return users;
-  return store.listWorkspacesForUser("");
 }
 
 export const memoryStore = new MemoryStore();

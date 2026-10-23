@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
   briefing,
   createProposalFromDemand,
+  assignPublicSlug,
   eventChain,
   generateAutopilot,
   goLive,
@@ -12,6 +13,9 @@ import {
   ingestDiscord,
   makeOutreachDraft,
   memberCard,
+  publicCommunity,
+  publicEvent,
+  publicMember,
   refreshMemory,
   rsvp,
   setProposalStatus,
@@ -79,9 +83,24 @@ describe("kernel loop", () => {
     expect(event.qrSvg).toContain("<svg");
     const guest = await rsvp(store, event.slug, { name: "Maya", email: "maya@example.com" });
     expect(guest.memberId).not.toBeNull();
+    await expect(rsvp(store, event.slug, { name: "", email: "x" })).rejects.toThrow(/name and email/);
+    const again = await rsvp(store, event.slug, { name: "Maya K", email: "maya@example.com" });
+    expect(again.id).toBe(guest.id);
+    expect(again.name).toBe("Maya K");
+    expect((await store.listGuests(event.id)).length).toBe(1);
     const chain = await eventChain(store, event.slug);
     expect(chain.demand?.id).toBe(demand.id);
     expect(chain.messages.length).toBeGreaterThan(0);
+    const pub = await publicEvent(store, event.slug);
+    expect("messages" in pub).toBe(false);
+    expect(pub.venue?.name).toBe("Expedite HQ");
+    const community = await publicCommunity(store, workspace.slug, "http://localhost:5173");
+    expect(community.qrSvg).toContain("<svg");
+    await store.updateMember(proposal.speakers[0].id, { publicOptIn: true }, true);
+    const memberSlug = await assignPublicSlug(store, proposal.speakers[0].id);
+    const publicCard = await publicMember(store, memberSlug);
+    expect(publicCard.name).toBe(proposal.speakers[0].displayName);
+    expect("want" in publicCard).toBe(false);
 
     const live = await ingestDiscord(store, workspace.id, {
       id: "d1",

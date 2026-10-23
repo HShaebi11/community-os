@@ -330,20 +330,27 @@ export async function rsvp(
   slug: string,
   input: { name: string; email: string },
 ) {
+  const name = input.name.trim();
+  const email = input.email.trim().toLowerCase();
+  if (!name || !email || !email.includes("@")) throw new Error("name and email required");
   const event = await store.getEventBySlug(slug);
   if (!event) throw new Error("event not found");
   const members = await store.listMembers(event.communityId);
   const member =
-    members.find((m) => m.displayName.toLowerCase() === input.name.toLowerCase()) ??
-    members.find((m) => (m.notes ?? "").toLowerCase().includes(input.email.toLowerCase())) ??
+    members.find((m) => m.displayName.toLowerCase() === name.toLowerCase()) ??
+    members.find((m) => (m.notes ?? "").toLowerCase().includes(email)) ??
     null;
+  const existing = (await store.listGuests(event.id)).find((g) => g.email === email);
+  if (existing) {
+    return store.updateGuest(existing.id, { name, memberId: member?.id ?? existing.memberId });
+  }
   const guest = await store.createGuest({
     id: createId(),
     eventId: event.id,
     communityId: event.communityId,
     memberId: member?.id ?? null,
-    name: input.name,
-    email: input.email.toLowerCase(),
+    name,
+    email,
     source: "native",
   });
   await store.addTimeline({
@@ -359,12 +366,94 @@ export async function rsvp(
 export async function eventChain(store: Store, slug: string) {
   const event = await store.getEventBySlug(slug);
   if (!event) throw new Error("event not found");
+  return eventChainFromEvent(store, event);
+}
+
+export async function eventChainById(store: Store, eventId: string) {
+  const event = await store.getEvent(eventId);
+  if (!event) throw new Error("event not found");
+  return eventChainFromEvent(store, event);
+}
+
+async function eventChainFromEvent(store: Store, event: EventRecord) {
   const proposal = await store.getProposal(event.proposalId);
   const demand = proposal ? await store.getDemand(proposal.demandId) : null;
   const messages = demand
     ? (await Promise.all(demand.messageIds.map((id) => store.getMessage(id)))).filter(Boolean)
     : [];
   return { event, proposal, demand, messages };
+}
+
+export async function publicCommunity(store: Store, slug: string, origin: string) {
+  const workspace = await store.getWorkspaceBySlug(slug);
+  if (!workspace) throw new Error("community not found");
+  const events = await store.listEvents(workspace.id);
+  return {
+    name: workspace.name,
+    slug: workspace.slug,
+    joinUrl: workspace.joinUrl,
+    qrSvg: qrSvg(`${origin}/c/${workspace.slug}`),
+    events: events.map((e) => ({ slug: e.slug, title: e.title })),
+  };
+}
+
+export async function publicEvent(store: Store, slug: string) {
+  const event = await store.getEventBySlug(slug);
+  if (!event) throw new Error("event not found");
+  const workspace = await store.getWorkspace(event.communityId);
+  const proposal = await store.getProposal(event.proposalId);
+  const venue = proposal?.venueId ? await store.getVenue(proposal.venueId) : null;
+  const speakers = proposal
+    ? ((await Promise.all(proposal.speakerIds.map((id) => store.getMember(id)))).filter(Boolean) as Member[])
+    : [];
+  return {
+    slug: event.slug,
+    title: event.title,
+    explanation: proposal?.explanation ?? null,
+    qrSvg: event.qrSvg,
+    startsAt: event.startsAt,
+    publishedAt: event.publishedAt,
+    community: { name: workspace?.name ?? "Community", slug: workspace?.slug ?? "" },
+    venue: venue ? { name: venue.name, area: venue.area } : null,
+    speakers: speakers.map((s) => ({
+      name: s.displayName,
+      slug: s.publicOptIn ? s.publicSlug : null,
+    })),
+  };
+}
+
+export async function publicMember(store: Store, slug: string) {
+  const member = await store.getMemberByPublicSlug(slug);
+  if (!member?.publicOptIn || !member.publicSlug) throw new Error("not found");
+  return {
+    name: member.displayName,
+    slug: member.publicSlug,
+    do: member.do,
+    offer: member.offer,
+  };
+}
+
+export async function recordEventPageView(store: Store, slug: string) {
+  const event = await store.getEventBySlug(slug);
+  if (!event) return;
+  await store.addTimeline({
+    id: createId(),
+    communityId: event.communityId,
+    kind: "page_view",
+    payload: { eventId: event.id, slug },
+    createdAt: new Date().toISOString(),
+  });
+}
+
+export async function assignPublicSlug(store: Store, memberId: string) {
+  const member = await store.getMember(memberId);
+  if (!member) throw new Error("member not found");
+  if (member.publicSlug) return member.publicSlug;
+  const base = slugify(member.displayName);
+  const taken = await store.getMemberByPublicSlug(base);
+  const slug = taken && taken.id !== member.id ? `${base}-${member.id.slice(0, 6)}` : base;
+  await store.updateMember(member.id, { publicSlug: slug }, true);
+  return slug;
 }
 
 export async function generateAutopilot(store: Store, eventId: string, origin: string) {

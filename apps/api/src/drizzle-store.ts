@@ -187,6 +187,11 @@ export function createDrizzleStore(db: Database): Store {
         .limit(1);
       return rows[0] ? mapMember(rows[0]) : null;
     },
+    async getMemberByPublicSlug(slug) {
+      const rows = await db.select().from(members).where(eq(members.publicSlug, slug));
+      const opted = rows.find((m) => m.publicOptIn);
+      return opted ? mapMember(opted) : null;
+    },
     async updateMember(id, patch, byLead) {
       const member = await this.getMember(id);
       if (!member) throw new Error("member not found");
@@ -342,6 +347,13 @@ export function createDrizzleStore(db: Database): Store {
     async createGuest(guest) {
       await db.insert(guests).values(guest);
       return guest;
+    },
+    async updateGuest(id, patch) {
+      const rows = await db.select().from(guests).where(eq(guests.id, id)).limit(1);
+      if (!rows[0]) throw new Error("guest not found");
+      const next = { ...rows[0], ...patch };
+      await db.update(guests).set({ name: next.name, memberId: next.memberId }).where(eq(guests.id, id));
+      return next;
     },
     async listGuests(eventId) {
       return db.select().from(guests).where(eq(guests.eventId, eventId));

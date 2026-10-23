@@ -29,3 +29,5 @@ Slice 0 done check: `POST /v1/auth/dev` → `POST /v1/workspaces` → `POST /v1/
 Slice 1 done check: `POST /v1/workspaces/:id/memory` → `GET /v1/members/:id` (citations) → `GET /v1/workspaces/:id/briefing` → `GET /v1/demands/:id`.
 
 Slice 2 done check: `POST /v1/workspaces/:id/proposals` → `GET /v1/proposals/:id` (pack) → `POST /v1/proposals/:id/approve`.
+
+Slice 3 done check: `POST /v1/proposals/:id/go-live` → `GET /c/:slug` + `GET /e/:slug` → `POST /v1/public/events/:slug/rsvp` → `GET /v1/events/:id/guests`. Public JSON has no messages; opted-in `/m/:slug` 200, others 404.
