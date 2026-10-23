@@ -23,6 +23,9 @@ import type {
   Workspace,
 } from "./types.ts";
 
+const LEAD_LOCKABLE_FIELDS: Set<string> = new Set(["do", "want", "offer", "notes", "displayName"]);
+const EDITABLE_MEMBER_FIELDS: Set<string> = new Set([...LEAD_LOCKABLE_FIELDS, "publicOptIn", "publicSlug"]);
+
 export class MemoryStore implements Store {
   users = new Map<string, User>();
   sessions = new Map<string, Session>();
@@ -233,15 +236,14 @@ export class MemoryStore implements Store {
   async updateMember(id: string, patch: Parameters<Store["updateMember"]>[1], byLead: boolean) {
     const member = this.members.get(id);
     if (!member) throw new Error("member not found");
-    const keys = Object.keys(patch) as Array<keyof typeof patch>;
-    for (const key of keys) {
-      const value = patch[key];
+    for (const key of Object.keys(patch)) {
+      if (!EDITABLE_MEMBER_FIELDS.has(key)) continue;
+      const value = (patch as Record<string, unknown>)[key];
       if (value === undefined) continue;
-      if (!byLead && (key === "do" || key === "want" || key === "offer" || key === "notes" || key === "displayName")) {
-        if (member.leadLockedFields.includes(key)) continue;
-      }
-      if (byLead && (key === "do" || key === "want" || key === "offer" || key === "notes" || key === "displayName")) {
-        if (!member.leadLockedFields.includes(key)) member.leadLockedFields.push(key);
+      if (LEAD_LOCKABLE_FIELDS.has(key)) {
+        const lockable = key as Member["leadLockedFields"][number];
+        if (!byLead && member.leadLockedFields.includes(lockable)) continue;
+        if (byLead && !member.leadLockedFields.includes(lockable)) member.leadLockedFields.push(lockable);
       }
       (member as unknown as Record<string, unknown>)[key] = value;
     }
