@@ -457,22 +457,41 @@ async function publicOr404<T>(fn: () => Promise<T>): Promise<T> {
 }
 
 async function exportWorkspace(store: Store, communityId: string) {
-  const [workspace, sources, members, demands, proposals, venues, sponsors, resources, files, events, citations, messages] =
-    await Promise.all([
-      store.getWorkspace(communityId),
-      store.listSources(communityId),
-      store.listMembers(communityId),
-      store.listDemands(communityId),
-      store.listProposals(communityId),
-      store.listVenues(communityId),
-      store.listSponsors(communityId),
-      store.listResources(communityId),
-      store.listFiles(communityId),
-      store.listEvents(communityId),
-      store.listCitations(communityId),
-      store.listMessages(communityId),
-    ]);
+  const [
+    workspace,
+    sources,
+    members,
+    demands,
+    proposals,
+    venues,
+    sponsors,
+    resources,
+    files,
+    events,
+    citations,
+    messages,
+    timeline,
+    applications,
+    blocklist,
+  ] = await Promise.all([
+    store.getWorkspace(communityId),
+    store.listSources(communityId),
+    store.listMembers(communityId),
+    store.listDemands(communityId),
+    store.listProposals(communityId),
+    store.listVenues(communityId),
+    store.listSponsors(communityId),
+    store.listResources(communityId),
+    store.listFiles(communityId),
+    store.listEvents(communityId),
+    store.listCitations(communityId),
+    store.listMessages(communityId),
+    store.listTimeline(communityId),
+    store.listApplications(communityId),
+    store.listBlocklist(communityId),
+  ]);
   const guests = (await Promise.all(events.map((event) => store.listGuests(event.id)))).flat();
+  const artifacts = (await Promise.all(events.map((event) => store.listArtifacts(event.id)))).flat();
   return {
     version: 1,
     exportedAt: new Date().toISOString(),
@@ -488,6 +507,10 @@ async function exportWorkspace(store: Store, communityId: string) {
     events,
     guests,
     citations,
+    timeline,
+    applications,
+    blocklist,
+    artifacts,
     messages: messages.map((m) => ({
       id: m.id,
       sourceId: m.sourceId,

@@ -42,7 +42,7 @@ describe("workspace export", () => {
     expect(ok.headers.get("content-disposition")).toContain("attachment");
   });
 
-  it("exports members, demands, events, guests, citations, and message ids without bodies", async () => {
+  it("exports the full workspace archive and message ids without bodies", async () => {
     const app = createApp(new MemoryStore());
     const headers = await devHeaders(app);
     const ws = await app.request("/v1/workspaces", {
@@ -78,6 +78,22 @@ describe("workspace export", () => {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ name: "Guest", email: "guest@example.com" }),
     });
+    await app.request(`/v1/workspaces/${workspace.id}/blocklist`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ applicant: "bad@example.com", evidence: "spam links", confirmed: true }),
+    });
+    await app.request(`/v1/workspaces/${workspace.id}/applications`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ applicant: "bad@example.com", answers: "let me in" }),
+    });
+    await app.request(`/v1/workspaces/${workspace.id}/applications`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ applicant: "new@example.com", answers: "I run weird salons and can host one this month" }),
+    });
+    await app.request(`/v1/events/${event.id}/autopilot`, { method: "POST", headers });
 
     const res = await app.request(`/v1/workspaces/${workspace.id}/export`, { headers });
     expect(res.status).toBe(200);
@@ -96,6 +112,10 @@ describe("workspace export", () => {
       events: Array<{ id: string; slug: string }>;
       guests: Array<{ email: string; eventId: string }>;
       citations: Array<{ objectType: string; messageId: string; quote: string }>;
+      timeline: Array<{ kind: string }>;
+      applications: Array<{ applicant: string; decision: string }>;
+      blocklist: Array<{ hash: string; evidence: string; confirmed: boolean }>;
+      artifacts: Array<{ eventId: string; kind: string }>;
       messages: Array<Record<string, unknown>>;
     };
 
@@ -110,6 +130,17 @@ describe("workspace export", () => {
     expect(data.guests.some((g) => g.email === "guest@example.com" && g.eventId === event.id)).toBe(true);
     expect(data.citations.some((c) => c.objectType === "member" && c.quote)).toBe(true);
     expect(data.citations.some((c) => c.objectType === "demand" && c.quote)).toBe(true);
+
+    expect(data.timeline.some((t) => t.kind === "import")).toBe(true);
+    const decisions = Object.fromEntries(data.applications.map((a) => [a.applicant, a.decision]));
+    expect(decisions["bad@example.com"]).toBe("decline");
+    expect(decisions["new@example.com"]).toBe("accept");
+    expect(data.blocklist.some((b) => b.confirmed && b.hash && b.evidence === "spam links")).toBe(true);
+    expect(data.artifacts.filter((a) => a.eventId === event.id).map((a) => a.kind).sort()).toEqual([
+      "newsletter",
+      "post",
+      "run_sheet",
+    ]);
 
     expect(data.messages.length).toBeGreaterThan(0);
     for (const message of data.messages) {
