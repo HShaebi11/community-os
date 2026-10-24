@@ -31,7 +31,7 @@ const FAQ = [
   },
   {
     q: "Which chats can I import?",
-    a: "WhatsApp and Telegram exports today (.txt or .zip). The parser is append-only and idempotent — re-importing is safe.",
+    a: "WhatsApp exports today (.txt or .zip). The parser is append-only and idempotent — re-importing is safe.",
   },
   {
     q: "Who sees my community's data?",

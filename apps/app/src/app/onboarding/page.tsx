@@ -253,7 +253,7 @@ function Onboarding() {
           <div>
             <h1 className="font-semibold">Drop the chat export</h1>
             <p className="text-muted-foreground mt-1 text-sm">
-              WhatsApp/Telegram export (.txt or .zip). Private by default — nothing sends anywhere.
+              WhatsApp export (.txt or .zip). Private by default — nothing sends anywhere.
             </p>
           </div>
           <ImportDropzone

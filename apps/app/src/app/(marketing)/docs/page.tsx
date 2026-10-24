@@ -28,6 +28,7 @@ const SECTIONS: Array<{ title: string; routes: string[] }> = [
       "GET /v1/workspaces/:id",
       "GET /v1/workspaces/by-slug/:slug",
       "PATCH /v1/workspaces/:id — name, joinUrl (owners and admins)",
+      "GET /v1/workspaces/:id/export — full JSON archive, attachment download",
       "POST /api/auth/organization/invite-member { email, role, organizationId }",
       "GET /api/auth/organization/list-members?organizationId=",
       "POST /api/auth/organization/accept-invitation { invitationId }",
@@ -73,6 +74,8 @@ const SECTIONS: Array<{ title: string; routes: string[] }> = [
   {
     title: "proposals → live",
     routes: [
+      "POST /v1/workspaces/:id/venues { name, area?, capacity?, contact? } — the venue book",
+      "GET /v1/workspaces/:id/venues",
       "POST /v1/workspaces/:id/proposals { demandId }",
       "GET /v1/proposals/:id",
       "POST /v1/proposals/:id/outreach — draft only",
