@@ -2,6 +2,7 @@
 
 - What this is and why it exists: [`docs/PRODUCT.md`](PRODUCT.md)
 - Product & build spec: [`docs/PRODUCT-SPEC.md`](PRODUCT-SPEC.md)
+- **`/v1` API reference (curl-able):** [`docs/API.md`](API.md)
 - **Phase A (build this, nothing else):** [`docs/PHASE-A.md`](PHASE-A.md) — Linear: [Start here](https://linear.app/interfaces-co/document/start-here-f280990e049f)
 - Hackathon tracks / partners / data kit: [`docs/hackathon-london-2026.md`](hackathon-london-2026.md) (context only; not the build)
 

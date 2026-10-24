@@ -64,6 +64,8 @@ Tools: `search_memory`, `get_member`, `list_demand`, `create_proposal`, `get_eve
 
 ## Curl quick start
 
+Full route reference: [`docs/API.md`](docs/API.md).
+
 ```sh
 TOKEN=$(curl -s http://localhost:5173/v1/auth/dev -H 'content-type: application/json' \
   -d '{"email":"lead@example.com"}' | jq -r .token)
