@@ -233,6 +233,12 @@ export function createApp(store: Store, auth?: Auth, opts: AppOptions = {}) {
   app.get("/v1/workspaces/:id/members", requireAuth, lead, async (c) => c.json(await store.listMembers(c.req.param("id"))));
   app.get("/v1/workspaces/:id/files", requireAuth, lead, async (c) => c.json(await store.listFiles(c.req.param("id"))));
 
+  app.get("/v1/workspaces/:id/export", requireAuth, lead, async (c) => {
+    const data = await exportWorkspace(store, c.req.param("id"));
+    c.header("content-disposition", `attachment; filename="${data.workspace?.slug ?? c.req.param("id")}-export.json"`);
+    return c.json(data);
+  });
+
   app.get("/v1/members/:memberId", requireAuth, async (c) => {
     const member = await store.getMember(c.req.param("memberId"));
     if (!member || !(await store.isLead(member.communityId, c.get("userId")))) {
@@ -448,6 +454,50 @@ async function publicOr404<T>(fn: () => Promise<T>): Promise<T> {
   } catch (err) {
     throw new HTTPException(404, { message: err instanceof Error ? err.message : "not found" });
   }
+}
+
+async function exportWorkspace(store: Store, communityId: string) {
+  const [workspace, sources, members, demands, proposals, venues, sponsors, resources, files, events, citations, messages] =
+    await Promise.all([
+      store.getWorkspace(communityId),
+      store.listSources(communityId),
+      store.listMembers(communityId),
+      store.listDemands(communityId),
+      store.listProposals(communityId),
+      store.listVenues(communityId),
+      store.listSponsors(communityId),
+      store.listResources(communityId),
+      store.listFiles(communityId),
+      store.listEvents(communityId),
+      store.listCitations(communityId),
+      store.listMessages(communityId),
+    ]);
+  const guests = (await Promise.all(events.map((event) => store.listGuests(event.id)))).flat();
+  return {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    workspace,
+    sources,
+    members,
+    demands,
+    proposals,
+    venues,
+    sponsors,
+    resources,
+    files,
+    events,
+    guests,
+    citations,
+    messages: messages.map((m) => ({
+      id: m.id,
+      sourceId: m.sourceId,
+      sourceMessageId: m.sourceMessageId,
+      authorRaw: m.authorRaw,
+      memberId: m.memberId,
+      sentAt: m.sentAt,
+      isNoise: m.isNoise,
+    })),
+  };
 }
 
 async function requireProposalLead(store: Store, proposalId: string, userId: string) {
