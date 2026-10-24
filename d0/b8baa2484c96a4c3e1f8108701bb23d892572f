@@ -1,0 +1,23 @@
+apps/api/src/drizzle-store.ts
+  s_248a8a626a9756::t_6647b3ede5d363 253-254,257,260-261,263-265
+docs/API.md
+  s_248a8a626a9756::t_a089a61b3d8cfc 156-157,181,266-267
+docs/PHASE-A.md
+  s_248a8a626a9756::t_662700703e324b 20-23,25,27,31
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d0b8baa2484c96a4c3e1f8108701bb23d892572f",
+  "prompts": {},
+  "sessions": {
+    "s_248a8a626a9756": {
+      "agent_id": {
+        "tool": "devin",
+        "id": "s_248a8a626a9756",
+        "model": "unknown"
+      },
+      "human_author": "Hamza <hshaebi.11@gmail.com>"
+    }
+  }
+}
