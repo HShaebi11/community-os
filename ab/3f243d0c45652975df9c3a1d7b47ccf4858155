@@ -1,0 +1,21 @@
+apps/api/src/app.ts
+  s_6ac2cb255d44a8::t_3031096305f6ea 460-492,494,510-513
+apps/api/src/export.test.ts
+  s_6ac2cb255d44a8::t_c581cda2754b74 45,81-96,115-118,134-144
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ab3f243d0c45652975df9c3a1d7b47ccf4858155",
+  "prompts": {},
+  "sessions": {
+    "s_6ac2cb255d44a8": {
+      "agent_id": {
+        "tool": "devin",
+        "id": "s_6ac2cb255d44a8",
+        "model": "unknown"
+      },
+      "human_author": "Hamza <hshaebi.11@gmail.com>"
+    }
+  }
+}
