@@ -166,6 +166,7 @@ export type PublicMember = {
 
 export type SearchHit = {
   type: string;
+  workspaceId: string;
   member?: { id: string; displayName: string };
   demand?: { id: string; title?: string | null; topic: string };
 };

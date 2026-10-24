@@ -12,27 +12,34 @@ import { PageHeader } from "@/components/desk/page-header";
 import { Empty } from "@/components/kicker";
 import { useWorkspace } from "@/components/workspace/workspace-context";
 import { api } from "@/lib/api";
-import type { SearchHit } from "@/lib/types";
+import type { SearchHit, Workspace } from "@/lib/types";
 
 export default function SearchPage() {
   const { workspace } = useWorkspace();
   const [q, setQ] = useState("");
   const [hits, setHits] = useState<SearchHit[] | null>(null);
   const [searching, setSearching] = useState(false);
+  const [slugs, setSlugs] = useState<Record<string, string>>({});
 
   async function search(e?: React.FormEvent) {
     e?.preventDefault();
     if (!q.trim()) return;
     setSearching(true);
     try {
-      const data = await api<SearchHit[]>(`/v1/search?q=${encodeURIComponent(q.trim())}`);
+      const [data, workspaces] = await Promise.all([
+        api<SearchHit[]>(`/v1/search?q=${encodeURIComponent(q.trim())}`),
+        api<Workspace[]>("/v1/workspaces"),
+      ]);
       setHits(data);
+      setSlugs(Object.fromEntries(workspaces.map((w) => [w.id, w.slug])));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "failed");
     } finally {
       setSearching(false);
     }
   }
+
+  const hitBase = (h: SearchHit) => `/w/${slugs[h.workspaceId] ?? workspace.slug}`;
 
   return (
     <section className="max-w-2xl">
@@ -72,7 +79,7 @@ export default function SearchPage() {
                 </div>
                 <Button variant="ghost" size="icon-xs" asChild>
                   <Link
-                    href={h.type === "member" ? `/w/${workspace.slug}/people` : `/w/${workspace.slug}/demand`}
+                    href={h.type === "member" ? `${hitBase(h)}/people` : `${hitBase(h)}/demand`}
                     className="text-muted-foreground no-underline"
                   >
                     <ArrowUpRight className="size-4" />

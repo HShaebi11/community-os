@@ -107,6 +107,10 @@ export default function SettingsPage() {
                 <Link href={`/c/${workspace.slug}`} className="font-mono">
                   /c/{workspace.slug}
                 </Link>
+                {" · "}
+                <a href={`/v1/workspaces/${workspace.id}/export`} className="font-mono" download>
+                  export json
+                </a>
               </p>
               {canEdit ? (
                 <Button type="submit" size="sm" disabled={saving}>
