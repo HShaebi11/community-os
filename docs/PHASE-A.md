@@ -17,12 +17,18 @@ Until that is true, do not add gatekeeper, venues, Cognee, city directories, or 
 One pipe. One step at a time. Do not run Step 2 while Step 1 is open.
 
 1. Kernel `/v1` — curl/CI: import → memory → proposal → go-live → RSVP → guests ([COS-1](https://linear.app/interfaces-co/issue/COS-1))
+   - **1.1** Kernel loop test ([COS-6](https://linear.app/interfaces-co/issue/COS-6)) — parallel
+   - **1.2** Lead edits win + citations ([COS-8](https://linear.app/interfaces-co/issue/COS-8)) — parallel
+   - **1.3** Document existing `/v1` ([COS-9](https://linear.app/interfaces-co/issue/COS-9)) — parallel
+   - **1.4** Export workspace JSON ([COS-7](https://linear.app/interfaces-co/issue/COS-7)) — solo (`app.ts`)
 2. Desk playlist — `apps/app` is buttons on that API ([COS-2](https://linear.app/interfaces-co/issue/COS-2))
+   - **2.1** Desk playlist gaps only ([COS-11](https://linear.app/interfaces-co/issue/COS-11))
 3. MCP 1:1 then Code Mode on the same Worker ([COS-3](https://linear.app/interfaces-co/issue/COS-3))
+   - **3.1** MCP 1:1 then Code Mode wrap ([COS-12](https://linear.app/interfaces-co/issue/COS-12))
 4. Listen / WhatsApp sync ([COS-4](https://linear.app/interfaces-co/issue/COS-4))
 5. First real community ([COS-5](https://linear.app/interfaces-co/issue/COS-5))
 
-Dispatch agents only at **child** issues. Parallel: [COS-6](https://linear.app/interfaces-co/issue/COS-6), [COS-8](https://linear.app/interfaces-co/issue/COS-8), [COS-9](https://linear.app/interfaces-co/issue/COS-9). Solo (`app.ts`): [COS-7](https://linear.app/interfaces-co/issue/COS-7).
+Dispatch agents only at **child** issues. Do not start Step 2 while Step 1 is open. Parallel now: 1.1, 1.2, 1.3. Solo now: 1.4.
 
 ## Docs in Linear
 

@@ -153,8 +153,8 @@ curl -s -X POST $BASE/v1/public/events/$SLUG/rsvp -H 'content-type: application/
 curl -s $BASE/v1/events/$EVENT_ID/guests -H "$AUTH" | jq '.[].email'
 ```
 
-That is the whole loop. `apps/api/src/app.test.ts` encodes the same path as
-CI (`npm test -w api`).
+That is the whole loop. `apps/api/src/kernel-loop.test.ts` encodes the same
+path as CI (`npm test -w api`).
 
 ## Workspaces
 
@@ -178,6 +178,7 @@ Chat history is append-only evidence. Import is deduplicated by
 | `GET /v1/workspaces/:id/messages` | lead | → `Message[]` `{ id, communityId, sourceId, sourceMessageId, authorRaw, memberId, body, sentAt, isNoise }` |
 | `GET /v1/workspaces/:id/files` | lead | → `FileRecord[]` `{ id, communityId, messageId, name, storagePath, mime }` |
 | `GET /v1/workspaces/:id/timeline` | lead | → `TimelineEvent[]` `{ id, communityId, kind, payload, createdAt }`. Kinds emitted today: `import`, `memory`, `proposal`, `published`, `rsvp`, `page_view`. |
+| `GET /v1/workspaces/:id/export` | lead | → `{ version, exportedAt, workspace, sources, members, demands, proposals, venues, sponsors, resources, files, events, guests, citations, timeline, applications, blocklist, artifacts, messages }` — the full archive, sent as an `attachment` download. `messages` carries ids + metadata (`sourceMessageId`, `authorRaw`, `memberId`, `sentAt`, `isNoise`) with **no bodies**; quoted text lives in `citations`. |
 
 ## Memory — cited truth
 
@@ -262,7 +263,8 @@ not exist yet — don't fake it client-side.
 - **No `send_message` / posting back to chat — anywhere.** Not in `/v1`, not
   in MCP (`draft_message` only calls `/outreach`). The system drafts; a human
   sends.
-- **No workspace export endpoint** (planned: COS-7).
+- **No export *import*** — `GET /v1/workspaces/:id/export` archives a
+  workspace out, but there is no route that loads an export back in.
 - **No event editing.** `EventRecord.startsAt` exists but no route sets it;
   there is no `PATCH`/`DELETE` on events, proposals, demands, venues,
   sponsors, or guests. Workspaces do support `PATCH` (name, `joinUrl`) —

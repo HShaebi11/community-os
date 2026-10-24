@@ -250,15 +250,19 @@ export function createDrizzleStore(db: Database): Store {
     async updateMember(id, patch, byLead) {
       const member = await this.getMember(id);
       if (!member) throw new Error("member not found");
+      const editable = new Set(["do", "want", "offer", "notes", "displayName", "publicOptIn", "publicSlug"]);
+      const lockable = new Set(["do", "want", "offer", "notes", "displayName"]);
       const next = { ...member };
       for (const key of Object.keys(patch) as Array<keyof typeof patch>) {
+        if (!editable.has(key)) continue;
         const value = patch[key];
         if (value === undefined) continue;
-        if (!byLead && (key === "do" || key === "want" || key === "offer" || key === "notes" || key === "displayName")) {
-          if (member.leadLockedFields.includes(key)) continue;
+        if (!byLead && lockable.has(key) && member.leadLockedFields.includes(key as (typeof member.leadLockedFields)[number])) {
+          continue;
         }
-        if (byLead && (key === "do" || key === "want" || key === "offer" || key === "notes" || key === "displayName")) {
-          if (!next.leadLockedFields.includes(key)) next.leadLockedFields.push(key);
+        if (byLead && lockable.has(key)) {
+          const lock = key as (typeof next.leadLockedFields)[number];
+          if (!next.leadLockedFields.includes(lock)) next.leadLockedFields.push(lock);
         }
         (next as Record<string, unknown>)[key] = value;
       }
