@@ -1,0 +1,29 @@
+apps/app/src/app/(marketing)/docs/page.tsx
+  s_fce7b6ed009046::t_f98d6a51a21082 31,77-78
+apps/app/src/app/(marketing)/page.tsx
+  s_fce7b6ed009046::t_a36a51157d4dff 34
+apps/app/src/app/onboarding/page.tsx
+  s_fce7b6ed009046::t_1f5a0845996250 256
+apps/app/src/app/w/[slug]/search/page.tsx
+  s_fce7b6ed009046::t_74189029a0255c 15,22,29-32,34,42-43,82
+apps/app/src/app/w/[slug]/settings/page.tsx
+  s_fce7b6ed009046::t_451813d0099fc3 110-113
+apps/app/src/lib/types.ts
+  s_fce7b6ed009046::t_2767ce3fc0fa2d 169
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "597f10fc89ae20705acd6f697c0557ab5ced9bcf",
+  "prompts": {},
+  "sessions": {
+    "s_fce7b6ed009046": {
+      "agent_id": {
+        "tool": "devin",
+        "id": "s_fce7b6ed009046",
+        "model": "unknown"
+      },
+      "human_author": "Hamza <hshaebi.11@gmail.com>"
+    }
+  }
+}
