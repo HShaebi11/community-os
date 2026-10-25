@@ -1,0 +1,49 @@
+README.md
+  s_2a2cbf8ec8bfdc::t_25236acdad0efd 56-79,87
+apps/api/cloudflare.config.ts
+  s_2a2cbf8ec8bfdc::t_34cf9eccc69208 8,24
+apps/api/package.json
+  s_2a2cbf8ec8bfdc::t_4c211e1d9acd95 15
+apps/api/src/app.ts
+  s_2a2cbf8ec8bfdc::t_ee0d2b3e9b0b22 32,445-446
+apps/api/src/index.ts
+  s_2a2cbf8ec8bfdc::t_d89227983eafe5 9,13,31
+apps/api/src/mcp.ts
+  s_2a2cbf8ec8bfdc::t_68bb3a1e1ba428 1-13
+apps/mcp/package.json
+  s_2a2cbf8ec8bfdc::t_50f4e952386557 9-13,20-23
+apps/mcp/src/index.ts
+  s_2a2cbf8ec8bfdc::t_ece94283933ebc 3,23
+apps/mcp/src/remote.test.ts
+  s_2a2cbf8ec8bfdc::t_b3544d9ca6da60 1-132
+apps/mcp/src/remote.ts
+  s_2a2cbf8ec8bfdc::t_e052878cd8dbc9 1-66
+apps/mcp/src/server.ts
+  s_2a2cbf8ec8bfdc::t_f298fb7ce033c5 1-27
+apps/mcp/src/tools.test.ts
+  s_2a2cbf8ec8bfdc::t_82513b93a074ac 61
+apps/mcp/tsconfig.json
+  s_2a2cbf8ec8bfdc::t_686e4754021521 13
+docs/API.md
+  s_2a2cbf8ec8bfdc::t_62f4c86b67d4b1 300-305
+package-lock.json
+  s_2a2cbf8ec8bfdc::t_a590cdaadbc853 21,153,179-182,360-365,376-405,5145-5150,5282-5293
+package.json
+  s_2a2cbf8ec8bfdc::t_53aac0107017d8 12
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "586bf634ac61e1bd6a61b288244570a0a86f090b",
+  "prompts": {},
+  "sessions": {
+    "s_2a2cbf8ec8bfdc": {
+      "agent_id": {
+        "tool": "devin",
+        "id": "s_2a2cbf8ec8bfdc",
+        "model": "unknown"
+      },
+      "human_author": "Hamza <hshaebi.11@gmail.com>"
+    }
+  }
+}
