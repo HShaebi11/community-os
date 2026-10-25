@@ -1,0 +1,80 @@
+apps/api/vitest.config.ts
+  h_c628d8a6509c22 11
+apps/mcp/src/remote.test.ts
+  h_c628d8a6509c22 38-61
+apps/mcp/src/remote.ts
+  h_c628d8a6509c22 30,33,43,60,65
+apps/mcp/src/tools.test.ts
+  h_c628d8a6509c22 59-60
+apps/mcp/vitest.config.ts
+  h_c628d8a6509c22 10
+packages/channel-discord/src/index.test.ts
+  h_c628d8a6509c22 35-39
+packages/channel-discord/src/lifecycle.test.ts
+  h_c628d8a6509c22 101-127
+packages/channel-discord/vitest.config.ts
+  h_c628d8a6509c22 9
+packages/channel-slack/src/index.test.ts
+  h_c628d8a6509c22 2,31-40,82-136
+packages/channel-slack/src/lifecycle.test.ts
+  h_c628d8a6509c22 94-136
+packages/channel-slack/vitest.config.ts
+  h_c628d8a6509c22 9
+packages/channel-whatsapp/src/index.test.ts
+  h_c628d8a6509c22 56-84,116-162
+packages/channel-whatsapp/src/index.ts
+  h_c628d8a6509c22 64,78
+packages/channel-whatsapp/src/lifecycle.named-export.test.ts
+  h_c628d8a6509c22 1-24
+packages/channel-whatsapp/src/lifecycle.test.ts
+  h_c628d8a6509c22 95-104
+packages/channel-whatsapp/vitest.config.ts
+  h_c628d8a6509c22 9
+packages/core/src/kernel.coverage.test.ts
+  h_c628d8a6509c22 1-266
+packages/core/src/kernel.ts
+  h_c628d8a6509c22 163,211
+packages/core/src/whatsapp.ts
+  h_c628d8a6509c22 65
+packages/core/vitest.config.ts
+  h_c628d8a6509c22 11
+packages/db/src/drizzle-store.test.ts
+  h_c628d8a6509c22 5,60-94
+packages/db/src/drizzle-store.ts
+  h_c628d8a6509c22 115,225,227,399,447,456,468,470
+packages/db/vitest.config.ts
+  h_c628d8a6509c22 9
+packages/sdk/src/index.test.ts
+  h_c628d8a6509c22 378-702
+packages/sdk/src/index.ts
+  h_c628d8a6509c22 262,300,302,436,451,453,799,896
+packages/sdk/vitest.config.ts
+  h_c628d8a6509c22 11
+packages/server/src/index.test.ts
+  h_c628d8a6509c22 607-727
+packages/server/src/index.ts
+  h_c628d8a6509c22 109,479
+packages/server/vitest.config.ts
+  h_c628d8a6509c22 9
+packages/store-sqlite/src/index.test.ts
+  h_c628d8a6509c22 6,58-86
+packages/store-sqlite/vitest.config.ts
+  h_c628d8a6509c22 9
+packages/whatsapp-import/src/index.test.ts
+  h_c628d8a6509c22 62-74
+packages/whatsapp-import/src/index.ts
+  h_c628d8a6509c22 33
+packages/whatsapp-import/vitest.config.ts
+  h_c628d8a6509c22 9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "61b621623c2fdb2c85fd9f893242324ef7d126dd",
+  "prompts": {},
+  "humans": {
+    "h_c628d8a6509c22": {
+      "author": "Hamza <hshaebi.11@gmail.com>"
+    }
+  }
+}
