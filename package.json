@@ -17,7 +17,8 @@
     "coverage": "npm run coverage -w @community-os/core && npm run coverage -w api && npm run coverage -w @community-os/mcp && npm run coverage -w @community-os/sdk && npm run coverage -w @community-os/store-sqlite && npm run coverage -w @community-os/channel-discord && npm run coverage -w @community-os/channel-slack && npm run coverage -w @community-os/channel-whatsapp",
     "build:packages": "npm run build -w @community-os/sdk && npm run build -w @community-os/whatsapp-import && npm run build -w @community-os/store-sqlite && npm run build -w @community-os/channel-discord && npm run build -w @community-os/channel-slack && npm run build -w @community-os/channel-whatsapp",
     "pretest": "npm run build:packages",
-    "predev": "npm run build:packages"
+    "predev": "npm run build:packages",
+    "precoverage": "npm run build:packages"
   },
   "devDependencies": {
     "@vitest/coverage-v8": "^3.2.7",
