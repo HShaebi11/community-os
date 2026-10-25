@@ -1,77 +1,194 @@
 # Community OS
 
-The operating system for a community: import the chat, remember the people, publish a native event page, own the RSVP.
+The operating system for a community: import the chat, remember the people,
+publish a native event page, own the RSVP.
 
-MIT. The product is the HTTP API. The app, public pages, and MCP are clients.
+MIT. Fully open source — no accounts, no login, no hosted-service dependency.
+The product is the HTTP API; the app, public pages, and MCP are clients of it.
 
-## Quick start
+## What it does
+
+Your community keeps living in WhatsApp/Discord. Community OS is the brain
+behind it and the front door the world sees:
+
+- **Import** a WhatsApp export (`.txt` or `.zip` with media) or ingest Discord
+  messages — append-only, deduplicated evidence.
+- **Memory** — every member gets a card (what they do, want, offer) where each
+  field cites the message it came from. Demand is extracted ("people want an
+  AI workshop").
+- **Proposals** — turn a demand into a pack: matched speakers, a fitting
+  venue, a cited explanation. Approve → draft outreach → go live.
+- **Events & RSVP** — native public event pages with QR codes; guests stay in
+  the same system as members.
+- **MCP** — Cursor/agents use the same API via six tools
+  (`search_memory`, `get_member`, `list_demand`, `create_proposal`,
+  `get_event`, `draft_message`). Deliberately no `send_message` — the system
+  drafts, a human sends.
+- **Integrations** — a typed SDK (`@community-os/sdk`), an OpenAPI spec
+  (`docs/openapi.yaml`) for codegen in any language, and **webhooks**:
+  per-workspace subscriptions that POST signed events (`import`, `memory`,
+  `proposal`, `published`, `rsvp`, `application`) to any URL.
+
+## Quick start (local, no database)
 
 ```sh
 npm install
-npm run validate
-npm run dev:app   # API on :5173 + product app on :3002
+npm run validate        # tests + typecheck across all packages
+npm run dev:app         # API on :5173 + product app on :3002
 ```
 
-Sign up at `http://localhost:3002/sign-up`, then onboarding walks you through community → chat import → memory → co-lead invites. The desk lives at `/w/{slug}`; `/c/{slug}`, `/e/{slug}` and `/m/{slug}` are the public face. The API stays on `:5173`; Next rewrites `/v1` and `/api/auth` to it.
+Open `http://localhost:3002` — onboarding walks you through creating a
+community → importing a chat export → building memory. The desk lives at
+`/w/{slug}`; `/c/{slug}`, `/e/{slug}` and `/m/{slug}` are the public face.
+Without `DATABASE_URL` the API runs on an in-memory store — everything works,
+nothing persists between restarts. Try it with the bundled fixture
+[`fixtures/whatsapp-sample/_chat.txt`](fixtures/whatsapp-sample/_chat.txt).
 
-## Auth
+## Self-hosting
 
-Three ways to authenticate against `/v1`:
+Community OS is two deployables plus a Postgres database:
 
-1. **Cookie session** — Better Auth (`/api/auth/*`): email+password, magic link, and Google when `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` are set. Used by the app; non-GET cookie requests are CSRF-checked against `APP_ORIGINS`.
-2. **`cos_` API tokens** — mint in Settings → Agent access (or `POST /v1/tokens`). `Authorization: Bearer cos_…` works on every `/v1` route for curl, MCP and agents. Shown once, revocable, can't mint or revoke other tokens.
-3. **Dev auth** — `POST /v1/auth/dev {email}` returns a session bearer token. Only when `ALLOW_DEV_AUTH=true` (or when there is no database). Intended for local curl and legacy clients like `apps/web`.
+| Piece | What | Where it runs |
+| --- | --- | --- |
+| `apps/api` | Hono API serving `/v1` + `/mcp` | Cloudflare Worker (`npm run dev -w api`, `cf deploy`) **or** plain Node (`npm run start:node -w api`) — same app, two transports |
+| `apps/app` | Next.js 16 app — desk, onboarding, public pages, marketing | `npm run dev -w @community-os/app`, or any Next host (Vercel, `next build && next start`, Docker) |
+| Postgres | Drizzle schema `community_os` | Neon, Supabase, RDS, a local `postgres` container — anything Postgres |
 
-In local dev, magic links, invites and reset links are logged and listed in the dev outbox (`GET /v1/dev/outbox`, dev auth only). With `RESEND_API_KEY` they're emailed for real.
+### 1. Database (optional but recommended)
 
-## Setup
-
-Copy `apps/api/.dev.vars.example` to `apps/api/.dev.vars` and fill in:
-
-- `DATABASE_URL` — pooled Neon URL (required for anything persistent)
-- `BETTER_AUTH_SECRET` — session signing secret
-- `BETTER_AUTH_URL` — app origin, e.g. `http://localhost:3002`
-- `APP_ORIGINS` — comma-separated allowed origins, e.g. `http://localhost:3002,http://localhost:3000`
-- `ALLOW_DEV_AUTH` — `true` for local curl / `apps/web` compatibility
-- `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` — optional, enables Google sign-in
-- `RESEND_API_KEY` / `EMAIL_FROM` — optional, real email delivery
-
-Then:
+Provision any Postgres and set `DATABASE_URL` (a pooled connection string;
+`DATABASE_URL_UNPOOLED` is used for migrations if provided). Then:
 
 ```sh
-npm run db:push              # push schema (Better Auth org tables, api_tokens, …)
-npm run backfill -w @community-os/db   # existing workspaces → organizations + members (idempotent)
+cp apps/api/.dev.vars.example apps/api/.dev.vars   # fill in DATABASE_URL
+npm run db:push                                    # creates the schema
 ```
 
-Without `DATABASE_URL`, the API runs on an in-memory store for local tests.
+That's the only env var. See
+[`apps/api/.dev.vars.example`](apps/api/.dev.vars.example).
 
-## Stack
+### 2. API
 
-Cloudflare Workers + Hono for the API. Next.js 16 + shadcn for the app and public pages. **Neon** Postgres + **Drizzle** + **Better Auth** (workspaces are organizations).
+Two transports, same Hono app:
 
-Database: [community-os](https://console.neon.tech/app/projects/delicate-mud-18770479) in **The Interfaces Company** (`aws-eu-west-2`). Schema: `community_os`.
+```sh
+npm run dev -w api          # Cloudflare Worker locally: http://localhost:5173
+npm run start:node -w api   # plain Node server (any VPS/container): PORT=5173 HOST=0.0.0.0
+```
+
+For Cloudflare production, deploy `apps/api` as a Worker with `DATABASE_URL`
+as a secret (see `apps/api/cloudflare.config.ts`); Code Mode (`/mcp/code`)
+requires the Workers loader and is Worker-only. For a VPS, `start:node` works
+with any Postgres via `DATABASE_URL`.
+
+**Important:** the API is unauthenticated by design — anyone who can reach it
+can operate it. Keep it on a private network/VPN, or put an access layer in
+front of it (Cloudflare Access, an mTLS tunnel, a reverse proxy with auth).
+Public event/community pages only ever expose opted-in data, but the operator
+routes return raw evidence.
+
+### 3. App
+
+```sh
+npm run dev -w @community-os/app    # http://localhost:3002
+```
+
+The app proxies `/v1` and `/mcp` to the API via `apps/app/next.config.ts` —
+set `API_PROXY_TARGET` (default `http://localhost:5173`) for a remote API,
+then `next build && next start` or deploy to any Next.js host.
+
+### Docker compose — everything in one command
+
+```sh
+docker compose up --build          # postgres + api(:5173) + app(:3002)
+
+# push the schema once (from the host, repo checked out):
+DATABASE_URL=postgres://cos:cos@localhost:5432/community_os npm run db:push
+```
+
+Or the minimal local recipe (in-memory API, throwaway Postgres):
+
+```sh
+docker run -d -p 5432:5432 -e POSTGRES_PASSWORD=dev postgres:16
+DATABASE_URL=postgres://postgres:dev@localhost:5432/postgres npm run db:push
+# then npm run dev:app
+```
 
 ## MCP
 
+The same six tools, three ways to reach them — all calls hit `/v1`, never a
+second API. There is no send-to-chat tool.
+
+**Remote (Streamable HTTP)** — the API Worker serves MCP at `/mcp`. No auth
+needed:
+
+```json
+{
+  "mcpServers": {
+    "community-os": {
+      "url": "http://localhost:5173/mcp?workspace=<workspaceId>"
+    }
+  }
+}
+```
+
+**Code Mode** — `/mcp/code` wraps the tools in Cloudflare Code Mode: one
+`code` tool runs model-written JavaScript in a Dynamic Worker sandbox as
+`await codemode.search_memory(...)` etc. The sandbox cannot fetch outside the
+workspace functions.
+
+**Local (stdio)** — same tools over stdio:
+
 ```sh
 COMMUNITY_OS_API_URL=http://localhost:5173 \
-COMMUNITY_OS_TOKEN=cos_... \
-COMMUNITY_OS_WORKSPACE_ID=... \
+COMMUNITY_OS_WORKSPACE_ID=<workspaceId> \
 npm start -w @community-os/mcp
 ```
 
-Tools: `search_memory`, `get_member`, `list_demand`, `create_proposal`, `get_event`, `draft_message`. There is no send-to-chat tool.
-
 ## Curl quick start
 
-Full route reference: [`docs/API.md`](docs/API.md).
+Full route reference: [`docs/API.md`](docs/API.md). Machine-readable:
+[`docs/openapi.yaml`](docs/openapi.yaml).
 
 ```sh
-TOKEN=$(curl -s http://localhost:5173/v1/auth/dev -H 'content-type: application/json' \
-  -d '{"email":"lead@example.com"}' | jq -r .token)
-WS=$(curl -s http://localhost:5173/v1/workspaces -H "authorization: Bearer $TOKEN" \
+WS=$(curl -s -X POST http://localhost:5173/v1/workspaces \
   -H 'content-type: application/json' -d '{"name":"Weird Stuff"}' | jq -r .id)
-curl -s http://localhost:5173/v1/workspaces/$WS/imports?filename=_chat.txt \
-  -H "authorization: Bearer $TOKEN" --data-binary @fixtures/whatsapp-sample/_chat.txt
-curl -s http://localhost:5173/v1/workspaces/$WS/members -H "authorization: Bearer $TOKEN"
+curl -s "http://localhost:5173/v1/workspaces/$WS/imports?filename=_chat.txt" \
+  --data-binary @fixtures/whatsapp-sample/_chat.txt
+curl -s http://localhost:5173/v1/workspaces/$WS/members
 ```
+
+Or in TypeScript:
+
+```ts
+import { CommunityOS } from "@community-os/sdk";
+
+const cos = new CommunityOS({ baseUrl: "http://localhost:5173" });
+const ws = await cos.createWorkspace({ name: "Weird Stuff" });
+await cos.importChat(ws.id, new Uint8Array(chatBytes), "_chat.txt");
+const { members } = await cos.refreshMemory(ws.id);
+```
+
+## Stack
+
+Cloudflare Workers + Hono API · Next.js 16 + shadcn-style UI · Postgres +
+Drizzle · MCP SDK + Code Mode · Vitest.
+
+## Architecture: open core, hosted layer
+
+This repo is the **open core** — deliberately no auth. A future hosted
+edition is a thin layer on top that re-adds accounts at the edge (middleware +
+store seam), never inside the kernel. `packages/core` knows nothing about
+users; `createdBy` on a workspace is just a string. The shape is preserved so
+a hosted fork can plug in: API surface → optional auth middleware → kernel.
+
+## Docs
+
+- [`docs/API.md`](docs/API.md) — every `/v1` route, curl-able
+- [`docs/MAP.md`](docs/MAP.md) — repo map
+- [`docs/PRODUCT.md`](docs/PRODUCT.md) — what this is and why it exists
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) — how to work on it
+
+## License
+
+MIT.

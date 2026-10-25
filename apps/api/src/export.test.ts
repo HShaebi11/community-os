@@ -9,20 +9,11 @@ const chat = readFileSync(
   join(dirname(fileURLToPath(import.meta.url)), "../../../fixtures/whatsapp-sample/_chat.txt"),
 );
 
-async function devHeaders(app: ReturnType<typeof createApp>, email = "lead@example.com") {
-  const res = await app.request("/v1/auth/dev", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ email }),
-  });
-  const { token } = (await res.json()) as { token: string };
-  return { authorization: `Bearer ${token}`, "content-type": "application/json" };
-}
+const headers = { "content-type": "application/json" };
 
 describe("workspace export", () => {
-  it("requires auth and lead membership", async () => {
+  it("is available to anyone who can reach the API", async () => {
     const app = createApp(new MemoryStore());
-    const headers = await devHeaders(app);
     const ws = await app.request("/v1/workspaces", {
       method: "POST",
       headers,
@@ -30,21 +21,13 @@ describe("workspace export", () => {
     });
     const workspace = (await ws.json()) as { id: string };
 
-    const anon = await app.request(`/v1/workspaces/${workspace.id}/export`);
-    expect(anon.status).toBe(401);
-
-    const other = await devHeaders(app, "other@example.com");
-    const denied = await app.request(`/v1/workspaces/${workspace.id}/export`, { headers: other });
-    expect(denied.status).toBe(403);
-
-    const ok = await app.request(`/v1/workspaces/${workspace.id}/export`, { headers });
+    const ok = await app.request(`/v1/workspaces/${workspace.id}/export`);
     expect(ok.status).toBe(200);
     expect(ok.headers.get("content-disposition")).toContain("attachment");
   });
 
   it("exports the full workspace archive and message ids without bodies", async () => {
     const app = createApp(new MemoryStore());
-    const headers = await devHeaders(app);
     const ws = await app.request("/v1/workspaces", {
       method: "POST",
       headers,
@@ -54,7 +37,7 @@ describe("workspace export", () => {
 
     await app.request(`/v1/workspaces/${workspace.id}/imports?filename=_chat.txt`, {
       method: "POST",
-      headers: { authorization: headers.authorization, "content-type": "text/plain" },
+      headers: { "content-type": "text/plain" },
       body: chat,
     });
     const memoryRes = await app.request(`/v1/workspaces/${workspace.id}/memory`, { method: "POST", headers });
@@ -95,7 +78,7 @@ describe("workspace export", () => {
     });
     await app.request(`/v1/events/${event.id}/autopilot`, { method: "POST", headers });
 
-    const res = await app.request(`/v1/workspaces/${workspace.id}/export`, { headers });
+    const res = await app.request(`/v1/workspaces/${workspace.id}/export`);
     expect(res.status).toBe(200);
     const data = (await res.json()) as {
       version: number;

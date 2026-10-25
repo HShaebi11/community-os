@@ -1,7 +1,6 @@
 import { createId, slugify } from "./ids.ts";
 import type { Store } from "./store.ts";
 import type {
-  ApiToken,
   Application,
   AutopilotArtifact,
   BlocklistEntry,
@@ -10,16 +9,14 @@ import type {
   EventRecord,
   FileRecord,
   Guest,
-  LeadRole,
   Member,
   Message,
   Proposal,
-  Session,
   Source,
   Sponsor,
   TimelineEvent,
-  User,
   Venue,
+  WebhookSubscription,
   Workspace,
 } from "./types.ts";
 
@@ -27,11 +24,7 @@ const LEAD_LOCKABLE_FIELDS: Set<string> = new Set(["do", "want", "offer", "notes
 const EDITABLE_MEMBER_FIELDS: Set<string> = new Set([...LEAD_LOCKABLE_FIELDS, "publicOptIn", "publicSlug"]);
 
 export class MemoryStore implements Store {
-  users = new Map<string, User>();
-  sessions = new Map<string, Session>();
   workspaces = new Map<string, Workspace>();
-  leads = new Map<string, Map<string, LeadRole>>();
-  apiTokens = new Map<string, ApiToken & { tokenHash: string }>();
   sources = new Map<string, Source>();
   messages = new Map<string, Message>();
   files = new Map<string, FileRecord>();
@@ -48,61 +41,7 @@ export class MemoryStore implements Store {
   applications = new Map<string, Application>();
   blocklist = new Map<string, BlocklistEntry>();
   artifacts = new Map<string, AutopilotArtifact>();
-
-  async upsertUser(email: string): Promise<User> {
-    const existing = [...this.users.values()].find((u) => u.email === email.toLowerCase());
-    if (existing) return existing;
-    const user = { id: createId(), email: email.toLowerCase() };
-    this.users.set(user.id, user);
-    return user;
-  }
-
-  async createSession(user: User): Promise<Session> {
-    const session = { token: createId(), userId: user.id, email: user.email, createdAt: new Date().toISOString() };
-    this.sessions.set(session.token, session);
-    return session;
-  }
-
-  async getSession(token: string): Promise<Session | null> {
-    return this.sessions.get(token) ?? null;
-  }
-
-  async getSessionByApiTokenHash(tokenHash: string): Promise<Session | null> {
-    const token = [...this.apiTokens.values()].find((t) => t.tokenHash === tokenHash && !t.revokedAt);
-    if (!token) return null;
-    token.lastUsedAt = new Date().toISOString();
-    const user = this.users.get(token.userId);
-    if (!user) return null;
-    return { token: token.id, userId: user.id, email: user.email, createdAt: token.createdAt };
-  }
-
-  async createApiToken(input: { userId: string; name: string; prefix: string; tokenHash: string }): Promise<ApiToken> {
-    const token: ApiToken & { tokenHash: string } = {
-      id: createId(),
-      userId: input.userId,
-      name: input.name,
-      prefix: input.prefix,
-      tokenHash: input.tokenHash,
-      createdAt: new Date().toISOString(),
-      lastUsedAt: null,
-      revokedAt: null,
-    };
-    this.apiTokens.set(token.id, token);
-    return token;
-  }
-
-  async listApiTokens(userId: string): Promise<ApiToken[]> {
-    return [...this.apiTokens.values()]
-      .filter((t) => t.userId === userId && !t.revokedAt)
-      .map(({ tokenHash: _tokenHash, ...t }) => t);
-  }
-
-  async revokeApiToken(id: string, userId: string): Promise<boolean> {
-    const token = this.apiTokens.get(id);
-    if (!token || token.userId !== userId || token.revokedAt) return false;
-    token.revokedAt = new Date().toISOString();
-    return true;
-  }
+  webhookSubscriptions = new Map<string, WebhookSubscription>();
 
   async createWorkspace(input: { name: string; createdBy: string; joinUrl?: string }): Promise<Workspace> {
     let slug = slugify(input.name);
@@ -116,7 +55,6 @@ export class MemoryStore implements Store {
       createdAt: new Date().toISOString(),
     };
     this.workspaces.set(workspace.id, workspace);
-    this.leads.set(workspace.id, new Map([[input.createdBy, "owner"]]));
     return workspace;
   }
 
@@ -136,14 +74,8 @@ export class MemoryStore implements Store {
     return workspace;
   }
 
-  async listWorkspacesForUser(userId: string) {
-    return [...this.workspaces.values()]
-      .filter((w) => this.leads.get(w.id)?.has(userId))
-      .map((w) => ({ ...w, role: this.leads.get(w.id)!.get(userId)! }));
-  }
-
-  async isLead(workspaceId: string, userId: string) {
-    return this.leads.get(workspaceId)?.has(userId) ?? false;
+  async listWorkspaces() {
+    return [...this.workspaces.values()].map((w) => ({ ...w, role: "owner" as const }));
   }
 
   async createSource(input: { communityId: string; kind: Source["kind"]; name: string }) {
@@ -423,5 +355,19 @@ export class MemoryStore implements Store {
 
   async listArtifacts(eventId: string) {
     return [...this.artifacts.values()].filter((a) => a.eventId === eventId);
+  }
+
+  async createWebhookSubscription(input: { communityId: string; url: string; secret: string; kinds: string[] }) {
+    const sub: WebhookSubscription = { id: createId(), createdAt: new Date().toISOString(), ...input };
+    this.webhookSubscriptions.set(sub.id, sub);
+    return sub;
+  }
+
+  async listWebhookSubscriptions(communityId: string) {
+    return [...this.webhookSubscriptions.values()].filter((s) => s.communityId === communityId);
+  }
+
+  async deleteWebhookSubscription(id: string) {
+    return this.webhookSubscriptions.delete(id);
   }
 }

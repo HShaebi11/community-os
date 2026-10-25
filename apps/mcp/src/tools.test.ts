@@ -11,13 +11,7 @@ const chat = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "../../.
 describe("MCP tools", () => {
   it("maps the spec tools onto /v1 and refuses send_message", async () => {
     const app = createApp(new MemoryStore());
-    const auth = await app.request("/v1/auth/dev", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ email: "lead@example.com" }),
-    });
-    const { token } = (await auth.json()) as { token: string };
-    const headers = { authorization: `Bearer ${token}`, "content-type": "application/json" };
+    const headers = { "content-type": "application/json" };
 
     const ws = await app.request("/v1/workspaces", {
       method: "POST",
@@ -28,7 +22,7 @@ describe("MCP tools", () => {
 
     await app.request(`/v1/workspaces/${workspace.id}/imports?filename=_chat.txt`, {
       method: "POST",
-      headers: { authorization: `Bearer ${token}`, "content-type": "text/plain" },
+      headers: { "content-type": "text/plain" },
       body: chat,
     });
     const memoryRes = await app.request(`/v1/workspaces/${workspace.id}/memory`, { method: "POST", headers });
@@ -58,7 +52,7 @@ describe("MCP tools", () => {
       "get_event",
       "draft_message",
     ]);
-    expect(tools.some((t) => t.name === "send_message")).toBe(false);
+    expect(tools.some((t) => (t.name as string) === "send_message")).toBe(false);
     await expect(dispatch("send_message", {}, ctx)).rejects.toThrow("unknown tool");
 
     const hits = (await dispatch("search_memory", { q: "workshop" }, ctx)) as Array<{ type: string }>;

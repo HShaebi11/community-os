@@ -4,7 +4,6 @@ import Link from "next/link";
 import { ShieldCheck } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -18,7 +17,7 @@ import { api } from "@/lib/api";
 import type { Application, Workspace } from "@/lib/types";
 
 export default function SettingsPage() {
-  const { workspace, role, refresh } = useWorkspace();
+  const { workspace, refresh } = useWorkspace();
   const [name, setName] = useState(workspace.name);
   const [joinUrl, setJoinUrl] = useState(workspace.joinUrl ?? "");
   const [saving, setSaving] = useState(false);
@@ -26,7 +25,6 @@ export default function SettingsPage() {
   const [applicant, setApplicant] = useState("");
   const [answers, setAnswers] = useState("");
   const [scoring, setScoring] = useState(false);
-  const canEdit = role === "owner" || role === "admin";
 
   async function load() {
     try {
@@ -88,7 +86,7 @@ export default function SettingsPage() {
           <form onSubmit={(e) => void save(e)} className="space-y-4">
             <div className="space-y-1.5">
               <Label htmlFor="ws-name">Community name</Label>
-              <Input id="ws-name" required value={name} onChange={(e) => setName(e.target.value)} disabled={!canEdit} />
+              <Input id="ws-name" required value={name} onChange={(e) => setName(e.target.value)} />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="ws-join">Chat join link</Label>
@@ -98,7 +96,6 @@ export default function SettingsPage() {
                 placeholder="https://chat.whatsapp.com/…"
                 value={joinUrl}
                 onChange={(e) => setJoinUrl(e.target.value)}
-                disabled={!canEdit}
               />
             </div>
             <div className="flex items-center justify-between">
@@ -112,13 +109,9 @@ export default function SettingsPage() {
                   export json
                 </a>
               </p>
-              {canEdit ? (
-                <Button type="submit" size="sm" disabled={saving}>
-                  {saving ? "saving…" : "save"}
-                </Button>
-              ) : (
-                <Badge variant="outline" className="font-mono">{role}</Badge>
-              )}
+              <Button type="submit" size="sm" disabled={saving}>
+                {saving ? "saving…" : "save"}
+              </Button>
             </div>
           </form>
         </CardContent>

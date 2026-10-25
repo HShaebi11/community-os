@@ -9,21 +9,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { api, apiBinary } from "@/lib/api";
-import { authClient } from "@/lib/auth-client";
-import { CopyButton } from "@/components/copy-button";
 import { ImportDropzone } from "@/components/import-dropzone";
 import type { Demand, MemberCard, Workspace } from "@/lib/types";
 
-const STEPS = ["community", "import", "memory", "team", "done"] as const;
+const STEPS = ["community", "import", "memory", "done"] as const;
 type Step = (typeof STEPS)[number];
 
 type MemoryResult = {
@@ -31,9 +22,6 @@ type MemoryResult = {
   demands: Demand[];
   resources: Array<{ url: string; title?: string | null }>;
 };
-
-type InviteRow = { email: string; role: string };
-type SentInvite = { id: string; email: string };
 
 function slugify(name: string) {
   return (
@@ -59,9 +47,6 @@ function Onboarding() {
   const [memorising, setMemorising] = useState(false);
   const [memory, setMemory] = useState<MemoryResult | null>(null);
   const [imported, setImported] = useState(false);
-  const [inviteRows, setInviteRows] = useState<InviteRow[]>([{ email: "", role: "admin" }]);
-  const [invites, setInvites] = useState<SentInvite[]>([]);
-  const [sending, setSending] = useState(false);
 
   function go(next: Step, slug?: string) {
     const q = new URLSearchParams({ step: next });
@@ -133,32 +118,6 @@ function Onboarding() {
     if (step === "memory" && ws && memory === null && !memorising) void buildMemory();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, ws?.id]);
-
-  async function sendInvites(e: React.FormEvent) {
-    e.preventDefault();
-    if (!ws) return;
-    const rows = inviteRows.filter((r) => r.email.trim());
-    if (rows.length === 0) return;
-    setSending(true);
-    try {
-      for (const row of rows) {
-        const { data, error } = await authClient.organization.inviteMember({
-          email: row.email.trim(),
-          role: row.role as "admin" | "member",
-          organizationId: ws.id,
-        });
-        if (error) throw new Error(`${row.email}: ${error.message ?? "invite failed"}`);
-        const id = (data as { id?: string } | null)?.id;
-        if (id) setInvites((prev) => [...prev, { id, email: row.email.trim() }]);
-      }
-      setInviteRows([{ email: "", role: "admin" }]);
-      toast.success(rows.length > 1 ? "Invites sent." : "Invite sent.");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "invite failed");
-    } finally {
-      setSending(false);
-    }
-  }
 
   const idx = STEPS.indexOf(step);
   const topMembers = useMemo(() => (memory?.members ?? []).slice(0, 3), [memory]);
@@ -348,88 +307,8 @@ function Onboarding() {
             <Button variant="ghost" size="sm" onClick={() => go("import")}>
               <ChevronLeft className="size-4" /> back
             </Button>
-            <Button size="sm" onClick={() => go("team")} disabled={memorising}>
-              next: invite co-leads <ChevronRight className="size-4" />
-            </Button>
-          </div>
-        </div>
-      ) : null}
-
-      {step === "team" && ws ? (
-        <div className="space-y-5">
-          <div>
-            <h1 className="font-semibold">Invite co-leads</h1>
-            <p className="text-muted-foreground mt-1 text-sm">
-              Admins can run the desk with you. Links work even without email delivery — copy and paste them.
-            </p>
-          </div>
-          <Card className="gap-3 py-5">
-            <CardContent>
-              <form onSubmit={(e) => void sendInvites(e)} className="space-y-3">
-                {inviteRows.map((row, i) => (
-                  <div key={i} className="flex gap-2">
-                    <Input
-                      type="email"
-                      placeholder="colead@example.com"
-                      value={row.email}
-                      onChange={(e) =>
-                        setInviteRows((rows) => rows.map((r, j) => (j === i ? { ...r, email: e.target.value } : r)))
-                      }
-                    />
-                    <Select
-                      value={row.role}
-                      onValueChange={(v) =>
-                        setInviteRows((rows) => rows.map((r, j) => (j === i ? { ...r, role: v } : r)))
-                      }
-                    >
-                      <SelectTrigger className="w-28">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="admin">admin</SelectItem>
-                        <SelectItem value="member">member</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                ))}
-                <div className="flex items-center justify-between">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    disabled={inviteRows.length >= 5}
-                    onClick={() => setInviteRows((rows) => [...rows, { email: "", role: "member" }])}
-                  >
-                    + add another
-                  </Button>
-                  <Button type="submit" size="sm" disabled={sending || !inviteRows.some((r) => r.email.trim())}>
-                    {sending ? "sending…" : "send invites"}
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
-          {invites.length > 0 ? (
-            <div className="space-y-2">
-              {invites.map((inv) => (
-                <div
-                  key={inv.id}
-                  className="bg-card flex items-center justify-between gap-2 rounded-md border px-3 py-2"
-                >
-                  <p className="truncate font-mono text-xs">
-                    {inv.email} → /invite/{inv.id}
-                  </p>
-                  <CopyButton text={`${window.location.origin}/invite/${inv.id}`} label="copy link" />
-                </div>
-              ))}
-            </div>
-          ) : null}
-          <div className="flex items-center justify-between">
-            <Button variant="ghost" size="sm" onClick={() => go("memory")}>
-              <ChevronLeft className="size-4" /> back
-            </Button>
-            <Button size="sm" onClick={() => go("done")}>
-              {invites.length ? "continue" : "skip for now"} <ChevronRight className="size-4" />
+            <Button size="sm" onClick={() => go("done")} disabled={memorising}>
+              next: finish <ChevronRight className="size-4" />
             </Button>
           </div>
         </div>
@@ -443,11 +322,10 @@ function Onboarding() {
               <CheckItem done>workspace created — {ws.name}</CheckItem>
               <CheckItem done={imported || (memory?.members.length ?? 0) > 0}>chat imported</CheckItem>
               <CheckItem done={(memory?.demands.length ?? 0) > 0}>demand extracted</CheckItem>
-              <CheckItem done={invites.length > 0}>{invites.length ? `${invites.length} invite(s) sent` : "no co-leads yet"}</CheckItem>
             </CardContent>
           </Card>
           <div className="flex items-center justify-between">
-            <Button variant="ghost" size="sm" onClick={() => go("team")}>
+            <Button variant="ghost" size="sm" onClick={() => go("memory")}>
               <ChevronLeft className="size-4" /> back
             </Button>
             <Button asChild>

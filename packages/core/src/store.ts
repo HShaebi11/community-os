@@ -1,5 +1,4 @@
 import type {
-  ApiToken,
   Application,
   AutopilotArtifact,
   BlocklistEntry,
@@ -12,31 +11,20 @@ import type {
   Member,
   Message,
   Proposal,
-  Session,
   Source,
   Sponsor,
   TimelineEvent,
-  User,
   Venue,
+  WebhookSubscription,
   Workspace,
 } from "./types.ts";
 
 export type Store = {
-  upsertUser(email: string): Promise<User>;
-  createSession(user: User): Promise<Session>;
-  getSession(token: string): Promise<Session | null>;
-  getSessionByApiTokenHash(tokenHash: string): Promise<Session | null>;
-
-  createApiToken(input: { userId: string; name: string; prefix: string; tokenHash: string }): Promise<ApiToken>;
-  listApiTokens(userId: string): Promise<ApiToken[]>;
-  revokeApiToken(id: string, userId: string): Promise<boolean>;
-
   createWorkspace(input: { name: string; createdBy: string; joinUrl?: string }): Promise<Workspace>;
   getWorkspace(id: string): Promise<Workspace | null>;
   getWorkspaceBySlug(slug: string): Promise<Workspace | null>;
   updateWorkspace(id: string, patch: { name?: string; joinUrl?: string | null }): Promise<Workspace>;
-  listWorkspacesForUser(userId: string): Promise<Array<Workspace & { role: LeadRole }>>;
-  isLead(workspaceId: string, userId: string): Promise<boolean>;
+  listWorkspaces(): Promise<Array<Workspace & { role: LeadRole }>>;
 
   createSource(input: { communityId: string; kind: Source["kind"]; name: string }): Promise<Source>;
   listSources(communityId: string): Promise<Source[]>;
@@ -101,6 +89,15 @@ export type Store = {
 
   saveArtifact(artifact: AutopilotArtifact): Promise<AutopilotArtifact>;
   listArtifacts(eventId: string): Promise<AutopilotArtifact[]>;
+
+  createWebhookSubscription(input: {
+    communityId: string;
+    url: string;
+    secret: string;
+    kinds: string[];
+  }): Promise<WebhookSubscription>;
+  listWebhookSubscriptions(communityId: string): Promise<WebhookSubscription[]>;
+  deleteWebhookSubscription(id: string): Promise<boolean>;
 };
 
 type Resource = import("./types.ts").Resource;

@@ -16,7 +16,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { api } from "@/lib/api";
-import type { LeadRole, Me, Workspace } from "@/lib/types";
+import type { LeadRole, Workspace } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const LAST_WS = "cos_last_ws";
@@ -43,18 +43,15 @@ export function getLastWorkspace(): string | null {
 export function WorkspaceShell({ slug, children }: { slug: string; children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [me, setMe] = useState<Me | null>(null);
   const [workspace, setWorkspace] = useState<(Workspace & { role: LeadRole }) | null | "loading">("loading");
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
 
   const load = useCallback(async () => {
     try {
-      const [who, entry, list] = await Promise.all([
-        api<Me>("/v1/me"),
+      const [entry, list] = await Promise.all([
         api<Workspace & { role: LeadRole }>(`/v1/workspaces/by-slug/${slug}`),
         api<Workspace[]>(`/v1/workspaces`).catch(() => []),
       ]);
-      setMe(who);
       setWorkspace(entry);
       setWorkspaces(list);
       setLastWorkspace(slug);
@@ -68,7 +65,7 @@ export function WorkspaceShell({ slug, children }: { slug: string; children: Rea
     void load();
   }, [load]);
 
-  if (workspace === "loading" || !me) {
+  if (workspace === "loading") {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <p className="text-muted-foreground text-sm">Loading…</p>
@@ -79,15 +76,13 @@ export function WorkspaceShell({ slug, children }: { slug: string; children: Rea
   if (!workspace) {
     return (
       <div className="flex min-h-screen flex-col">
-        <AppHeader me={me} />
+        <AppHeader />
         <main className="mx-auto w-full max-w-2xl flex-1 px-5 py-24 text-center">
-          <h1 className="mb-2 text-2xl font-semibold tracking-tight">No access</h1>
-          <p className="text-muted-foreground mb-6 text-sm">
-            This workspace doesn&apos;t exist, or your account isn&apos;t a member of it.
-          </p>
+          <h1 className="mb-2 text-2xl font-semibold tracking-tight">Not found</h1>
+          <p className="text-muted-foreground mb-6 text-sm">This workspace doesn&apos;t exist.</p>
           <Button asChild>
             <Link href="/desk" className="text-primary-foreground no-underline">
-              back to my workspaces
+              back to workspaces
             </Link>
           </Button>
         </main>
@@ -99,9 +94,9 @@ export function WorkspaceShell({ slug, children }: { slug: string; children: Rea
   const active = (path: string) => (path === "" ? pathname === base : pathname.startsWith(base + path));
 
   return (
-    <WorkspaceContext.Provider value={{ workspace, role: workspace.role, me, refresh: load }}>
+    <WorkspaceContext.Provider value={{ workspace, role: workspace.role, refresh: load }}>
       <div className="flex min-h-screen flex-col">
-        <AppHeader me={me}>
+        <AppHeader>
           <nav className="hidden items-center gap-0.5 md:flex">
             {NAV.map((item) => (
               <Link

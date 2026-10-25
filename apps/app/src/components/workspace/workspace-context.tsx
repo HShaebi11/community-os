@@ -1,12 +1,11 @@
 "use client";
 
 import { createContext, useContext } from "react";
-import type { LeadRole, Me, Workspace } from "@/lib/types";
+import type { LeadRole, Workspace } from "@/lib/types";
 
 export type WorkspaceContextValue = {
   workspace: Workspace & { role: LeadRole };
   role: LeadRole;
-  me: Me;
   refresh: () => Promise<void>;
 };
 

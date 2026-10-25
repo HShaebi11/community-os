@@ -3,35 +3,12 @@ export type ProposalStatus = "draft" | "approved" | "live";
 export type ApplicationDecision = "pending" | "accept" | "ask" | "decline";
 export type LeadRole = "owner" | "admin" | "member";
 
-export type ApiToken = {
-  id: string;
-  userId: string;
-  name: string;
-  prefix: string;
-  createdAt: string;
-  lastUsedAt: string | null;
-  revokedAt: string | null;
-};
-
 export type Workspace = {
   id: string;
   name: string;
   slug: string;
   joinUrl: string | null;
   createdBy: string;
-  createdAt: string;
-};
-
-export type User = {
-  id: string;
-  email: string;
-};
-
-export type Session = {
-  token: string;
-  userId: string;
-  email: string;
-  name?: string | null;
   createdAt: string;
 };
 
@@ -113,7 +90,6 @@ export type Venue = {
   area: string | null;
   capacity: number | null;
   contact: string | null;
-  userId: string | null;
 };
 
 export type Sponsor = {
@@ -121,7 +97,6 @@ export type Sponsor = {
   communityId: string;
   name: string;
   notes: string | null;
-  userId: string | null;
 };
 
 export type Proposal = {
@@ -189,4 +164,13 @@ export type AutopilotArtifact = {
   communityId: string;
   kind: "run_sheet" | "post" | "newsletter";
   body: string;
+};
+
+export type WebhookSubscription = {
+  id: string;
+  communityId: string;
+  url: string;
+  secret: string;
+  kinds: string[];
+  createdAt: string;
 };

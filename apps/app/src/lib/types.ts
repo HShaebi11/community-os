@@ -9,48 +9,6 @@ export type Workspace = {
   role?: LeadRole;
 };
 
-export type Me = {
-  userId: string;
-  email: string;
-  name?: string | null;
-  authKind?: "session" | "token" | "cookie";
-};
-
-export type Providers = {
-  password: boolean;
-  magicLink: boolean;
-  google: boolean;
-  email: "resend" | "log" | string;
-  devAuth: boolean;
-};
-
-export type ApiToken = {
-  id: string;
-  name: string;
-  prefix: string;
-  createdAt: string;
-  lastUsedAt: string | null;
-};
-
-export type OrgMember = {
-  id: string;
-  userId: string;
-  organizationId: string;
-  role: string;
-  createdAt?: string;
-  user?: { id: string; email: string; name?: string | null };
-};
-
-export type OrgInvitation = {
-  id: string;
-  email: string;
-  role: string | null;
-  status: string;
-  expiresAt: string;
-  organizationId: string;
-  inviterId?: string;
-};
-
 export type Citation = {
   id?: string;
   quote?: string;

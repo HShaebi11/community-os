@@ -1,0 +1,22 @@
+{
+  "name": "@community-os/sdk",
+  "version": "0.1.0",
+  "description": "Typed client for the Community OS /v1 API",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@community-os/core": "0.1.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

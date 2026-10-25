@@ -1,0 +1,17 @@
+node_modules
+**/node_modules
+**/.next
+**/.cloudflare
+**/.wrangler
+**/dist
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
+.env
+.env.*
+!.env.example
+.git
+docs
+fixtures
+*.log
+.DS_Store
