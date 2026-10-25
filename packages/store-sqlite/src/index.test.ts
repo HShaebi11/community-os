@@ -81,7 +81,7 @@ describe("SqliteStore — adapter specifics", () => {
     const w = await store.createWorkspace({ name: "W", createdBy: "lead" });
     const p = await store.createProposal(proposal({ communityId: w.id }));
     const same = await store.updateProposal(p.id, {});
-    expect(same.title).toBe(p.title);
+    expect(same.demandId).toBe(p.demandId);
     store.close();
   });
 });

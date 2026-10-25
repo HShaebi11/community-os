@@ -129,7 +129,10 @@ export class MemoryStore implements Store {
   async upsertMember(communityId: string, displayName: string, lastActive: string | null) {
     displayName = displayName.trim();
     const existing = [...this.members.values()].find(
-      (m) => m.communityId === communityId && m.aliases.some((a) => a.trim().toLowerCase() === displayName.toLowerCase()),
+      (m) =>
+        m.communityId === communityId &&
+        (m.displayName.trim().toLowerCase() === displayName.toLowerCase() ||
+          m.aliases.some((a) => a.trim().toLowerCase() === displayName.toLowerCase())),
     );
     if (existing) {
       if (lastActive && (!existing.lastActive || lastActive > existing.lastActive)) existing.lastActive = lastActive;
@@ -172,6 +175,23 @@ export class MemoryStore implements Store {
   async updateMember(id: string, patch: Parameters<Store["updateMember"]>[1], byLead: boolean) {
     const member = this.members.get(id);
     if (!member) throw new Error("member not found");
+    // Public slugs resolve globally — another member anywhere already holding
+    // this slug makes it unavailable. Matches the unique index in the SQL stores.
+    if (patch.publicSlug != null) {
+      const holder = [...this.members.values()].find((m) => m.id !== id && m.publicSlug === patch.publicSlug);
+      if (holder) throw new Error("public slug taken");
+    }
+    // Display names are the member's canonical identity within a community —
+    // renaming onto an existing name would split upsertMember dedupe. Matches
+    // the members_name_norm unique index in the SQL stores. Only enforced when
+    // the write applies (a locked field patched by a non-lead is a no-op).
+    if (patch.displayName != null && (byLead || !member.leadLockedFields.includes("displayName"))) {
+      const norm = patch.displayName.trim().toLowerCase();
+      const holder = [...this.members.values()].find(
+        (m) => m.id !== id && m.communityId === member.communityId && m.displayName.trim().toLowerCase() === norm,
+      );
+      if (holder) throw new Error("display name taken");
+    }
     for (const key of Object.keys(patch)) {
       if (!EDITABLE_MEMBER_FIELDS.has(key)) continue;
       const value = (patch as Record<string, unknown>)[key];

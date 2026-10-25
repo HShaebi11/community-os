@@ -21,7 +21,7 @@ import {
 import { matchVenues } from "./match.ts";
 import { MemoryStore } from "./memory-store.ts";
 import { parseWhatsAppTranscript } from "./whatsapp.ts";
-import { demand, eventRecord, member, message, proposal, venue } from "@community-os/testkit";
+import { demand, eventRecord, message, proposal, venue } from "@community-os/testkit";
 
 const ws = async (s: MemoryStore, name = "W") => (await s.createWorkspace({ name, createdBy: "t" })).id;
 const SRC = { kind: "native" as const, name: "t" };
@@ -145,7 +145,7 @@ describe("eventChain — ghost proposal resolves to empty detail", () => {
     const s = new MemoryStore();
     const cid = await ws(s);
     await ingestMessages(s, cid, SRC, [
-      { id: "m1", author: "Ada", authorId: "ada", body: "i want a bread workshop", sentAt: "2025-01-01T00:00:00.000Z" },
+      { id: "m1", author: "Ada", body: "i want a bread workshop", sentAt: "2025-01-01T00:00:00.000Z" },
     ]);
     await refreshMemory(s, cid);
     const d = (await s.listDemands(cid))[0];

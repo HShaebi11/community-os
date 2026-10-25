@@ -8,7 +8,7 @@
   ],
   "scripts": {
     "dev": "concurrently -n api,app -c blue,magenta \"npm run dev -w api\" \"npm run dev -w @community-os/app\"",
-    "test": "npm test -w @community-os/core && npm test -w @community-os/whatsapp-import && npm test -w @community-os/db && npm test -w @community-os/server && npm test -w api && npm test -w @community-os/mcp && npm test -w @community-os/sdk && npm test -w @community-os/store-sqlite && npm test -w @community-os/channel-discord && npm test -w @community-os/channel-slack && npm test -w @community-os/channel-whatsapp",
+    "test": "npm test -w @community-os/core && npm test -w @community-os/whatsapp-import && npm test -w @community-os/db && npm test -w @community-os/server && npm test -w api && npm test -w @community-os/mcp && npm test -w @community-os/sdk && npm test -w @community-os/store-sqlite && npm test -w @community-os/channel-discord && npm test -w @community-os/channel-slack && npm test -w @community-os/channel-whatsapp && npm test -w @community-os/app",
     "typecheck": "npm run build:packages && npm run typecheck -w @community-os/testkit && npm run typecheck -w @community-os/core && npm run typecheck -w @community-os/whatsapp-import && npm run typecheck -w @community-os/db && npm run typecheck -w @community-os/server && npm run typecheck -w @community-os/store-sqlite && npm run typecheck -w @community-os/sdk && npm run typecheck -w @community-os/channel-discord && npm run typecheck -w @community-os/channel-slack && npm run typecheck -w @community-os/channel-whatsapp && npm run typecheck -w api && npm run typecheck -w @community-os/app && npm run typecheck -w @community-os/mcp",
     "db:push": "npm run push -w @community-os/db",
     "validate": "npm test && npm run typecheck",

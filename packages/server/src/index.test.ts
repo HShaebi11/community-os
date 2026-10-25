@@ -619,7 +619,7 @@ describe("coverage completion — residual branches", () => {
         "/v1/ingest",
         json({ communityId: w.id, source: { kind: "native", name: "t" }, messages: [normalizedMessage()] }),
         undefined,
-        { waitUntil: (p: Promise<unknown>) => calls.push(p) },
+        { waitUntil: (p: Promise<unknown>) => void calls.push(p) } as unknown as Parameters<typeof app.request>[3],
       );
       expect(res.status).toBe(200);
       expect(calls.length).toBeGreaterThanOrEqual(1);
@@ -652,7 +652,7 @@ describe("coverage completion — residual branches", () => {
     const { app, store, createWorkspace } = make();
     const w = await createWorkspace();
     const p = await store.createProposal({
-      id: "ghost-prop", communityId: "ghost", demandId: "d", title: "t", venueId: null,
+      id: "ghost-prop", communityId: "ghost", demandId: "d", venueId: null,
       speakerIds: [], explanation: null, outreachDraft: null, status: "draft",
     });
     const res = await app.request(`/v1/proposals/${p.id}/outreach`, { method: "POST" });

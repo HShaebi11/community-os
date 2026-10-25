@@ -252,6 +252,42 @@ export function testStoreContract<S extends Store>(
         expect((await s.getMemberByPublicSlug("ada"))?.id).toBe(m.id);
       });
 
+      it("rejects a publicSlug already held by another member — public URLs must be unique", async () => {
+        const s = await fresh();
+        const { ws } = await seed(s);
+        const ada = await s.upsertMember(ws.id, "Ada", null);
+        const bob = await s.upsertMember(ws.id, "Bob", null);
+        await s.updateMember(ada.id, { publicSlug: "ada" }, true);
+        await expect(s.updateMember(bob.id, { publicSlug: "ada" }, true)).rejects.toThrow();
+        // The holder may re-set its own slug, and clearing a claim is allowed.
+        await s.updateMember(ada.id, { publicSlug: "ada" }, true);
+        await s.updateMember(ada.id, { publicSlug: null }, true);
+        await s.updateMember(bob.id, { publicSlug: "ada" }, true);
+      });
+
+      it("dedupes on displayName after a rename — upsertMember never creates a second member with the same name", async () => {
+        const s = await fresh();
+        const { ws } = await seed(s);
+        await s.upsertMember(ws.id, "Ada", null);
+        const bob = await s.upsertMember(ws.id, "Bob", null);
+        // Rename Bob without touching aliases — the old aliases no longer
+        // contain the new name, so only a displayName-aware dedupe finds him.
+        await s.updateMember(bob.id, { displayName: "Grace" }, true);
+        const again = await s.upsertMember(ws.id, " grace ", null);
+        expect(again.id).toBe(bob.id);
+        expect((await s.listMembers(ws.id)).length).toBe(2);
+      });
+
+      it("rejects renaming a member onto an existing member's name — normalized, community-scoped", async () => {
+        const s = await fresh();
+        const { ws } = await seed(s);
+        await s.upsertMember(ws.id, "Ada", null);
+        const bob = await s.upsertMember(ws.id, "Bob", null);
+        await expect(s.updateMember(bob.id, { displayName: " ada " }, true)).rejects.toThrow();
+        // Self-rename stays legal.
+        await s.updateMember(bob.id, { displayName: " BOB " }, true);
+      });
+
       it("lead edits lock fields; non-lead writes cannot overwrite locked fields", async () => {
         const s = await fresh();
         const { ws } = await seed(s);

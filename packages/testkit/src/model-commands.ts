@@ -244,6 +244,28 @@ class UpdateMember implements fc.AsyncCommand<M, R> {
     const mem = membersOf(m, wsRef(m, this.wsIdx).id);
     if (mem.length === 0) return;
     const mm = mem[this.memIdx % mem.length];
+    // Public slugs are globally unique, and display names are unique within a
+    // community — when the model says either would collide, the contract
+    // requires the real store to throw too. A locked displayName patched by a
+    // non-lead is a silent no-op, so it must not throw.
+    const nameNorm = (s: string) => s.trim().toLowerCase();
+    const nameApplies =
+      typeof this.patch.displayName === "string" &&
+      (this.byLead || !mm.leadLockedFields.includes("displayName"));
+    const wouldThrow =
+      (this.patch.publicSlug != null &&
+        m.members.some((x) => x.id !== mm.id && x.publicSlug === this.patch.publicSlug)) ||
+      (nameApplies &&
+        m.members.some(
+          (x) =>
+            x.id !== mm.id &&
+            x.communityId === mm.communityId &&
+            nameNorm(x.displayName) === nameNorm(this.patch.displayName as string),
+        ));
+    if (wouldThrow) {
+      await expect(r.updateMember(m.realFor.get(mm.id)!, this.patch, this.byLead)).rejects.toThrow();
+      return;
+    }
     const real = await r.updateMember(m.realFor.get(mm.id)!, this.patch, this.byLead);
     m.updateMember(mm.id, this.patch, this.byLead);
     expect(canon(real, m.tags)).toEqual({ ...mm });

@@ -1,0 +1,2 @@
+CREATE UNIQUE INDEX "members_public_slug" ON "community_os"."members" USING btree ("public_slug");--> statement-breakpoint
+CREATE UNIQUE INDEX "members_name_norm" ON "community_os"."members" USING btree ("community_id",lower(btrim("display_name")));

@@ -111,10 +111,11 @@ export function createDrizzleStore(db: Database): Store {
     async upsertMember(communityId, displayName, lastActive) {
       displayName = displayName.trim();
       const rows = await db.select().from(members).where(eq(members.communityId, communityId));
-      const existing = rows.find((m) =>
+      const byName = (m: (typeof rows)[number]) =>
+        m.displayName.trim().toLowerCase() === displayName.toLowerCase() ||
         /* v8 ignore next -- aliases is notNull with default [] */
-        (m.aliases ?? []).some((a) => a.trim().toLowerCase() === displayName.toLowerCase()),
-      );
+        (m.aliases ?? []).some((a) => a.trim().toLowerCase() === displayName.toLowerCase());
+      const existing = rows.find(byName);
       if (existing) {
         if (lastActive && (!existing.lastActive || new Date(lastActive) > existing.lastActive)) {
           await db.update(members).set({ lastActive: new Date(lastActive) }).where(eq(members.id, existing.id));
@@ -136,8 +137,16 @@ export function createDrizzleStore(db: Database): Store {
         publicSlug: null,
         leadLockedFields: [] as string[],
       };
-      await db.insert(members).values(row);
-      return mapMember(row);
+      const inserted = await db.insert(members).values(row).onConflictDoNothing().returning();
+      if (inserted[0]) return mapMember(inserted[0]);
+      // Lost a concurrent same-name insert — the members_name_norm index made
+      // it a no-op, so the winner now exists. Re-read and return them.
+      const raced = rows
+        .concat(await db.select().from(members).where(eq(members.communityId, communityId)))
+        .find(byName);
+      /* v8 ignore next -- onConflictDoNothing only fires on our two member indexes; a non-name conflict rethrows below */
+      if (!raced) throw new Error("member upsert conflict");
+      return mapMember(raced);
     },
     async listMembers(communityId) {
       const rows = await db.select().from(members).where(eq(members.communityId, communityId));

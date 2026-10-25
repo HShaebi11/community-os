@@ -61,6 +61,8 @@ CREATE TABLE IF NOT EXISTS files (id TEXT PRIMARY KEY, communityId TEXT NOT NULL
 CREATE INDEX IF NOT EXISTS idx_files_ws ON files(communityId);
 CREATE TABLE IF NOT EXISTS members (id TEXT PRIMARY KEY, communityId TEXT NOT NULL, displayName TEXT NOT NULL, aliases TEXT NOT NULL, "do" TEXT, want TEXT, offer TEXT, notes TEXT, publicOptIn INTEGER NOT NULL, publicSlug TEXT, lastActive TEXT, leadLockedFields TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS idx_members_ws ON members(communityId);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_members_public_slug ON members(publicSlug);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_members_name_norm ON members(communityId, lower(trim(displayName)));
 CREATE TABLE IF NOT EXISTS citations (id TEXT PRIMARY KEY, communityId TEXT NOT NULL, objectType TEXT NOT NULL, objectId TEXT NOT NULL, messageId TEXT NOT NULL, quote TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS idx_citations_ws ON citations(communityId);
 CREATE TABLE IF NOT EXISTS resources (id TEXT PRIMARY KEY, communityId TEXT NOT NULL, url TEXT NOT NULL, title TEXT NOT NULL, messageId TEXT);
@@ -254,8 +256,8 @@ export class SqliteStore implements Store {
     displayName = displayName.trim();
     const existing = this.one<Member>(
       "members",
-      `communityId = ? AND EXISTS (SELECT 1 FROM json_each(members.aliases) WHERE lower(trim(value)) = lower(?))`,
-      [communityId, displayName],
+      `communityId = ? AND (lower(trim(displayName)) = lower(?) OR EXISTS (SELECT 1 FROM json_each(members.aliases) WHERE lower(trim(value)) = lower(?)))`,
+      [communityId, displayName, displayName],
     );
     if (existing) {
       if (lastActive && (!existing.lastActive || lastActive > existing.lastActive)) {

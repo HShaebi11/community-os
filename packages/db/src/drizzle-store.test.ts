@@ -92,4 +92,14 @@ describe("DrizzleStore — adapter specifics", () => {
     expect((await store.getMemberBySlug(ws.id, "ada"))?.id).toBe(member.id);
     expect(await store.getMemberBySlug(ws.id, "nobody")).toBeNull();
   });
+
+  it("serializes concurrent same-name upserts — one member survives, all callers get it", async () => {
+    const { store } = await makeStore();
+    const ws = await store.createWorkspace({ name: "ws", createdBy: "test" });
+    // Every racer selects before any insert lands → all see an empty community,
+    // all insert → the name_norm index admits exactly one; losers re-find it.
+    const results = await Promise.all(Array.from({ length: 8 }, () => store.upsertMember(ws.id, "Ada", null)));
+    expect(new Set(results.map((m) => m.id)).size).toBe(1);
+    expect(await store.listMembers(ws.id)).toHaveLength(1);
+  });
 });

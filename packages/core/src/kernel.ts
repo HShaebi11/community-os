@@ -365,7 +365,32 @@ export async function goLive(store: Store, proposalId: string, origin: string) {
   return saved;
 }
 
+// RSVP writes are serialized per event slug: capacity is a check-then-act
+// decision (listGuests → createGuest), so concurrent calls must not interleave
+// or the venue oversells. Each entry is dropped once its tail settles, so the
+// map can't grow without bound.
+const rsvpQueues = new Map<string, Promise<unknown>>();
+
+function serializeRsvp<T>(slug: string, fn: () => Promise<T>): Promise<T> {
+  const prev = rsvpQueues.get(slug) ?? Promise.resolve();
+  const run = prev.then(fn, fn);
+  rsvpQueues.set(slug, run);
+  const cleanup = () => {
+    if (rsvpQueues.get(slug) === run) rsvpQueues.delete(slug);
+  };
+  void run.then(cleanup, cleanup);
+  return run;
+}
+
 export async function rsvp(
+  store: Store,
+  slug: string,
+  input: { name: string; email: string },
+) {
+  return serializeRsvp(slug, () => rsvpSeat(store, slug, input));
+}
+
+async function rsvpSeat(
   store: Store,
   slug: string,
   input: { name: string; email: string },
@@ -502,7 +527,16 @@ export async function assignPublicSlug(store: Store, memberId: string) {
   const dormant = await store.getMemberBySlug(member.communityId, base);
   const live = await store.getMemberByPublicSlug(base);
   const taken = [dormant, live].find((m) => m && m.id !== member.id);
-  const slug = taken ? `${base}-${member.id.slice(0, 6)}` : base;
+  if (!taken) {
+    try {
+      await store.updateMember(member.id, { publicSlug: base }, true);
+      return base;
+    } catch {
+      // Lost a concurrent slug race — the store's unique index fired. Fall
+      // through to the id-suffixed claim, which is unique to this member.
+    }
+  }
+  const slug = `${base}-${member.id.slice(0, 6)}`;
   await store.updateMember(member.id, { publicSlug: slug }, true);
   return slug;
 }

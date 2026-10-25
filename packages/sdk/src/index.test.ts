@@ -382,7 +382,7 @@ describe("coverage completion", () => {
       baseUrl: "http://x.test",
       fetch: (async () => new Response("<html>bad gateway</html>", { status: 502, statusText: "Bad Gateway" })) as typeof fetch,
     });
-    await expect(cos.get("/v1/nope")).rejects.toMatchObject({ status: 502 });
+    await expect(cos.request("/v1/nope")).rejects.toMatchObject({ status: 502 });
   });
 
   it("embedded request() maps non-ok responses to ApiError", async () => {
@@ -498,8 +498,8 @@ describe("coverage completion", () => {
     // Direct store write with an ancient timestamp — embedded dispatch sees it
     // but the watermark check must skip it.
     await store.addTimeline({
-      id: "t1", communityId: ws.id, kind: "import", summary: "old",
-      data: {}, createdAt: "1970-01-01T00:00:00.000Z",
+      id: "t1", communityId: ws.id, kind: "import",
+      payload: {}, createdAt: "1970-01-01T00:00:00.000Z",
     });
     expect(seen).toEqual([]);
   });
@@ -526,7 +526,7 @@ describe("coverage completion", () => {
     const store = new MemoryStore();
     const cos = CommunityOS.store(store);
     const p = await store.createProposal({
-      id: "p1", communityId: "ghost", demandId: "d", title: "t", venueId: null,
+      id: "p1", communityId: "ghost", demandId: "d", venueId: null,
       speakerIds: [], explanation: null, outreachDraft: null, status: "draft",
     });
     const pack = await cos.draftOutreach(p.id);
