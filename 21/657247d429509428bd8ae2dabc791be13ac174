@@ -1,0 +1,25 @@
+packages/core/src/memory-store.ts
+  s_bf6051e1a44ead::t_dc977e98b5bec4 306-310
+packages/db/src/drizzle-store.ts
+  s_bf6051e1a44ead::t_97281313f2949c 329-339,379-398
+packages/store-sqlite/src/index.ts
+  s_bf6051e1a44ead::t_0eba3b896819c6 461-465,502-510
+packages/testkit/src/store-contract.ts
+  s_bf6051e1a44ead::t_f2b151c4d1bc8d 500-502,513-525
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "21657247d429509428bd8ae2dabc791be13ac174",
+  "prompts": {},
+  "sessions": {
+    "s_bf6051e1a44ead": {
+      "agent_id": {
+        "tool": "devin",
+        "id": "s_bf6051e1a44ead",
+        "model": "unknown"
+      },
+      "human_author": "Hamza <hshaebi.11@gmail.com>"
+    }
+  }
+}
