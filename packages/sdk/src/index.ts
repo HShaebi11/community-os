@@ -1,3 +1,30 @@
+import {
+  assignPublicSlug,
+  briefing,
+  createProposalFromDemand,
+  eventChainById,
+  exportWorkspace,
+  generateAutopilot,
+  goLive,
+  importWhatsApp,
+  ingestDiscord,
+  makeOutreachDraft,
+  memberCard,
+  MemoryStore,
+  openDemand,
+  openProposal,
+  publicCommunity,
+  publicEvent,
+  publicMember,
+  recordEventPageView,
+  refreshMemory,
+  rsvp,
+  setProposalStatus,
+  sha256Hex,
+  submitApplication,
+  type Store as CoreStore,
+} from "@community-os/core";
+import { parseWhatsAppExport } from "@community-os/whatsapp-import";
 import type {
   Application,
   AutopilotArtifact,
@@ -17,11 +44,11 @@ import type {
   Venue,
   WebhookSubscription,
   Workspace,
-} from "@community-os/core";
+} from "./types.js";
 
-export * from "@community-os/core";
+export * from "./types.js";
 
-/** Error thrown for non-2xx responses. `status` mirrors the HTTP status. */
+/** Error thrown for non-2xx responses (remote) and domain failures (local). */
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -90,6 +117,7 @@ export type WorkspaceExport = {
   applications: Application[];
   blocklist: BlocklistEntry[];
   artifacts: AutopilotArtifact[];
+  webhooks: WebhookSubscription[];
   messages: Array<Omit<Message, "body" | "communityId">>;
 };
 
@@ -105,31 +133,60 @@ export type WebhookPayload<T = unknown> = {
 // --- Client ----------------------------------------------------------------
 
 export type CommunityOSOptions = {
-  /** Base URL of the API, e.g. "http://localhost:5173" or your deployment origin. */
+  /** Base URL of a deployed API, e.g. "http://localhost:5173". Omit for
+   *  `CommunityOS.memory()`-style local use — see the static factory. */
   baseUrl: string;
-  /** Sent as X-Public-Origin — the public hostname used when the API builds
-   *  QR codes and outreach links. Set when the API sits behind a proxy. */
+  /** Sent as X-Public-Origin — the public hostname used when building QR
+   *  codes and outreach links. Set when the API sits behind a proxy. In local
+   *  mode it's the origin baked into QR codes and event URLs. */
   publicOrigin?: string;
   /** Injectable fetch (tests, custom agents). Defaults to global fetch. */
   fetch?: typeof globalThis.fetch;
 };
 
+const DEFAULT_ORIGIN = "http://localhost:5173";
+
+/**
+ * Community OS as a library.
+ *
+ * Remote mode — client for a deployed API:
+ *   const cos = new CommunityOS({ baseUrl: "http://localhost:5173" });
+ *
+ * Embedded mode — the whole product runs in-process on an in-memory store
+ * (great for tests, scripts, prototypes, agents):
+ *   const cos = CommunityOS.memory();
+ *
+ * Same methods either way. Local mode is volatile and does not deliver
+ * webhooks — persistence and delivery happen on the server transport.
+ */
 export class CommunityOS {
-  private base: string;
-  private origin: string | undefined;
-  private http: typeof globalThis.fetch;
+  private remote?: { base: string; origin: string | undefined; fetch: typeof globalThis.fetch };
+  private local?: { store: CoreStore; origin: string };
 
   constructor(options: CommunityOSOptions) {
-    this.base = options.baseUrl.replace(/\/+$/, "");
-    this.origin = options.publicOrigin;
-    this.http = options.fetch ?? globalThis.fetch;
+    this.remote = {
+      base: options.baseUrl.replace(/\/+$/, ""),
+      origin: options.publicOrigin,
+      fetch: options.fetch ?? globalThis.fetch,
+    };
   }
 
+  /** The whole kernel in-process on a volatile in-memory store. */
+  static memory(options: { publicOrigin?: string } = {}): CommunityOS {
+    const cos = Object.create(CommunityOS.prototype) as CommunityOS;
+    cos.local = { store: new MemoryStore(), origin: options.publicOrigin ?? DEFAULT_ORIGIN };
+    return cos;
+  }
+
+  // -- plumbing ---------------------------------------------------------------
+
   private async call<T>(path: string, init: RequestInit = {}): Promise<T> {
+    if (!this.remote) throw new ApiError(500, "no remote transport — this instance is local");
+    const { base, origin, fetch } = this.remote;
     const headers: Record<string, string> = { ...(init.headers as Record<string, string> | undefined) };
     if (init.body && typeof init.body === "string") headers["content-type"] ??= "application/json";
-    if (this.origin) headers["x-public-origin"] = this.origin;
-    const res = await this.http(`${this.base}${path}`, { ...init, headers });
+    if (origin) headers["x-public-origin"] = origin;
+    const res = await fetch(`${base}${path}`, { ...init, headers });
     if (!res.ok) {
       const err = (await res.json().catch(() => null)) as { error?: string } | null;
       throw new ApiError(res.status, err?.error ?? res.statusText);
@@ -147,185 +204,402 @@ export class CommunityOS {
     return this.call<T>(path, { method: "PATCH", body: JSON.stringify(body) });
   }
 
+  private get store(): CoreStore {
+    if (!this.local) throw new ApiError(500, "no local store — this instance is remote");
+    return this.local.store;
+  }
+
+  private need<T>(value: T | null, what: string): T {
+    if (value === null || value === undefined) throw new ApiError(404, `${what} not found`);
+    return value;
+  }
+
+  /** Kernel errors map to domain 400s, matching the remote API. */
+  private async domainCall<T>(fn: () => Promise<T>): Promise<T> {
+    try {
+      return await fn();
+    } catch (err) {
+      if (err instanceof ApiError) throw err;
+      throw new ApiError(400, err instanceof Error ? err.message : "error");
+    }
+  }
+
+  private domainParse(bytes: Uint8Array, filename: string) {
+    try {
+      return parseWhatsAppExport(bytes, filename);
+    } catch (err) {
+      throw new ApiError(400, err instanceof Error ? err.message : "error");
+    }
+  }
+
   // -- Meta ----------------------------------------------------------------
 
-  health() {
-    return this.get<{ ok: boolean; product: string }>("/v1/health");
+  health(): Promise<{ ok: boolean; product: string }> {
+    if (this.local) return Promise.resolve({ ok: true, product: "community-os" });
+    return this.get("/v1/health");
   }
 
   // -- Workspaces ----------------------------------------------------------
 
-  createWorkspace(input: { name: string; joinUrl?: string }) {
-    return this.post<Workspace>("/v1/workspaces", input);
+  createWorkspace(input: { name: string; joinUrl?: string }): Promise<Workspace> {
+    if (this.local) return this.store.createWorkspace({ ...input, createdBy: "local" });
+    return this.post("/v1/workspaces", input);
   }
-  listWorkspaces() {
-    return this.get<WorkspaceListEntry[]>("/v1/workspaces");
+  listWorkspaces(): Promise<WorkspaceListEntry[]> {
+    if (this.local) return this.store.listWorkspaces() as Promise<WorkspaceListEntry[]>;
+    return this.get("/v1/workspaces");
   }
-  getWorkspaceBySlug(slug: string) {
-    return this.get<WorkspaceListEntry>(`/v1/workspaces/by-slug/${encodeURIComponent(slug)}`);
+  async getWorkspaceBySlug(slug: string): Promise<WorkspaceListEntry> {
+    if (this.local) {
+      const ws = this.need(await this.store.getWorkspaceBySlug(slug), "workspace");
+      return { ...ws, role: "owner" };
+    }
+    return this.get(`/v1/workspaces/by-slug/${encodeURIComponent(slug)}`);
   }
-  getWorkspace(id: string) {
-    return this.get<Workspace>(`/v1/workspaces/${id}`);
+  async getWorkspace(id: string): Promise<Workspace> {
+    if (this.local) return this.need(await this.store.getWorkspace(id), "workspace");
+    return this.get(`/v1/workspaces/${id}`);
   }
-  updateWorkspace(id: string, patch: { name?: string; joinUrl?: string | null }) {
-    return this.patch<Workspace>(`/v1/workspaces/${id}`, patch);
+  updateWorkspace(id: string, patch: { name?: string; joinUrl?: string | null }): Promise<Workspace> {
+    if (this.local) return this.store.updateWorkspace(id, patch);
+    return this.patch(`/v1/workspaces/${id}`, patch);
   }
 
   // -- Evidence ------------------------------------------------------------
 
-  /** Import a WhatsApp export — raw .txt transcript or .zip with media. */
-  importChat(workspaceId: string, data: Blob | ArrayBuffer | Uint8Array, filename = "_chat.txt") {
-    const body = data instanceof Uint8Array && !(data instanceof Blob) ? data.slice().buffer : data;
-    return this.call<ImportResult>(`/v1/workspaces/${workspaceId}/imports?filename=${encodeURIComponent(filename)}`, {
+  /** Import a WhatsApp export — .txt transcript (string or bytes) or .zip with media. */
+  async importChat(
+    workspaceId: string,
+    data: string | Blob | ArrayBuffer | Uint8Array,
+    filename = "_chat.txt",
+  ): Promise<ImportResult> {
+    if (this.local) {
+      this.need(await this.store.getWorkspace(workspaceId), "workspace");
+      const bytes =
+        typeof data === "string" ? new TextEncoder().encode(data)
+        : data instanceof Uint8Array ? data
+        : data instanceof ArrayBuffer ? new Uint8Array(data)
+        : new Uint8Array(await data.arrayBuffer());
+      const parsed = this.domainParse(bytes, filename);
+      return this.domainCall(() => importWhatsApp(
+        this.store,
+        workspaceId,
+        parsed.transcript,
+        parsed.files.map((f) => ({ name: f.name, storagePath: `memory://${f.name}`, mime: f.mime })),
+      ));
+    }
+    const body = data instanceof Uint8Array ? (data.slice().buffer as ArrayBuffer) : data;
+    return this.call(`/v1/workspaces/${workspaceId}/imports?filename=${encodeURIComponent(filename)}`, {
       method: "POST",
-      body: body as BodyInit,
+      body,
     });
   }
-  ingestDiscord(message: {
+  async ingestDiscord(message: {
     communityId: string;
     id: string;
     content: string;
     timestamp: string;
     author: { id: string; username: string };
-  }) {
-    return this.post<IngestResult>("/v1/ingest/discord", message);
+  }): Promise<IngestResult> {
+    if (this.local) {
+      this.need(await this.store.getWorkspace(message.communityId), "workspace");
+      return ingestDiscord(this.store, message.communityId, message);
+    }
+    return this.post("/v1/ingest/discord", message);
   }
-  listMessages(workspaceId: string) {
-    return this.get<Message[]>(`/v1/workspaces/${workspaceId}/messages`);
+  listMessages(workspaceId: string): Promise<Message[]> {
+    if (this.local) return this.store.listMessages(workspaceId);
+    return this.get(`/v1/workspaces/${workspaceId}/messages`);
   }
-  listFiles(workspaceId: string) {
-    return this.get<FileRecord[]>(`/v1/workspaces/${workspaceId}/files`);
+  listFiles(workspaceId: string): Promise<FileRecord[]> {
+    if (this.local) return this.store.listFiles(workspaceId);
+    return this.get(`/v1/workspaces/${workspaceId}/files`);
   }
-  listTimeline(workspaceId: string) {
-    return this.get<TimelineEvent[]>(`/v1/workspaces/${workspaceId}/timeline`);
+  listTimeline(workspaceId: string): Promise<TimelineEvent[]> {
+    if (this.local) return this.store.listTimeline(workspaceId);
+    return this.get(`/v1/workspaces/${workspaceId}/timeline`);
   }
-  exportWorkspace(workspaceId: string) {
-    return this.get<WorkspaceExport>(`/v1/workspaces/${workspaceId}/export`);
+  exportWorkspace(workspaceId: string): Promise<WorkspaceExport> {
+    if (this.local) return exportWorkspace(this.store, workspaceId) as Promise<WorkspaceExport>;
+    return this.get(`/v1/workspaces/${workspaceId}/export`);
   }
 
   // -- Memory ---------------------------------------------------------------
 
-  refreshMemory(workspaceId: string) {
-    return this.post<MemoryResult>(`/v1/workspaces/${workspaceId}/memory`);
+  refreshMemory(workspaceId: string): Promise<MemoryResult> {
+    if (this.local) return refreshMemory(this.store, workspaceId);
+    return this.post(`/v1/workspaces/${workspaceId}/memory`);
   }
-  listMembers(workspaceId: string) {
-    return this.get<Member[]>(`/v1/workspaces/${workspaceId}/members`);
+  listMembers(workspaceId: string): Promise<Member[]> {
+    if (this.local) return this.store.listMembers(workspaceId);
+    return this.get(`/v1/workspaces/${workspaceId}/members`);
   }
-  getMember(memberId: string) {
-    return this.get<MemberCard>(`/v1/members/${memberId}`);
+  async getMember(memberId: string): Promise<MemberCard> {
+    if (this.local) {
+      const member = this.need(await this.store.getMember(memberId), "member");
+      return memberCard(this.store, member.id) as Promise<MemberCard>;
+    }
+    return this.get(`/v1/members/${memberId}`);
   }
-  updateMember(
+  async updateMember(
     memberId: string,
     patch: Partial<Pick<Member, "do" | "want" | "offer" | "notes" | "displayName" | "publicOptIn" | "publicSlug">>,
-  ) {
-    return this.patch<Member>(`/v1/members/${memberId}`, patch);
+  ): Promise<Member> {
+    if (this.local) {
+      const member = this.need(await this.store.getMember(memberId), "member");
+      const updated = await this.store.updateMember(member.id, patch, true);
+      if (updated.publicOptIn && !updated.publicSlug) {
+        await assignPublicSlug(this.store, updated.id);
+        return this.need(await this.store.getMember(updated.id), "member");
+      }
+      return updated;
+    }
+    return this.patch(`/v1/members/${memberId}`, patch);
   }
-  briefing(workspaceId: string) {
-    return this.get<Briefing>(`/v1/workspaces/${workspaceId}/briefing`);
+  briefing(workspaceId: string): Promise<Briefing> {
+    if (this.local) return briefing(this.store, workspaceId) as Promise<Briefing>;
+    return this.get(`/v1/workspaces/${workspaceId}/briefing`);
   }
-  listDemands(workspaceId: string) {
-    return this.get<Demand[]>(`/v1/workspaces/${workspaceId}/demands`);
+  listDemands(workspaceId: string): Promise<Demand[]> {
+    if (this.local) return this.store.listDemands(workspaceId);
+    return this.get(`/v1/workspaces/${workspaceId}/demands`);
   }
-  getDemand(demandId: string) {
-    return this.get<DemandCard>(`/v1/demands/${demandId}`);
+  async getDemand(demandId: string): Promise<DemandCard> {
+    if (this.local) {
+      const demand = this.need(await this.store.getDemand(demandId), "demand");
+      return openDemand(this.store, demand.id) as Promise<DemandCard>;
+    }
+    return this.get(`/v1/demands/${demandId}`);
   }
-  listResources(workspaceId: string) {
-    return this.get<Resource[]>(`/v1/workspaces/${workspaceId}/resources`);
+  listResources(workspaceId: string): Promise<Resource[]> {
+    if (this.local) return this.store.listResources(workspaceId);
+    return this.get(`/v1/workspaces/${workspaceId}/resources`);
   }
-  search(query: string) {
-    return this.get<SearchHit[]>(`/v1/search?q=${encodeURIComponent(query)}`);
+  async search(query: string): Promise<SearchHit[]> {
+    const q = query.toLowerCase();
+    if (this.local) {
+      const hits: SearchHit[] = [];
+      for (const ws of await this.store.listWorkspaces()) {
+        for (const member of await this.store.listMembers(ws.id)) {
+          const blob = `${member.displayName} ${member.do} ${member.want} ${member.offer}`.toLowerCase();
+          if (blob.includes(q)) hits.push({ type: "member", workspaceId: ws.id, member });
+        }
+        for (const demand of await this.store.listDemands(ws.id)) {
+          if (demand.topic.toLowerCase().includes(q)) hits.push({ type: "demand", workspaceId: ws.id, demand });
+        }
+      }
+      return hits;
+    }
+    return this.get(`/v1/search?q=${encodeURIComponent(query)}`);
   }
 
   // -- Venues & sponsors ----------------------------------------------------
 
-  createVenue(workspaceId: string, venue: { name: string; area?: string; capacity?: number; contact?: string }) {
-    return this.post<Venue>(`/v1/workspaces/${workspaceId}/venues`, venue);
+  createVenue(
+    workspaceId: string,
+    venue: { name: string; area?: string; capacity?: number; contact?: string },
+  ): Promise<Venue> {
+    if (this.local) {
+      return this.store.upsertVenue({
+        id: crypto.randomUUID(),
+        communityId: workspaceId,
+        name: venue.name,
+        area: venue.area ?? null,
+        capacity: venue.capacity ?? null,
+        contact: venue.contact ?? null,
+      });
+    }
+    return this.post(`/v1/workspaces/${workspaceId}/venues`, venue);
   }
-  listVenues(workspaceId: string) {
-    return this.get<Venue[]>(`/v1/workspaces/${workspaceId}/venues`);
+  listVenues(workspaceId: string): Promise<Venue[]> {
+    if (this.local) return this.store.listVenues(workspaceId);
+    return this.get(`/v1/workspaces/${workspaceId}/venues`);
   }
-  createSponsor(workspaceId: string, sponsor: { name: string; notes?: string }) {
-    return this.post<Sponsor>(`/v1/workspaces/${workspaceId}/sponsors`, sponsor);
+  createSponsor(workspaceId: string, sponsor: { name: string; notes?: string }): Promise<Sponsor> {
+    if (this.local) {
+      return this.store.upsertSponsor({
+        id: crypto.randomUUID(),
+        communityId: workspaceId,
+        name: sponsor.name,
+        notes: sponsor.notes ?? null,
+      });
+    }
+    return this.post(`/v1/workspaces/${workspaceId}/sponsors`, sponsor);
   }
-  listSponsors(workspaceId: string) {
-    return this.get<Sponsor[]>(`/v1/workspaces/${workspaceId}/sponsors`);
+  listSponsors(workspaceId: string): Promise<Sponsor[]> {
+    if (this.local) return this.store.listSponsors(workspaceId);
+    return this.get(`/v1/workspaces/${workspaceId}/sponsors`);
   }
 
   // -- Proposals → events ----------------------------------------------------
 
-  createProposal(workspaceId: string, demandId: string) {
-    return this.post<ProposalPack>(`/v1/workspaces/${workspaceId}/proposals`, { demandId });
+  async createProposal(workspaceId: string, demandId: string): Promise<ProposalPack> {
+    if (this.local) {
+      this.need(await this.store.getWorkspace(workspaceId), "workspace");
+      return createProposalFromDemand(this.store, workspaceId, demandId) as Promise<ProposalPack>;
+    }
+    return this.post(`/v1/workspaces/${workspaceId}/proposals`, { demandId });
   }
-  listProposals(workspaceId: string) {
-    return this.get<Proposal[]>(`/v1/workspaces/${workspaceId}/proposals`);
+  listProposals(workspaceId: string): Promise<Proposal[]> {
+    if (this.local) return this.store.listProposals(workspaceId);
+    return this.get(`/v1/workspaces/${workspaceId}/proposals`);
   }
-  getProposal(proposalId: string) {
-    return this.get<ProposalPack>(`/v1/proposals/${proposalId}`);
+  async getProposal(proposalId: string): Promise<ProposalPack> {
+    if (this.local) {
+      const proposal = this.need(await this.store.getProposal(proposalId), "proposal");
+      return openProposal(this.store, proposal.id) as Promise<ProposalPack>;
+    }
+    return this.get(`/v1/proposals/${proposalId}`);
   }
-  approveProposal(proposalId: string) {
-    return this.post<ProposalPack>(`/v1/proposals/${proposalId}/approve`);
+  async approveProposal(proposalId: string): Promise<ProposalPack> {
+    if (this.local) {
+      const proposal = this.need(await this.store.getProposal(proposalId), "proposal");
+      return this.domainCall(() => setProposalStatus(this.store, proposal.id, "approved")) as Promise<ProposalPack>;
+    }
+    return this.post(`/v1/proposals/${proposalId}/approve`);
   }
   /** Returns the outreach draft. Drafts only — nothing is ever sent. */
-  draftOutreach(proposalId: string) {
-    return this.post<ProposalPack>(`/v1/proposals/${proposalId}/outreach`);
+  async draftOutreach(proposalId: string): Promise<ProposalPack> {
+    if (this.local) {
+      const proposal = this.need(await this.store.getProposal(proposalId), "proposal");
+      const workspace = await this.store.getWorkspace(proposal.communityId);
+      return makeOutreachDraft(this.store, proposal.id, workspace?.name ?? "Community") as Promise<ProposalPack>;
+    }
+    return this.post(`/v1/proposals/${proposalId}/outreach`);
   }
-  goLive(proposalId: string) {
-    return this.post<EventRecord>(`/v1/proposals/${proposalId}/go-live`);
+  async goLive(proposalId: string): Promise<EventRecord> {
+    if (this.local) {
+      const proposal = this.need(await this.store.getProposal(proposalId), "proposal");
+      return this.domainCall(() => goLive(this.store, proposal.id, this.local!.origin));
+    }
+    return this.post(`/v1/proposals/${proposalId}/go-live`);
   }
-  listEvents(workspaceId: string) {
-    return this.get<EventRecord[]>(`/v1/workspaces/${workspaceId}/events`);
+  listEvents(workspaceId: string): Promise<EventRecord[]> {
+    if (this.local) return this.store.listEvents(workspaceId);
+    return this.get(`/v1/workspaces/${workspaceId}/events`);
   }
   /** Full provenance chain including raw chat messages — operator surface. */
-  getEventChain(eventId: string) {
-    return this.get<EventChain>(`/v1/events/${eventId}/chain`);
+  async getEventChain(eventId: string): Promise<EventChain> {
+    if (this.local) {
+      const event = this.need(await this.store.getEvent(eventId), "event");
+      return eventChainById(this.store, event.id) as Promise<EventChain>;
+    }
+    return this.get(`/v1/events/${eventId}/chain`);
   }
-  listGuests(eventId: string) {
-    return this.get<Guest[]>(`/v1/events/${eventId}/guests`);
+  async listGuests(eventId: string): Promise<Guest[]> {
+    if (this.local) {
+      const event = this.need(await this.store.getEvent(eventId), "event");
+      return this.store.listGuests(event.id);
+    }
+    return this.get(`/v1/events/${eventId}/guests`);
   }
-  autopilot(eventId: string) {
-    return this.post<AutopilotArtifact[]>(`/v1/events/${eventId}/autopilot`);
+  async autopilot(eventId: string): Promise<AutopilotArtifact[]> {
+    if (this.local) {
+      const event = this.need(await this.store.getEvent(eventId), "event");
+      return generateAutopilot(this.store, event.id, this.local.origin);
+    }
+    return this.post(`/v1/events/${eventId}/autopilot`);
   }
 
   // -- Public front door -----------------------------------------------------
 
-  publicCommunity(slug: string) {
-    return this.get<PublicCommunity>(`/v1/public/communities/${encodeURIComponent(slug)}`);
+  publicCommunity(slug: string): Promise<PublicCommunity> {
+    if (this.local) return this.publicOr404(() => publicCommunity(this.store, slug, this.local!.origin));
+    return this.get(`/v1/public/communities/${encodeURIComponent(slug)}`);
   }
-  publicEvent(slug: string) {
-    return this.get<PublicEvent>(`/v1/public/events/${encodeURIComponent(slug)}`);
+  async publicEvent(slug: string): Promise<PublicEvent> {
+    if (this.local) {
+      const event = await this.publicOr404(() => publicEvent(this.store, slug));
+      await recordEventPageView(this.store, event.slug);
+      return event;
+    }
+    return this.get(`/v1/public/events/${encodeURIComponent(slug)}`);
   }
-  rsvp(slug: string, guest: { name: string; email: string }) {
-    return this.post<Guest>(`/v1/public/events/${encodeURIComponent(slug)}/rsvp`, guest);
+  rsvp(slug: string, guest: { name: string; email: string }): Promise<Guest> {
+    if (this.local) return this.domainCall(() => rsvp(this.store, slug, guest));
+    return this.post(`/v1/public/events/${encodeURIComponent(slug)}/rsvp`, guest);
   }
-  publicMember(slug: string) {
-    return this.get<PublicMember>(`/v1/public/members/${encodeURIComponent(slug)}`);
+  publicMember(slug: string): Promise<PublicMember> {
+    if (this.local) return this.publicOr404(() => publicMember(this.store, slug) as Promise<PublicMember>);
+    return this.get(`/v1/public/members/${encodeURIComponent(slug)}`);
+  }
+
+  private async publicOr404<T>(fn: () => Promise<T>): Promise<T> {
+    try {
+      return await fn();
+    } catch (err) {
+      throw new ApiError(404, err instanceof Error ? err.message : "not found");
+    }
   }
 
   // -- Gatekeeper ------------------------------------------------------------
 
-  submitApplication(workspaceId: string, application: { applicant: string; answers: string }) {
-    return this.post<Application>(`/v1/workspaces/${workspaceId}/applications`, application);
+  async submitApplication(
+    workspaceId: string,
+    application: { applicant: string; answers: string },
+  ): Promise<Application> {
+    if (this.local) {
+      const workspace = this.need(await this.store.getWorkspace(workspaceId), "workspace");
+      return submitApplication(this.store, workspaceId, { ...application, communityName: workspace.name });
+    }
+    return this.post(`/v1/workspaces/${workspaceId}/applications`, application);
   }
-  listApplications(workspaceId: string) {
-    return this.get<Application[]>(`/v1/workspaces/${workspaceId}/applications`);
+  listApplications(workspaceId: string): Promise<Application[]> {
+    if (this.local) return this.store.listApplications(workspaceId);
+    return this.get(`/v1/workspaces/${workspaceId}/applications`);
   }
-  addBlocklist(workspaceId: string, entry: { applicant: string; evidence: string; confirmed?: boolean }) {
-    return this.post<BlocklistEntry>(`/v1/workspaces/${workspaceId}/blocklist`, entry);
+  async addBlocklist(
+    workspaceId: string,
+    entry: { applicant: string; evidence: string; confirmed?: boolean },
+  ): Promise<BlocklistEntry> {
+    if (this.local) {
+      this.need(await this.store.getWorkspace(workspaceId), "workspace");
+      const hash = await sha256Hex(entry.applicant.trim().toLowerCase());
+      return this.store.addBlocklist({
+        id: crypto.randomUUID(),
+        communityId: workspaceId,
+        hash,
+        evidence: entry.evidence,
+        reporter: "local",
+        confirmed: entry.confirmed ?? false,
+      });
+    }
+    return this.post(`/v1/workspaces/${workspaceId}/blocklist`, entry);
   }
 
   // -- Webhooks ---------------------------------------------------------------
 
   /** Creates a subscription. The `secret` is returned once, here, and is
    *  omitted by `listWebhooks` — store it to verify signatures. Empty `kinds`
-   *  means all event kinds. */
-  createWebhook(workspaceId: string, input: { url: string; kinds?: WebhookKind[] }) {
-    return this.post<WebhookSubscription>(`/v1/workspaces/${workspaceId}/webhooks`, input);
+   *  means all event kinds. Local mode registers subscriptions but does not
+   *  deliver — delivery is a server concern. */
+  async createWebhook(workspaceId: string, input: { url: string; kinds?: WebhookKind[] }): Promise<WebhookSubscription> {
+    if (this.local) {
+      this.need(await this.store.getWorkspace(workspaceId), "workspace");
+      const url = new URL(input.url);
+      if (url.protocol !== "http:" && url.protocol !== "https:") throw new ApiError(400, "url must be http or https");
+      return this.store.createWebhookSubscription({
+        communityId: workspaceId,
+        url: url.toString(),
+        secret: `whsec_${[...crypto.getRandomValues(new Uint8Array(24))].map((b) => b.toString(16).padStart(2, "0")).join("")}`,
+        kinds: input.kinds ?? [],
+      });
+    }
+    return this.post(`/v1/workspaces/${workspaceId}/webhooks`, input);
   }
-  listWebhooks(workspaceId: string) {
-    return this.get<Array<Omit<WebhookSubscription, "secret">>>(`/v1/workspaces/${workspaceId}/webhooks`);
+  async listWebhooks(workspaceId: string): Promise<Array<Omit<WebhookSubscription, "secret">>> {
+    if (this.local) {
+      const subs = await this.store.listWebhookSubscriptions(workspaceId);
+      return subs.map(({ secret: _secret, ...rest }) => rest);
+    }
+    return this.get(`/v1/workspaces/${workspaceId}/webhooks`);
   }
-  deleteWebhook(id: string) {
-    return this.call<{ ok: boolean }>(`/v1/webhooks/${id}`, { method: "DELETE" });
+  async deleteWebhook(id: string): Promise<{ ok: boolean }> {
+    if (this.local) {
+      if (!(await this.store.deleteWebhookSubscription(id))) throw new ApiError(404, "webhook not found");
+      return { ok: true };
+    }
+    return this.call(`/v1/webhooks/${id}`, { method: "DELETE" });
   }
 }
 
@@ -345,8 +619,7 @@ export async function verifyWebhookSignature(
     "raw",
     new TextEncoder().encode(secret),
     { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"],
+    false, ["sign"],
   );
   const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(body));
   const computed = [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, "0")).join("");

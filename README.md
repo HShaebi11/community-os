@@ -158,14 +158,17 @@ curl -s "http://localhost:5173/v1/workspaces/$WS/imports?filename=_chat.txt" \
 curl -s http://localhost:5173/v1/workspaces/$WS/members
 ```
 
-Or in TypeScript:
+Or in TypeScript — `@community-os/sdk` is a real package (`npm i`): remote
+client for a deployed API, or the whole kernel embedded in-process:
 
 ```ts
 import { CommunityOS } from "@community-os/sdk";
 
-const cos = new CommunityOS({ baseUrl: "http://localhost:5173" });
+const cos = new CommunityOS({ baseUrl: "http://localhost:5173" }); // remote
+// const cos = CommunityOS.memory();                             // embedded — no server needed
+
 const ws = await cos.createWorkspace({ name: "Weird Stuff" });
-await cos.importChat(ws.id, new Uint8Array(chatBytes), "_chat.txt");
+await cos.importChat(ws.id, chatTranscript, "_chat.txt");
 const { members } = await cos.refreshMemory(ws.id);
 ```
 

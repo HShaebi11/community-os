@@ -3,6 +3,7 @@ import {
   briefing,
   createProposalFromDemand,
   eventChainById,
+  exportWorkspace,
   generateAutopilot,
   goLive,
   importWhatsApp,
@@ -472,74 +473,5 @@ async function requireEvent(store: Store, eventId: string) {
   return event;
 }
 
-async function exportWorkspace(store: Store, communityId: string) {
-  const [
-    workspace,
-    sources,
-    members,
-    demands,
-    proposals,
-    venues,
-    sponsors,
-    resources,
-    files,
-    events,
-    citations,
-    messages,
-    timeline,
-    applications,
-    blocklist,
-    webhooks,
-  ] = await Promise.all([
-    store.getWorkspace(communityId),
-    store.listSources(communityId),
-    store.listMembers(communityId),
-    store.listDemands(communityId),
-    store.listProposals(communityId),
-    store.listVenues(communityId),
-    store.listSponsors(communityId),
-    store.listResources(communityId),
-    store.listFiles(communityId),
-    store.listEvents(communityId),
-    store.listCitations(communityId),
-    store.listMessages(communityId),
-    store.listTimeline(communityId),
-    store.listApplications(communityId),
-    store.listBlocklist(communityId),
-    store.listWebhookSubscriptions(communityId),
-  ]);
-  const guests = (await Promise.all(events.map((event) => store.listGuests(event.id)))).flat();
-  const artifacts = (await Promise.all(events.map((event) => store.listArtifacts(event.id)))).flat();
-  return {
-    version: 1,
-    exportedAt: new Date().toISOString(),
-    workspace,
-    sources,
-    members,
-    demands,
-    proposals,
-    venues,
-    sponsors,
-    resources,
-    files,
-    events,
-    guests,
-    citations,
-    timeline,
-    applications,
-    blocklist,
-    artifacts,
-    webhooks,
-    messages: messages.map((m) => ({
-      id: m.id,
-      sourceId: m.sourceId,
-      sourceMessageId: m.sourceMessageId,
-      authorRaw: m.authorRaw,
-      memberId: m.memberId,
-      sentAt: m.sentAt,
-      isNoise: m.isNoise,
-    })),
-  };
-}
 
 export const memoryStore = new MemoryStore();

@@ -274,8 +274,11 @@ not exist yet — don't fake it client-side.
 
 ## Clients of this API
 
-- `@community-os/sdk` — typed TypeScript client; `docs/openapi.yaml` for
-  codegen in other languages.
+- `@community-os/sdk` — installable TypeScript package with two transports:
+  `new CommunityOS({ baseUrl })` is a typed client for every route here, and
+  `CommunityOS.memory()` runs the same method surface in-process on an
+  embedded kernel (no server). `docs/openapi.yaml` for codegen in other
+  languages.
 - `apps/app` — the product UI (`/w/[slug]` desk, onboarding, settings, public
   pages, marketing site).
 - `apps/mcp` — MCP adapter. Tool → route: `search_memory` → `GET /v1/search`,
