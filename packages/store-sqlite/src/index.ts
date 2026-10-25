@@ -423,6 +423,8 @@ export class SqliteStore implements Store {
   }
 
   async createEvent(event: EventRecord) {
+    const clash = this.one<EventRecord>("events", "slug = ? AND id != ?", [event.slug, event.id]);
+    if (clash) throw new Error(`event slug "${event.slug}" is already in use`);
     this.ins("events", { ...event });
     return event;
   }

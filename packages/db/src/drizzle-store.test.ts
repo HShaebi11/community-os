@@ -2,7 +2,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { PGlite } from "@electric-sql/pglite";
-import { testStoreContract } from "@community-os/testkit";
+import { testStoreContract, testStoreModelConformance } from "@community-os/testkit";
 import { drizzle } from "drizzle-orm/pglite";
 import { describe, expect, it } from "vitest";
 import { createDrizzleStore } from "./drizzle-store.ts";
@@ -35,6 +35,8 @@ testStoreContract(
   undefined, // PGlite instances are in-memory; GC handles teardown
 );
 
+testStoreModelConformance("DrizzleStore", async () => (await makeStore()).store, undefined, 2);
+
 describe("DrizzleStore — adapter specifics", () => {
   it("rethrows non-dedupe database errors from insertMessages", async () => {
     const { store } = await makeStore();
@@ -48,6 +50,7 @@ describe("DrizzleStore — adapter specifics", () => {
         sourceMessageId: "s1",
         authorRaw: "a",
         body: "b",
+        memberId: null,
         sentAt: new Date().toISOString(),
         isNoise: false,
       },

@@ -3,10 +3,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { afterAll, describe, expect, it } from "vitest";
-import { testStoreContract } from "@community-os/testkit";
+import { testStoreContract, testStoreModelConformance } from "@community-os/testkit";
 import { SqliteStore } from "./index.ts";
 
 testStoreContract("SqliteStore", () => new SqliteStore(), (s) => s.close());
+
+testStoreModelConformance("SqliteStore", () => new SqliteStore(), (s) => s.close());
 
 describe("SqliteStore — adapter specifics", () => {
   const dirs: string[] = [];

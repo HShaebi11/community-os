@@ -10,7 +10,8 @@ export function slugify(value: string): string {
     .trim()
     .replace(/[\s_]+/g, "-")
     .replace(/-+/g, "-")
-    .slice(0, 48);
+    .slice(0, 48)
+    .replace(/^-+|-+$/g, "");
   return slug || "community";
 }
 

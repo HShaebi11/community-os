@@ -296,11 +296,14 @@ export function createDrizzleStore(db: Database): Store {
       return db.select().from(proposals).where(eq(proposals.communityId, communityId));
     },
     async createEvent(event) {
-      await db.insert(events).values({
+      const row = {
         ...event,
         startsAt: event.startsAt ? new Date(event.startsAt) : null,
         publishedAt: new Date(event.publishedAt),
-      });
+      };
+      // Upsert by id: re-saving the same event is an idempotent write, while
+      // a different id reusing the slug fails on the unique slug index.
+      await db.insert(events).values(row).onConflictDoUpdate({ target: events.id, set: row });
       return event;
     },
     async getEventBySlug(slug) {

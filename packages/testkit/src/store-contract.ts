@@ -49,7 +49,7 @@ export function testStoreContract<S extends Store>(
     const seed = async (s: S) => {
       const ws = await s.createWorkspace({ name: "W", createdBy: "lead" });
       const other = await s.createWorkspace({ name: "Other", createdBy: "lead" });
-      const src = await s.createSource({ communityId: ws.id, kind: "chat", name: "#general" });
+      const src = await s.createSource({ communityId: ws.id, kind: "native", name: "#general" });
       return { ws, other, src };
     };
 
@@ -107,7 +107,7 @@ export function testStoreContract<S extends Store>(
         const list = await s.listSources(ws.id);
         expect(list).toHaveLength(1);
         expect(list[0].id).toBe(src.id);
-        expect(list[0].kind).toBe("chat");
+        expect(list[0].kind).toBe("native");
       });
     });
 
@@ -123,7 +123,7 @@ export function testStoreContract<S extends Store>(
       it("does NOT dedupe the same platform id across different sources", async () => {
         const s = await fresh();
         const { ws, src } = await seed(s);
-        const src2 = await s.createSource({ communityId: ws.id, kind: "chat", name: "#other" });
+        const src2 = await s.createSource({ communityId: ws.id, kind: "native", name: "#other" });
         // Platform ids are only unique within their source — a Slack "1" and a
         // Discord "1" are different messages and both must land.
         const res = await s.insertMessages([
@@ -179,7 +179,7 @@ export function testStoreContract<S extends Store>(
       it("counts the same platform id in a different community as distinct", async () => {
         const s = await fresh();
         const { ws, other, src } = await seed(s);
-        const src2 = await s.createSource({ communityId: other.id, kind: "chat", name: "#o" });
+        const src2 = await s.createSource({ communityId: other.id, kind: "native", name: "#o" });
         const res = await s.insertMessages([
           message({ communityId: ws.id, sourceId: src.id, sourceMessageId: "ext-1" }),
           message({ communityId: other.id, sourceId: src2.id, sourceMessageId: "ext-1" }),
@@ -375,6 +375,19 @@ export function testStoreContract<S extends Store>(
         expect((await s.getEvent(e.id))?.slug).toBe("launch");
         expect((await s.getEventBySlug("launch"))?.id).toBe(e.id);
         expect(await s.getEventBySlug("nope")).toBeNull();
+        expect(await s.listEvents(ws.id)).toHaveLength(1);
+      });
+
+      it("rejects a different-id event reusing a slug, but upserts the same id", async () => {
+        const s = await fresh();
+        const { ws } = await seed(s);
+        const e = await s.createEvent(eventRecord({ communityId: ws.id, slug: "launch" }));
+        // A different event id must not silently take over an existing slug:
+        // the public URL /e/<slug> would be hijacked and the old event lost.
+        await expect(s.createEvent(eventRecord({ communityId: ws.id, slug: "launch" }))).rejects.toThrow();
+        // Re-saving the same event id is an idempotent write, not a conflict.
+        await s.createEvent({ ...e, title: "Launch v2" });
+        expect((await s.getEvent(e.id))?.title).toBe("Launch v2");
         expect(await s.listEvents(ws.id)).toHaveLength(1);
       });
 
