@@ -1,0 +1,35 @@
+docs/CHANNELS.md
+  s_d4e45aab49e24a::t_e40680f17599ba 7,44-83,94-105
+packages/channel-slack/src/index.test.ts
+  s_d4e45aab49e24a::t_a28c42a34be1f1 1,3,39-72
+packages/channel-slack/src/index.ts
+  s_d4e45aab49e24a::t_383eb3fa6bcffa 1-15,125-184
+packages/channel-whatsapp/src/index.test.ts
+  s_d4e45aab49e24a::t_9885dc2ab706dc 1,3,37-86
+packages/channel-whatsapp/src/index.ts
+  s_d4e45aab49e24a::t_494f718f3b3167 1-15,121-193
+packages/sdk/README.md
+  s_d4e45aab49e24a::t_04b019ec0d23ce 86-99
+packages/sdk/src/index.test.ts
+  s_d4e45aab49e24a::t_b74204e057554a 9-17,209-277
+packages/sdk/src/index.ts
+  s_d4e45aab49e24a::t_6c017a71c1dc43 45,50,177-200,319-354,357,359
+packages/sdk/src/types.ts
+  s_d4e45aab49e24a::t_9a7f58ec30b030 290-307
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "51b61defa50c09d56384dcd87fbc580c161d5c9a",
+  "prompts": {},
+  "sessions": {
+    "s_d4e45aab49e24a": {
+      "agent_id": {
+        "tool": "devin",
+        "id": "s_d4e45aab49e24a",
+        "model": "unknown"
+      },
+      "human_author": "Hamza <hshaebi.11@gmail.com>"
+    }
+  }
+}
