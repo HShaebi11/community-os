@@ -1,4 +1,18 @@
-import type { ChannelAdapter, NormalizedMessage } from "@community-os/sdk";
+import type { ChannelAdapter, NormalizedMessage, WebhookAdapter } from "@community-os/sdk";
+
+async function hmacSha256Hex(secret: string, data: string): Promise<string> {
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey("raw", enc.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const sig = await crypto.subtle.sign("HMAC", key, enc.encode(data));
+  return [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+function safeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
 
 export type SlackChannelOptions = {
   /** App-level token (xapp-…) with `connections:write` — opens Socket Mode. */
@@ -105,6 +119,66 @@ export function slackChannel(options: SlackChannelOptions): ChannelAdapter {
     async stop() {
       stopped = true;
       ws?.close();
+    },
+  };
+}
+
+/** The official Events API path — Slack POSTs signed events to a public URL
+ *  you host (Slack's recommended production transport; Socket Mode's sibling).
+ *  Verifies X-Slack-Signature (HMAC of `v0:ts:body`), answers the
+ *  url_verification handshake, and reuses the same normalizer:
+ *
+ *    const hook = await cos.receive(slackEvents({ signingSecret }), { workspaceId });
+ *    // serve it: POST https://your.host/slack → hook(request)            */
+export function slackEvents(options: {
+  /** Signing secret from the app's Basic Information page. */
+  signingSecret: string;
+  /** Bot token (xoxb-…) — resolves user ids to display names via users.info. */
+  botToken?: string;
+  /** Only ingest these channel ids; omit for all. */
+  channelIds?: string[];
+  /** Slack API base (tests/proxies). */
+  apiBase?: string;
+}): WebhookAdapter {
+  const userNames = new Map<string, string>();
+  const resolveAuthor = (userId: string) => userNames.get(userId) ?? userId;
+
+  const fetchName = async (userId: string) => {
+    if (!options.botToken || userNames.has(userId)) return;
+    try {
+      const res = await fetch(`${options.apiBase ?? "https://slack.com"}/api/users.info?user=${userId}`, {
+        headers: { authorization: `Bearer ${options.botToken}` },
+      });
+      const json = (await res.json()) as { user?: { profile?: { display_name?: string; real_name?: string } } };
+      const name = json.user?.profile?.display_name || json.user?.profile?.real_name;
+      if (name) userNames.set(userId, name);
+    } catch {
+      // best-effort
+    }
+  };
+
+  return {
+    name: "slack",
+    kind: "slack",
+    async handle(request) {
+      const body = await request.text();
+      const ts = request.headers.get("x-slack-request-timestamp") ?? "";
+      const signature = request.headers.get("x-slack-signature") ?? "";
+      const expected = `v0=${await hmacSha256Hex(options.signingSecret, `v0:${ts}:${body}`)}`;
+      if (Math.abs(Date.now() / 1000 - Number(ts)) > 300 || !safeEqual(signature, expected)) {
+        throw new Response("bad signature", { status: 403 });
+      }
+      const payload = JSON.parse(body) as { type: string; challenge?: string; event?: SlackEvent };
+      if (payload.type === "url_verification") {
+        return { messages: [], response: Response.json({ challenge: payload.challenge }) };
+      }
+      const event = payload.event;
+      const msg = event ? normalizeSlackEvent(event, resolveAuthor, options) : null;
+      if (msg && event?.user && !userNames.has(event.user)) {
+        await fetchName(event.user);
+        msg.author = resolveAuthor(event.user);
+      }
+      return { messages: msg ? [msg] : [] };
     },
   };
 }

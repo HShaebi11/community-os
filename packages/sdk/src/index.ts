@@ -42,10 +42,12 @@ import type {
   Proposal,
   Resource,
   Source,
+  SourceKind,
   Sponsor,
   Store,
   TimelineEvent,
   Venue,
+  WebhookAdapter,
   WebhookSubscription,
   Workspace,
 } from "./types.js";
@@ -172,6 +174,30 @@ const DEFAULT_ORIGIN = "http://localhost:5173";
  * Same methods either way. Local mode is volatile and does not deliver
  * webhooks — persistence and delivery happen on the server transport.
  */
+/** The no-platform-needed receiver: wrap any POSTed JSON into a
+ *  WebhookAdapter with one `map` function. Omni, n8n, Zapier, a cron
+ *  job, a forwarding service — if it can send JSON, it can feed a
+ *  workspace:
+ *    const handler = await cos.receive(jsonWebhook({ map: (p) => [...] }), { workspaceId });
+ *    serve({ fetch: (req) => req.url.endsWith("/hook") ? handler(req) : cos.fetch(req) }) */
+export function jsonWebhook(options: {
+  name?: string;
+  kind?: SourceKind;
+  /** Optional gate — return false to reject the request with 403. */
+  verify?: (request: Request) => boolean | Promise<boolean>;
+  map(payload: unknown, request: Request): NormalizedMessage[] | Promise<NormalizedMessage[]>;
+}): WebhookAdapter {
+  return {
+    name: options.name ?? "webhook",
+    kind: options.kind ?? "native",
+    async handle(request) {
+      if (request.method !== "POST") throw new Response("method not allowed", { status: 405 });
+      if (options.verify && !(await options.verify(request))) throw new Response("forbidden", { status: 403 });
+      return { messages: await options.map(await request.json(), request) };
+    },
+  };
+}
+
 export class CommunityOS {
   private remote?: { base: string; origin: string | undefined; fetch: typeof globalThis.fetch };
   private local?: { store: CoreStore; origin: string };
@@ -290,17 +316,49 @@ export class CommunityOS {
     options: { workspaceId: string; sourceName?: string },
   ): Promise<{ stop: () => Promise<void> }> {
     await this.getWorkspace(options.workspaceId); // 404 early, both modes
-    const source = { kind: channel.kind, name: options.sourceName ?? channel.name };
-    const emit = async (messages: NormalizedMessage[]) => {
-      if (!messages.length) return;
-      if (this.local) {
-        await ingestMessages(this.store, options.workspaceId, source, messages);
-      } else {
-        await this.post("/v1/ingest", { communityId: options.workspaceId, source, messages });
-      }
-    };
+    const emit = this.emitter(options.workspaceId, { kind: channel.kind, name: options.sourceName ?? channel.name });
     await channel.start({ emit });
     return { stop: () => channel.stop() };
+  }
+
+  /** Mount a passive platform webhook — Slack Events API, WhatsApp Cloud API,
+   *  Omni, n8n, a custom poller, anything that POSTs. Returns a fetch handler
+   *  you serve on any public URL: `cos.serve`, `cos.fetch`, Bun, a Worker,
+   *  a Next.js route. Ingest goes through the same path as `listen` —
+   *  embedded writes the store directly, remote POSTs to /v1/ingest.
+   *  Ingest failures return 500 so the platform retries (dedupe makes
+   *  replays safe). The workspace is validated up front, both modes. */
+  async receive(
+    adapter: WebhookAdapter,
+    options: { workspaceId: string; sourceName?: string },
+  ): Promise<(request: Request) => Promise<Response>> {
+    await this.getWorkspace(options.workspaceId);
+    const emit = this.emitter(options.workspaceId, { kind: adapter.kind, name: options.sourceName ?? adapter.name });
+    return async (request) => {
+      try {
+        const { messages, response } = await adapter.handle(request);
+        try {
+          await emit(messages);
+        } catch {
+          return Response.json({ error: "ingest failed" }, { status: 500 });
+        }
+        return response ?? Response.json({ ok: true, ingested: messages.length });
+      } catch (err) {
+        if (err instanceof Response) return err;
+        throw err;
+      }
+    };
+  }
+
+  private emitter(workspaceId: string, source: { kind: SourceKind; name: string }) {
+    return async (messages: NormalizedMessage[]) => {
+      if (!messages.length) return;
+      if (this.local) {
+        await ingestMessages(this.store, workspaceId, source, messages);
+      } else {
+        await this.post("/v1/ingest", { communityId: workspaceId, source, messages });
+      }
+    };
   }
 
   /** React to kernel events (import, memory, proposal, published, rsvp,

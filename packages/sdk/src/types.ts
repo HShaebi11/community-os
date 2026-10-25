@@ -287,3 +287,21 @@ export type ChannelAdapter = {
   start(ctx: { emit(messages: NormalizedMessage[]): Promise<void> }): Promise<void>;
   stop(): Promise<void>;
 };
+
+/** What a webhook adapter produces from an inbound request: the normalized
+ *  messages to ingest (may be empty — e.g. a verification handshake), and
+ *  optionally the HTTP response to send back to the platform. Throw a
+ *  `Response` from `handle` to short-circuit (e.g. 403 on a bad signature). */
+export type WebhookResult = { messages: NormalizedMessage[]; response?: Response };
+
+/** A passive receiver — the mirror of ChannelAdapter for platforms that push
+ *  to you over HTTP instead of you holding a socket open: Slack Events API,
+ *  WhatsApp Cloud API, Omni, n8n, Zapier, a cron poller, anything. `handle`
+ *  owns platform specifics: signature checks, verification handshakes,
+ *  payload → NormalizedMessage mapping. Mount the result of `cos.receive`
+ *  wherever you serve fetch. */
+export type WebhookAdapter = {
+  name: string;
+  kind: SourceKind;
+  handle(request: Request): Promise<WebhookResult>;
+};

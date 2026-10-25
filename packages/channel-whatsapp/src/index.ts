@@ -1,4 +1,18 @@
-import type { ChannelAdapter, NormalizedMessage } from "@community-os/sdk";
+import type { ChannelAdapter, NormalizedMessage, WebhookAdapter } from "@community-os/sdk";
+
+async function hmacSha256Hex(secret: string, data: string): Promise<string> {
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey("raw", enc.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const sig = await crypto.subtle.sign("HMAC", key, enc.encode(data));
+  return [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+function safeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
 
 // WhatsApp has no official API for reading group messages — this adapter uses
 // Baileys, the standard open-source multi-device client, paired via QR like
@@ -101,6 +115,79 @@ export function whatsappChannel(options: WhatsAppChannelOptions = {}): ChannelAd
       stopped = true;
       socket?.end(undefined);
       socket = null;
+    },
+  };
+}
+
+// --- Official Cloud API receiver -------------------------------------------
+// Meta's webhook: GET verification handshake, then signed POSTs per message.
+// Official coverage for everything the Cloud API can see — inbound messages to
+// the business number (1:1), plus Groups API groups (OBA-only, ≤8 members).
+// Existing community groups remain Baileys-only; see the caveat above.
+
+type CloudWebhookValue = {
+  contacts?: { wa_id?: string; profile?: { name?: string } }[];
+  messages?: {
+    from?: string;
+    id?: string;
+    timestamp?: string;
+    type?: string;
+    text?: { body?: string };
+  }[];
+};
+
+/** A Meta webhook payload → platform-neutral messages (text only). */
+export function normalizeCloudWebhook(payload: { entry?: { changes?: { value?: CloudWebhookValue }[] }[] }): NormalizedMessage[] {
+  const out: NormalizedMessage[] = [];
+  for (const entry of payload.entry ?? []) {
+    for (const change of entry.changes ?? []) {
+      const value = change.value;
+      const names = new Map((value?.contacts ?? []).map((c) => [c.wa_id ?? "", c.profile?.name ?? ""]));
+      for (const m of value?.messages ?? []) {
+        const body = (m.type === "text" ? m.text?.body : "")?.trim() ?? "";
+        if (!body || !m.id || !m.from) continue;
+        out.push({
+          id: m.id,
+          author: names.get(m.from) || m.from,
+          body,
+          sentAt: new Date(Number(m.timestamp ?? 0) * 1000).toISOString(),
+        });
+      }
+    }
+  }
+  return out;
+}
+
+/** Official WhatsApp ingestion — Meta Cloud API webhooks. GET performs the
+ *  subscribe handshake (hub.verify_token), POSTs are verified with
+ *  x-hub-signature-256 when `appSecret` is set (recommended):
+ *
+ *    const hook = await cos.receive(whatsappCloud({ verifyToken, appSecret }), { workspaceId });
+ *    // point Meta's callback URL at wherever you serve hook(request)      */
+export function whatsappCloud(options: {
+  /** The verify token you set in the Meta app dashboard. */
+  verifyToken: string;
+  /** App secret — enables x-hub-signature-256 verification when provided. */
+  appSecret?: string;
+}): WebhookAdapter {
+  return {
+    name: "whatsapp-cloud",
+    kind: "whatsapp",
+    async handle(request) {
+      if (request.method === "GET") {
+        const q = new URL(request.url).searchParams;
+        if (q.get("hub.mode") === "subscribe" && q.get("hub.verify_token") === options.verifyToken) {
+          return { messages: [], response: new Response(q.get("hub.challenge") ?? "", { status: 200 }) };
+        }
+        throw new Response("forbidden", { status: 403 });
+      }
+      const body = await request.text();
+      if (options.appSecret) {
+        const signature = request.headers.get("x-hub-signature-256") ?? "";
+        const expected = `sha256=${await hmacSha256Hex(options.appSecret, body)}`;
+        if (!safeEqual(signature, expected)) throw new Response("bad signature", { status: 403 });
+      }
+      return { messages: normalizeCloudWebhook(JSON.parse(body)) };
     },
   };
 }

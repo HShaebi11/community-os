@@ -6,7 +6,15 @@ import { MemoryStore } from "@community-os/core";
 import { SqliteStore } from "@community-os/store-sqlite";
 import { describe, expect, it } from "vitest";
 import { createApp } from "../../../apps/api/src/app.ts";
-import { ApiError, CommunityOS, verifyWebhookSignature, type ChannelAdapter, type NormalizedMessage } from "./index.ts";
+import {
+  ApiError,
+  CommunityOS,
+  jsonWebhook,
+  verifyWebhookSignature,
+  type ChannelAdapter,
+  type NormalizedMessage,
+  type WebhookAdapter,
+} from "./index.ts";
 
 const fakeChannel = (msgs: NormalizedMessage[]): ChannelAdapter => ({
   name: "test-channel",
@@ -195,6 +203,75 @@ describe("on() — react to kernel events", () => {
     await cos.importChat(ws.id, chat, "_chat.txt");
     await new Promise((r) => setTimeout(r, 250));
     expect(seen).toEqual(["import"]);
+  });
+});
+
+describe("receive() — passive webhook ingest", () => {
+  const webhook = (msgs: NormalizedMessage[]): WebhookAdapter => ({
+    name: "test-hook",
+    kind: "native",
+    async handle() {
+      return { messages: msgs };
+    },
+  });
+  const sample: NormalizedMessage[] = [
+    { id: "w1", author: "Ada", body: "pushed message", sentAt: "2025-01-01T00:00:00Z" },
+  ];
+
+  it("ingests pushed messages on embedded and remote modes", async () => {
+    for (const cos of [CommunityOS.memory(), remoteCos()]) {
+      const ws = await cos.createWorkspace({ name: "T" });
+      const hook = await cos.receive(webhook(sample), { workspaceId: ws.id });
+      const res = await hook(new Request("https://local/hook", { method: "POST" }));
+      expect(res.status).toBe(200);
+      expect((await cos.listMessages(ws.id)).length).toBe(1);
+    }
+  });
+
+  it("returns adapter responses and surfaces adapter rejections", async () => {
+    const cos = CommunityOS.memory();
+    const ws = await cos.createWorkspace({ name: "T" });
+    const hook = await cos.receive(
+      {
+        name: "h",
+        kind: "native",
+        async handle(req) {
+          if (req.url.includes("handshake")) return { messages: [], response: new Response("ch123") };
+          if (req.url.includes("forbidden")) throw new Response("nope", { status: 403 });
+          return { messages: [] };
+        },
+      },
+      { workspaceId: ws.id },
+    );
+    expect(await (await hook(new Request("https://local/handshake"))).text()).toBe("ch123");
+    expect((await hook(new Request("https://local/forbidden"))).status).toBe(403);
+  });
+
+  it("jsonWebhook maps any JSON POST into messages, with optional verify", async () => {
+    const cos = CommunityOS.memory();
+    const ws = await cos.createWorkspace({ name: "T" });
+    const hook = await cos.receive(
+      jsonWebhook({
+        verify: (req) => req.headers.get("x-secret") === "s3",
+        map: (p) => {
+          const { id, author, body } = p as { id: string; author: string; body: string };
+          return [{ id, author, body, sentAt: "2025-01-01T00:00:00Z" }];
+        },
+      }),
+      { workspaceId: ws.id },
+    );
+    const denied = await hook(new Request("https://local/h", { method: "POST", body: "{}" }));
+    expect(denied.status).toBe(403);
+    const ok = await hook(
+      new Request("https://local/h", {
+        method: "POST",
+        headers: { "x-secret": "s3" },
+        body: JSON.stringify({ id: "j1", author: "Bob", body: "from a random service" }),
+      }),
+    );
+    expect(ok.status).toBe(200);
+    const messages = await cos.listMessages(ws.id);
+    expect(messages[0]?.body).toBe("from a random service");
   });
 });
 

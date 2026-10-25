@@ -83,6 +83,20 @@ A `ChannelAdapter` is `{ name, kind, start(ctx), stop() }` — `start` gets an
 lands through the same dedupe + member-resolution path either way. See
 [`docs/CHANNELS.md`](https://github.com/HShaebi11/community-os/blob/main/docs/CHANNELS.md).
 
+For platforms that **push** instead — Slack Events API, WhatsApp Cloud API,
+Omni, n8n, anything that POSTs — `cos.receive()` turns a `WebhookAdapter`
+into a fetch handler you mount wherever you serve:
+
+```ts
+import { slackEvents } from "@community-os/channel-slack";
+
+const hook = await cos.receive(slackEvents({ signingSecret }), { workspaceId });
+// serve hook(request) on any public URL — signature checks and the
+// url_verification handshake are handled inside the adapter
+```
+
+No-platform receivers are one map function: `jsonWebhook({ map: (p) => […] })`.
+
 React to what arrives:
 
 ```ts
