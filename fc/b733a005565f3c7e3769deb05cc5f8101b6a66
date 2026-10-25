@@ -1,0 +1,65 @@
+docs/API.md
+  s_0d0a687f07a1f2::t_cbd0185f138053 128-129,267-270
+docs/CHANNELS.md
+  s_0d0a687f07a1f2::t_cc6fc0cc3da574 1-94
+package-lock.json
+  s_0d0a687f07a1f2::t_48477fb3fe94ab 208-257,452-463,1412-1428,2061-2084,2310-2316,2346-2411,5169-5193,5342-5380,5406-5418,5511-5550,5642-5655,5803-5815,5946-5952,5980-5989,6740-6755,6984-7002,7036-7096,7251-7279,7301-7307,7328-7341,7358-7378,7463-7472,7483-7492,7796-7802,7931-7990,8152-8161,8251-8290,8407-8447,8465-8494,8511-8517,8727-8736,8872-8881,9119-9128,9175-9184,9255-9271,9385-9394,9465-9483,10134-10146,10617-10623,10785-10820,10862,10866-10868
+package.json
+  s_0d0a687f07a1f2::t_64e9f28d5d6620 11-12
+packages/channel-discord/package.json
+  s_0d0a687f07a1f2::t_31b44df297fcf3 1-25
+packages/channel-discord/src/index.test.ts
+  s_0d0a687f07a1f2::t_a4bf304bf0fc4e 1-35
+packages/channel-discord/src/index.ts
+  s_0d0a687f07a1f2::t_7b61ec3c7cc9fa 1-123
+packages/channel-discord/tsconfig.json
+  s_0d0a687f07a1f2::t_b46bf18b4b0c48 1-15
+packages/channel-slack/package.json
+  s_0d0a687f07a1f2::t_a8b2299cd78719 1-25
+packages/channel-slack/src/index.test.ts
+  s_0d0a687f07a1f2::t_374b4fdf73bcb3 1-37
+packages/channel-slack/src/index.ts
+  s_0d0a687f07a1f2::t_d7419cacd1035d 1-110
+packages/channel-slack/tsconfig.json
+  s_0d0a687f07a1f2::t_8b1794836bcea3 1-15
+packages/channel-whatsapp/package.json
+  s_0d0a687f07a1f2::t_570c38a20efe14 1-28
+packages/channel-whatsapp/src/index.test.ts
+  s_0d0a687f07a1f2::t_44fd2093ebd238 1-35
+packages/channel-whatsapp/src/index.ts
+  s_0d0a687f07a1f2::t_f919d6fbb4c283 1-106
+packages/channel-whatsapp/tsconfig.json
+  s_0d0a687f07a1f2::t_2a15a5374ddc55 1-15
+packages/core/src/kernel.ts
+  s_0d0a687f07a1f2::t_77324f8ffd404c 7,56-60,63-64,66-75,79-80,82-101,106
+packages/core/src/types.ts
+  s_0d0a687f07a1f2::t_ecefc8bf2b1469 177-186
+packages/sdk/README.md
+  s_0d0a687f07a1f2::t_a8d612c3be8d12 68,70-105
+packages/sdk/src/drift-check.ts
+  s_0d0a687f07a1f2::t_8dad81b57e185e 34
+packages/sdk/src/index.test.ts
+  s_0d0a687f07a1f2::t_2ee74fbdb2e3f4 9-18,145-215
+packages/sdk/src/index.ts
+  s_0d0a687f07a1f2::t_78a2276c41009f 11,33,41,178-181,189-190,204-215,224,257-364
+packages/sdk/src/types.ts
+  s_0d0a687f07a1f2::t_c87922fd6b2df0 269-289
+packages/server/src/index.ts
+  s_0d0a687f07a1f2::t_1e1c35a25db5b0 11,26-27,339-353
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "fcb733a005565f3c7e3769deb05cc5f8101b6a66",
+  "prompts": {},
+  "sessions": {
+    "s_0d0a687f07a1f2": {
+      "agent_id": {
+        "tool": "devin",
+        "id": "s_0d0a687f07a1f2",
+        "model": "unknown"
+      },
+      "human_author": "Hamza <hshaebi.11@gmail.com>"
+    }
+  }
+}
