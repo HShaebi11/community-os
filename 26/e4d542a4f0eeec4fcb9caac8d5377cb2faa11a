@@ -1,0 +1,60 @@
+.github/workflows/ci.yml
+  h_c628d8a6509c22 7-9,43-58
+CONTRIBUTING.md
+  h_c628d8a6509c22 52-72,77-78
+apps/api/vitest.config.ts
+  h_c628d8a6509c22 7-11
+apps/mcp/src/remote.test.ts
+  h_c628d8a6509c22 37-47
+apps/mcp/src/remote.ts
+  h_c628d8a6509c22 59
+apps/mcp/vitest.config.ts
+  h_c628d8a6509c22 7-10
+docs/openapi.yaml
+  h_c628d8a6509c22 134-180
+package-lock.json
+  h_c628d8a6509c22 12806-12818,13051-13052
+packages/channel-discord/vitest.config.ts
+  h_c628d8a6509c22 7-9
+packages/channel-slack/vitest.config.ts
+  h_c628d8a6509c22 7-9
+packages/channel-whatsapp/vitest.config.ts
+  h_c628d8a6509c22 7-9
+packages/core/src/kernel.determinism.test.ts
+  h_c628d8a6509c22 1-153
+packages/core/src/kernel.memory.test.ts
+  h_c628d8a6509c22 140
+packages/core/vitest.config.ts
+  h_c628d8a6509c22 6,8-11
+packages/db/vitest.config.ts
+  h_c628d8a6509c22 7-9
+packages/sdk/src/parity.test.ts
+  h_c628d8a6509c22 235-318
+packages/sdk/vitest.config.ts
+  h_c628d8a6509c22 7-11
+packages/server/package.json
+  h_c628d8a6509c22 27-29
+packages/server/src/index.test.ts
+  h_c628d8a6509c22 4,374-606
+packages/server/src/spec-drift.test.ts
+  h_c628d8a6509c22 1-119
+packages/server/vitest.config.ts
+  h_c628d8a6509c22 7-9
+packages/store-sqlite/vitest.config.ts
+  h_c628d8a6509c22 7-9
+packages/testkit/vitest.config.ts
+  h_c628d8a6509c22 1-12
+packages/whatsapp-import/vitest.config.ts
+  h_c628d8a6509c22 7-9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "26e4d542a4f0eeec4fcb9caac8d5377cb2faa11a",
+  "prompts": {},
+  "humans": {
+    "h_c628d8a6509c22": {
+      "author": "Hamza <hshaebi.11@gmail.com>"
+    }
+  }
+}
