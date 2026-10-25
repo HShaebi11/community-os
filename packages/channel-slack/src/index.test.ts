@@ -1,5 +1,5 @@
 import { createHmac } from "node:crypto";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { normalizeSlackEvent, slackEvents } from "./index.ts";
 
 const event = (over: Record<string, unknown> = {}) => ({
@@ -26,6 +26,16 @@ describe("normalizeSlackEvent", () => {
   it("resolves author names via the lookup", () => {
     const resolved = normalizeSlackEvent(event(), () => "Ada");
     expect(resolved?.author).toBe("Ada");
+  });
+
+
+  it("treats missing channel/text as empty and unknown", () => {
+    const missingText = normalizeSlackEvent(event({ text: undefined }), id);
+    expect(missingText).toBeNull();
+    const noChannel = normalizeSlackEvent(event({ channel: undefined }), id);
+    expect(noChannel?.id.startsWith("unknown:")).toBe(true);
+    const filtered = normalizeSlackEvent(event({ channel: undefined }), id, { channelIds: ["C1"] });
+    expect(filtered).toBeNull();
   });
 
   it("drops subtypes, empty text, and filtered channels", () => {
@@ -68,5 +78,60 @@ describe("slackEvents — passive Events API receiver", () => {
     const body = JSON.stringify({ type: "event_callback", event: event() });
     await expect(adapter.handle(signedRequest(body, "wrong-secret"))).rejects.toMatchObject({ status: 403 });
     await expect(adapter.handle(signedRequest(body, SECRET, "1000"))).rejects.toMatchObject({ status: 403 });
+  });
+
+  it("rejects requests with missing signature headers", async () => {
+    const adapter = slackEvents({ signingSecret: SECRET });
+    const req = new Request("https://x.test/slack", { method: "POST", body: "{}" });
+    await expect(adapter.handle(req)).rejects.toMatchObject({ status: 403 });
+  });
+
+  it("rejects a well-formed signature of the wrong length", async () => {
+    const adapter = slackEvents({ signingSecret: SECRET });
+    const body = JSON.stringify({ type: "event_callback", event: event() });
+    const ts = String(Math.floor(Date.now() / 1000));
+    const req = new Request("https://x.test/slack", {
+      method: "POST",
+      body,
+      headers: { "x-slack-request-timestamp": ts, "x-slack-signature": "v0=abcd" },
+    });
+    await expect(adapter.handle(req)).rejects.toMatchObject({ status: 403 });
+  });
+
+  it("resolves unknown users via users.info when a botToken is configured", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      expect(String(input)).toContain("users.info?user=U999");
+      return Response.json({ user: { profile: { real_name: "Real Name" } } });
+    }));
+    const adapter = slackEvents({ signingSecret: SECRET, botToken: "xoxb-t" });
+    const res = await adapter.handle(signedRequest(JSON.stringify({ type: "event_callback", event: event({ user: "U999" }) })));
+    expect(res.messages[0]?.author).toBe("Real Name");
+    // Second event for the same user skips the API call.
+    const res2 = await adapter.handle(signedRequest(JSON.stringify({ type: "event_callback", event: event({ user: "U999", ts: "1735711300.0" }) })));
+    expect(res2.messages[0]?.author).toBe("Real Name");
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1);
+    vi.unstubAllGlobals();
+  });
+
+  it("keeps the raw user id when users.info fails or has no name", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("network down"); }));
+    const adapter = slackEvents({ signingSecret: SECRET, botToken: "xoxb-t" });
+    const res = await adapter.handle(signedRequest(JSON.stringify({ type: "event_callback", event: event({ user: "U888" }) })));
+    expect(res.messages[0]?.author).toBe("U888");
+    vi.unstubAllGlobals();
+  });
+
+  it("returns no messages when the payload has no event", async () => {
+    const adapter = slackEvents({ signingSecret: SECRET });
+    const res = await adapter.handle(signedRequest(JSON.stringify({ type: "event_callback" })));
+    expect(res.messages).toEqual([]);
+  });
+
+  it("returns no messages for non-normalizable events", async () => {
+    const adapter = slackEvents({ signingSecret: SECRET });
+    const res = await adapter.handle(
+      signedRequest(JSON.stringify({ type: "event_callback", event: event({ subtype: "bot_message" }) })),
+    );
+    expect(res.messages).toEqual([]);
   });
 });

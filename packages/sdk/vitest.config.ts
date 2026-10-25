@@ -8,7 +8,7 @@ export default defineConfig({
       //       // so tsc fails if public wire types drift from core) — no runtime code.
       exclude: ["**/dist/**", "**/*.config.*", "src/types.ts", "src/drift-check.ts"],
 
-      thresholds: { lines: 93, branches: 87, functions: 96, statements: 93 },
+      thresholds: { lines: 100, branches: 100, functions: 100, statements: 100 },
     },
   },
 });

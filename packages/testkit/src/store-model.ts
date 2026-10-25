@@ -75,7 +75,10 @@ export class StoreModel {
   upsertMember(communityId: string, displayName: string, lastActive: string | null) {
     const name = displayName.trim();
     const existing = this.members.find(
-      (m) => m.communityId === communityId && m.aliases.some((a) => a.trim().toLowerCase() === name.toLowerCase()),
+      (m) =>
+        m.communityId === communityId &&
+        (m.displayName.trim().toLowerCase() === name.toLowerCase() ||
+          m.aliases.some((a) => a.trim().toLowerCase() === name.toLowerCase())),
     );
     if (existing) {
       if (lastActive && (!existing.lastActive || lastActive > existing.lastActive)) {
@@ -104,6 +107,19 @@ export class StoreModel {
   updateMember(tag: string, patch: Partial<Member>, byLead: boolean) {
     const member = this.members.find((m) => m.id === tag);
     if (!member) throw new Error("member not found");
+    if (patch.publicSlug != null && this.members.some((m) => m.id !== tag && m.publicSlug === patch.publicSlug)) {
+      throw new Error("public slug taken");
+    }
+    if (patch.displayName != null && (byLead || !member.leadLockedFields.includes("displayName"))) {
+      const norm = String(patch.displayName).trim().toLowerCase();
+      if (
+        this.members.some(
+          (m) => m.id !== tag && m.communityId === member.communityId && m.displayName.trim().toLowerCase() === norm,
+        )
+      ) {
+        throw new Error("display name taken");
+      }
+    }
     const editable = new Set(["do", "want", "offer", "notes", "displayName", "publicOptIn", "publicSlug"]);
     const lockable = new Set(["do", "want", "offer", "notes", "displayName"]);
     for (const key of Object.keys(patch) as Array<keyof Member>) {

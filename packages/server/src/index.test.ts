@@ -604,3 +604,124 @@ describe("mcp mount", () => {
     expect(res.status).toBe(404);
   });
 });
+
+describe("coverage completion — residual branches", () => {
+  it("executionCtx.waitUntil is used when the runtime provides it", async () => {
+    const store = new MemoryStore();
+    const app = createApp(store); // default deliverWebhook — the waitUntil path lives there
+    const w = await (await app.request("/v1/workspaces", json({ name: "Ctx" }))).json() as { id: string };
+    await app.request(`/v1/workspaces/${w.id}/webhooks`, json({ url: "https://hook.test/x", kinds: [] }));
+    const calls: Promise<unknown>[] = [];
+    const original = globalThis.fetch;
+    globalThis.fetch = (async () => new Response("ok", { status: 200 })) as typeof fetch;
+    try {
+      const res = await app.request(
+        "/v1/ingest",
+        json({ communityId: w.id, source: { kind: "native", name: "t" }, messages: [normalizedMessage()] }),
+        undefined,
+        { waitUntil: (p: Promise<unknown>) => void calls.push(p) } as unknown as Parameters<typeof app.request>[3],
+      );
+      expect(res.status).toBe(200);
+      expect(calls.length).toBeGreaterThanOrEqual(1);
+      await Promise.all(calls);
+    } finally {
+      globalThis.fetch = original;
+    }
+  });
+
+  it("import falls back to export.zip when no filename query is passed", async () => {
+    const { app, createWorkspace } = make();
+    const w = await createWorkspace();
+    const res = await app.request(`/v1/workspaces/${w.id}/imports`, {
+      method: "POST",
+      body: new TextEncoder().encode("01/01/2025, 10:00 - Ada: i want a meetup\n"),
+    });
+    expect(res.status).toBe(200);
+  });
+
+  it("venue without optional fields stores nulls", async () => {
+    const { app, createWorkspace } = make();
+    const w = await createWorkspace();
+    const res = await app.request(`/v1/workspaces/${w.id}/venues`, json({ name: "Bare" }));
+    expect(res.status).toBe(201);
+    const v = await res.json();
+    expect(v.area ?? null).toBeNull();
+  });
+
+  it("outreach on a ghost-community proposal uses 'Community'", async () => {
+    const { app, store, createWorkspace } = make();
+    const w = await createWorkspace();
+    const p = await store.createProposal({
+      id: "ghost-prop", communityId: "ghost", demandId: "d", venueId: null,
+      speakerIds: [], explanation: null, outreachDraft: null, status: "draft",
+    });
+    const res = await app.request(`/v1/proposals/${p.id}/outreach`, { method: "POST" });
+    expect(res.status).toBe(200);
+    expect((await res.json()).outreachDraft).toContain("Community");
+    void w;
+  });
+
+  it("blocklist without confirmed defaults to false; missing applicant 400s", async () => {
+    const { app, createWorkspace } = make();
+    const w = await createWorkspace();
+    const res = await app.request(`/v1/workspaces/${w.id}/blocklist`, json({ applicant: "Bad Actor", evidence: "spam" }));
+    expect(res.status).toBe(200);
+    expect((await res.json()).confirmed).toBe(false);
+    const bad = await app.request(`/v1/workspaces/${w.id}/blocklist`, json({ evidence: "x" }));
+    expect(bad.status).toBe(400);
+  });
+
+  it("requestOrigin prefers x-public-origin, then origin, then the request URL", async () => {
+    const { app, store } = make();
+    await store.createEvent({
+      id: "e1", communityId: "c", proposalId: "p", slug: "pub-ev", title: "T",
+      startsAt: null, publishedAt: "2025-01-01T00:00:00.000Z", qrSvg: "<svg/>", rsvpCount: 0,
+    });
+    const w = await store.createWorkspace({ name: "Pub", createdBy: "t" });
+    const h = { headers: { "x-public-origin": "https://custom.origin" } };
+    const res = await app.request(`/v1/public/communities/${w.slug}`, h);
+    expect(res.status).toBe(200);
+    const res2 = await app.request("/v1/public/events/pub-ev", { headers: { origin: "https://alt.origin" } });
+    expect(res2.status).toBe(200);
+    const res3 = await app.request(`/v1/public/communities/${w.slug}`, { headers: { origin: "https://alt.origin" } });
+    expect(res3.status).toBe(200);
+  });
+
+  it("search without ?q returns empty hits, webhook without url 400s", async () => {
+    const { app, createWorkspace } = make();
+    const res = await app.request("/v1/search");
+    expect(res.status).toBe(200);
+    const w = await createWorkspace();
+    const bad = await app.request(`/v1/workspaces/${w.id}/webhooks`, json({ kinds: [] }));
+    expect(bad.status).toBe(400);
+  });
+
+  it("/mcp/code engages the LOADER binding when env provides it", async () => {
+    const { app } = make();
+    const res = await app.request(
+      "/mcp/code",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }),
+      },
+      { LOADER: {} },
+    );
+    // The Workers executor can't run under vitest, but the env branch is taken.
+    expect(res.status).not.toBe(404);
+  });
+
+  it("mcp tool calls route through apiFetch into the app", async () => {
+    const { app, createWorkspace } = make();
+    const w = await createWorkspace();
+    const res = await app.request(`/mcp?workspace=${w.id}`, {
+      method: "POST",
+      headers: { "content-type": "application/json", accept: "application/json, text/event-stream" },
+      body: JSON.stringify({
+        jsonrpc: "2.0", id: 1, method: "tools/call",
+        params: { name: "search_memory", arguments: { q: "x" } },
+      }),
+    });
+    expect(res.status).toBe(200);
+  });
+});

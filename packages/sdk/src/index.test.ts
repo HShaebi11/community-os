@@ -375,3 +375,335 @@ describe("verifyWebhookSignature", () => {
     expect(await verifyWebhookSignature(body, "bad-header", secret)).toBe(false);
   });
 });
+
+describe("coverage completion", () => {
+  it("remote call surfaces non-JSON error bodies as statusText", async () => {
+    const cos = new CommunityOS({
+      baseUrl: "http://x.test",
+      fetch: (async () => new Response("<html>bad gateway</html>", { status: 502, statusText: "Bad Gateway" })) as typeof fetch,
+    });
+    await expect(cos.request("/v1/nope")).rejects.toMatchObject({ status: 502 });
+  });
+
+  it("embedded request() maps non-ok responses to ApiError", async () => {
+    const cos = CommunityOS.memory();
+    await expect(cos.request("/v1/members/ghost")).rejects.toMatchObject({ status: 404 });
+  });
+
+  it("remote() without fetch falls back to globalThis.fetch", () => {
+    const cos = new CommunityOS({ baseUrl: "http://x.test" });
+    expect(cos).toBeInstanceOf(CommunityOS);
+  });
+
+  it("request() forwards init.headers through call()", async () => {
+    const seen: Record<string, string> = {};
+    const cos = new CommunityOS({
+      baseUrl: "http://x.test",
+      fetch: (async (_u: unknown, init?: RequestInit) => {
+        Object.assign(seen, init?.headers ?? {});
+        return new Response(JSON.stringify({ ok: true }), { status: 200 });
+      }) as typeof fetch,
+    });
+    await cos.request("/v1/x", { headers: { "x-custom": "yes" } });
+    expect(seen["x-custom"]).toBe("yes");
+  });
+
+  it("fetch() rejects on remote instances", async () => {
+    const cos = new CommunityOS({ baseUrl: "http://x.test" });
+    await expect(cos.fetch(new Request("http://x.test/v1/health"))).rejects.toMatchObject({ status: 500 });
+  });
+
+  it("receive(): 405 on non-POST, 403 on failed verify, custom response wins", async () => {
+    const cos = CommunityOS.memory();
+    const ws = await cos.createWorkspace({ name: "H" });
+    const handler = await cos.receive(
+      jsonWebhook({ verify: () => false, map: () => [] }),
+      { workspaceId: ws.id },
+    );
+    expect((await handler(new Request("http://x/hook", { method: "GET" }))).status).toBe(405);
+    expect((await handler(new Request("http://x/hook", { method: "POST", body: "{}" }))).status).toBe(403);
+  });
+
+  it("receive(): ingest failure returns 500 so the platform retries", async () => {
+    const cos = CommunityOS.memory();
+    const ws = await cos.createWorkspace({ name: "H" });
+    const handler = await cos.receive(
+      jsonWebhook({ map: () => [{ id: "1", author: "a", body: "x", sentAt: "2025-01-01T00:00:00.000Z" }] }),
+      { workspaceId: ws.id },
+    );
+    // Store that fails mid-ingest — emit throws → 500 so the platform retries.
+    const store = new MemoryStore();
+    const real = store.insertMessages.bind(store);
+    const ws2 = await store.createWorkspace({ name: "W", createdBy: "t" });
+    store.insertMessages = async () => { throw new Error("db on fire"); };
+    const cos2 = CommunityOS.store(store);
+    const handler2 = await cos2.receive(
+      { name: "t", kind: "native" as const, async handle() { return { messages: [{ id: "1", author: "a", body: "x", sentAt: "t" }] }; } },
+      { workspaceId: ws2.id },
+    );
+    void handler;
+    expect((await handler2(new Request("http://x/hook", { method: "POST", body: "{}" }))).status).toBe(500);
+    store.insertMessages = real;
+  });
+
+  it("receive(): a Response thrown by handle propagates as-is; an adapter-supplied response wins", async () => {
+    const cos = CommunityOS.memory();
+    const ws = await cos.createWorkspace({ name: "H" });
+    const custom = await cos.receive(
+      { name: "t", kind: "native" as const, async handle() { return { messages: [], response: Response.json({ custom: true }, { status: 202 }) }; } },
+      { workspaceId: ws.id },
+    );
+    expect((await custom(new Request("http://x/hook", { method: "POST", body: "{}" }))).status).toBe(202);
+    const throwing = await cos.receive(
+      { name: "t", kind: "native" as const, async handle() { throw new Error("adapter blew up"); } },
+      { workspaceId: ws.id },
+    );
+    await expect(throwing(new Request("http://x/hook", { method: "POST", body: "{}" }))).rejects.toThrow("adapter blew up");
+  });
+
+  it("serve() binds a real port on embedded instances", async () => {
+    const cos = CommunityOS.memory();
+    const { port, close } = await cos.serve({ port: 0 });
+    try {
+      const res = await fetch(`http://localhost:${port}/v1/health`);
+      expect(res.status).toBe(200);
+    } finally {
+      close();
+    }
+  });
+
+  it("serve() rejects on remote instances", async () => {
+    const cos = new CommunityOS({ baseUrl: "http://x.test" });
+    await expect(cos.serve()).rejects.toMatchObject({ status: 500 });
+  });
+
+  it("poller swallows a dead remote without breaking handlers", async () => {
+    const cos = new CommunityOS({
+      baseUrl: "http://dead.test",
+      fetch: (async () => { throw new Error("connection refused"); }) as typeof fetch,
+    });
+    const seen: string[] = [];
+    const off = cos.on("*", (e) => seen.push(e.kind), { pollMs: 5 });
+    await new Promise((r) => setTimeout(r, 30));
+    off();
+    expect(seen).toEqual([]);
+  });
+
+  it("dispatch skips events older than the subscribe watermark", async () => {
+    const store = new MemoryStore();
+    const cos = CommunityOS.store(store);
+    const ws = await cos.createWorkspace({ name: "W" });
+    const seen: string[] = [];
+    cos.on("*", (e) => seen.push(e.kind));
+    // Direct store write with an ancient timestamp — embedded dispatch sees it
+    // but the watermark check must skip it.
+    await store.addTimeline({
+      id: "t1", communityId: ws.id, kind: "import",
+      payload: {}, createdAt: "1970-01-01T00:00:00.000Z",
+    });
+    expect(seen).toEqual([]);
+  });
+
+  it("on() uses the default poll interval when none is given", async () => {
+    const cos = remoteCos();
+    const off = cos.on("*", () => {});
+    off();
+  });
+
+  it("updateMember assigns a public slug on first opt-in (embedded)", async () => {
+    const cos = CommunityOS.memory();
+    const ws = await cos.createWorkspace({ name: "W" });
+    await cos.ingest(ws.id, { source: { kind: "native", name: "t" }, messages: [{ id: "1", author: "Ada", body: "hi", sentAt: "2025-01-01T00:00:00.000Z" }] });
+    const [m] = await cos.listMembers(ws.id);
+    const updated = await cos.updateMember(m.id, { publicOptIn: true });
+    expect(updated.publicSlug).toBe("ada");
+    // A second patch leaves the slug alone.
+    const again = await cos.updateMember(m.id, { notes: "hi" });
+    expect(again.publicSlug).toBe("ada");
+  });
+
+  it("embedded draftOutreach falls back to 'Community' for a ghost workspace", async () => {
+    const store = new MemoryStore();
+    const cos = CommunityOS.store(store);
+    const p = await store.createProposal({
+      id: "p1", communityId: "ghost", demandId: "d", venueId: null,
+      speakerIds: [], explanation: null, outreachDraft: null, status: "draft",
+    });
+    const pack = await cos.draftOutreach(p.id);
+    expect(pack.outreachDraft).toContain("Community");
+  });
+
+  it("embedded blocklist stores confirmed=false when omitted", async () => {
+    const cos = CommunityOS.memory();
+    const ws = await cos.createWorkspace({ name: "W" });
+    const entry = await cos.addBlocklist(ws.id, { applicant: "Spammer", evidence: "links" });
+    expect(entry.confirmed).toBe(false);
+  });
+
+  it("importChat routes adapter messages, transcripts and failures", async () => {
+    const cos = CommunityOS.memory();
+    const ws = await cos.createWorkspace({ name: "W" });
+    // adapter producing normalized messages → ingest path
+    const csv: IngestAdapter = {
+      parse: () => ({ messages: [{ id: "1", author: "Ada", body: "hi", sentAt: "2025-01-01T00:00:00.000Z" }] }),
+    };
+    const r = await cos.importChat(ws.id, new Uint8Array([1]), "data.csv", csv);
+    expect(r.inserted).toBe(1);
+    // adapter producing nothing → 400
+    const empty: IngestAdapter = { parse: () => ({}) };
+    await expect(cos.importChat(ws.id, new Uint8Array([1]), "x.bin", empty)).rejects.toMatchObject({ status: 400 });
+    // adapter parse throwing a non-Error → 400 "error"
+    const throwing: IngestAdapter = { parse: () => { throw "raw"; } };
+    await expect(cos.importChat(ws.id, new Uint8Array([1]), "x.bin", throwing)).rejects.toMatchObject({ status: 400 });
+  });
+
+  it("importChat remote + transcript adapter posts the transcript", async () => {
+    const cos = remoteCos();
+    const ws = await cos.createWorkspace({ name: "W" });
+    const adapter: IngestAdapter = {
+      name: "raw-log",
+      parse: () => ({ transcript: "01/01/2025, 10:00 - Ada: i want a meetup\n" }),
+    };
+    const r = await cos.importChat(ws.id, new Uint8Array([1, 2]), "log.txt", adapter);
+    expect(r.inserted).toBe(1);
+  });
+
+  it("importChat remote without adapter posts raw bytes", async () => {
+    const cos = remoteCos();
+    const ws = await cos.createWorkspace({ name: "W" });
+    const r = await cos.importChat(ws.id, new TextEncoder().encode("01/01/2025, 10:00 - Ada: i want a meetup\n"), "chat.txt");
+    expect(r.inserted).toBe(1);
+  });
+
+  it("verifyWebhookSignature rejects a well-formed signature of the wrong length", async () => {
+    expect(await verifyWebhookSignature("body", "sha256=abcd", "whsec_x")).toBe(false);
+  });
+});
+  it("remote health goes over HTTP", async () => {
+    const h = await remoteCos().health();
+    expect(h.product).toBe("community-os");
+  });
+
+  it("serve() uses the default port when none is given", async (ctx) => {
+    const cos = CommunityOS.memory();
+    try {
+      const { port, close } = await cos.serve({ hostname: "127.0.0.1" });
+      try {
+        expect(port).toBe(5173);
+      } finally {
+        close();
+      }
+    } catch (error) {
+      // The default is the dev API's port — a server already running there
+      // says nothing about the code under test.
+      if ((error as { code?: string }).code === "EADDRINUSE") ctx.skip();
+      throw error;
+    }
+  });
+
+  it("a second subscription reuses the running poller", async () => {
+    const cos = remoteCos();
+    const off1 = cos.on("*", () => {}, { pollMs: 10 });
+    const off2 = cos.on("import", () => {}, { pollMs: 10 });
+    off1();
+    off2();
+  });
+
+  it("importChat accepts ArrayBuffer and Blob inputs too", async () => {
+    const cos = CommunityOS.memory();
+    const ws = await cos.createWorkspace({ name: "W" });
+    const txt = "01/01/2025, 10:00 - Ada: i want a meetup\n";
+    const ab = new TextEncoder().encode(txt).buffer as ArrayBuffer;
+    expect((await cos.importChat(ws.id, ab, "a.txt")).inserted).toBe(1);
+    const blob = new Blob([new TextEncoder().encode(txt.replace("meetup", "second"))]);
+    expect((await cos.importChat(ws.id, blob, "b.txt")).inserted).toBe(1);
+  });
+
+  it("transcript adapter with files imports attachments (embedded)", async () => {
+    const cos = CommunityOS.memory();
+    const ws = await cos.createWorkspace({ name: "W" });
+    const adapter: IngestAdapter = {
+      name: "with-files",
+      parse: () => ({
+        transcript: "01/01/2025, 10:00 - Ada: i want a meetup\n",
+        files: [{ name: "photo.jpg", mime: "image/jpeg", bytes: new Uint8Array([1, 2, 3]) }],
+      }),
+    };
+    await cos.importChat(ws.id, new Uint8Array([9]), "x.zip", adapter);
+    const files = await cos.listFiles(ws.id);
+    expect(files.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("embedded createVenue keeps provided area, capacity and contact", async () => {
+    const cos = CommunityOS.memory();
+    const ws = await cos.createWorkspace({ name: "W" });
+    const v = await cos.createVenue(ws.id, { name: "Hall", area: "East", capacity: 30, contact: "x@y.z" });
+    expect(v.area).toBe("East");
+    expect(v.capacity).toBe(30);
+    expect(v.contact).toBe("x@y.z");
+  });
+
+  it("request() with a string body sets content-type unless already set", async () => {
+    const seen: Record<string, string> = {};
+    const cos = new CommunityOS({
+      baseUrl: "http://x.test",
+      fetch: (async (_u: unknown, init?: RequestInit) => {
+        Object.assign(seen, init?.headers ?? {});
+        return new Response("{}", { status: 200 });
+      }) as typeof fetch,
+    });
+    await cos.request("/v1/a", { method: "POST", body: "{}" });
+    expect(seen["content-type"]).toBe("application/json");
+    await cos.request("/v1/b", { method: "POST", body: "raw", headers: { "content-type": "text/plain" } });
+    expect(seen["content-type"]).toBe("text/plain");
+    await cos.request("/v1/c", { method: "POST", body: new Uint8Array([1]) });
+    expect(seen["content-type"]).toBe("text/plain"); // unchanged — non-string body sets nothing
+  });
+
+  it("embedded dispatch fires for events written after subscribe", async () => {
+    const cos = CommunityOS.memory();
+    const ws = await cos.createWorkspace({ name: "W" });
+    const seen: string[] = [];
+    cos.on("*", (e) => seen.push(e.kind));
+    await cos.ingest(ws.id, { source: { kind: "native", name: "t" }, messages: [{ id: "1", author: "Ada", body: "i want bread", sentAt: "2025-01-01T00:00:00.000Z" }] });
+    await cos.refreshMemory(ws.id);
+    expect(seen).toContain("memory");
+  });
+
+  it("verifyWebhookSignature accepts an uppercase SHA256= prefix", async () => {
+    const body = "payload";
+    const sig = createHmac("sha256", "whsec_x").update(body).digest("hex");
+    expect(await verifyWebhookSignature(body, `SHA256=${sig}`, "whsec_x")).toBe(true);
+  });
+
+  it("local instances refuse remote calls through the internal transport", async () => {
+    const cos = CommunityOS.memory();
+    await expect((cos as unknown as { call(p: string): Promise<unknown> }).call("/v1/x")).rejects.toMatchObject({ status: 500 });
+  });
+
+  it("embedded health returns locally", async () => {
+    expect(await CommunityOS.memory().health()).toEqual({ ok: true, product: "community-os" });
+  });
+
+  it("embedded transcript import without files still ingests", async () => {
+    const cos = CommunityOS.memory();
+    const ws = await cos.createWorkspace({ name: "W" });
+    const adapter: IngestAdapter = {
+      name: "bare-transcript",
+      parse: () => ({ transcript: "01/01/2025, 10:00 - Ada: i want a meetup\n" }),
+    };
+    expect((await cos.importChat(ws.id, new Uint8Array([7]), "x.bin", adapter)).inserted).toBe(1);
+  });
+
+  it("embedded createVenue defaults missing fields to null", async () => {
+    const cos = CommunityOS.memory();
+    const ws = await cos.createWorkspace({ name: "W" });
+    const v = await cos.createVenue(ws.id, { name: "Bare" });
+    expect(v.area).toBeNull();
+    expect(v.capacity).toBeNull();
+    expect(v.contact).toBeNull();
+  });
+
+  it("verifyWebhookSignature rejects a full-length tampered signature", async () => {
+    expect(await verifyWebhookSignature("body", `sha256=${"f".repeat(64)}`, "whsec_x")).toBe(false);
+  });

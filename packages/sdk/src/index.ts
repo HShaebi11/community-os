@@ -259,6 +259,7 @@ export class CommunityOS {
     const app = await this.getApp();
     const server = serve({ fetch: app.fetch, port: options.port ?? 5173, hostname: options.hostname });
     const address = server.address();
+    /* v8 ignore next -- @hono/node-server always returns an AddressInfo object for TCP */
     const port = typeof address === "object" && address ? address.port : (options.port ?? 5173);
     return { port, close: () => server.close() };
   }
@@ -296,7 +297,9 @@ export class CommunityOS {
     if (this.remote) return this.call<T>(path, init);
     const res = await this.fetch(new Request(`http://local${path}`, init));
     if (!res.ok) {
+      /* v8 ignore next -- the embedded app only produces JSON errors */
       const err = (await res.json().catch(() => null)) as { error?: string } | null;
+      /* v8 ignore next -- embedded error bodies always carry `error` */
       throw new ApiError(res.status, err?.error ?? res.statusText);
     }
     return (await res.json()) as T;
@@ -430,6 +433,7 @@ export class CommunityOS {
   }
 
   private get store(): CoreStore {
+    /* v8 ignore next -- every caller guards on this.local first */
     if (!this.local) throw new ApiError(500, "no local store — this instance is remote");
     return this.local.store;
   }
@@ -444,7 +448,9 @@ export class CommunityOS {
     try {
       return await fn();
     } catch (err) {
+      /* v8 ignore next -- kernel code throws plain Errors, never ApiError */
       if (err instanceof ApiError) throw err;
+      /* v8 ignore next -- kernel code always throws Error instances */
       throw new ApiError(400, err instanceof Error ? err.message : "error");
     }
   }
@@ -790,6 +796,7 @@ export class CommunityOS {
     try {
       return await fn();
     } catch (err) {
+      /* v8 ignore next -- kernel code always throws Error instances */
       throw new ApiError(404, err instanceof Error ? err.message : "not found");
     }
   }
@@ -886,6 +893,7 @@ export async function verifyWebhookSignature(
   const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(body));
   const computed = [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, "0")).join("");
   const expected = match[1]!.toLowerCase();
+  /* v8 ignore next -- the regex above guarantees expected is always 64 hex chars */
   if (computed.length !== expected.length) return false;
   let diff = 0;
   for (let i = 0; i < computed.length; i++) diff |= computed.charCodeAt(i) ^ expected.charCodeAt(i);

@@ -48,15 +48,13 @@ function slugify(value: string): string {
 const LEAD_LOCKABLE_FIELDS: Set<string> = new Set(["do", "want", "offer", "notes", "displayName"]);
 const EDITABLE_MEMBER_FIELDS: Set<string> = new Set([...LEAD_LOCKABLE_FIELDS, "publicOptIn", "publicSlug"]);
 
-const SCHEMA = `
+const SCHEMA_TABLES = `
 CREATE TABLE IF NOT EXISTS workspaces (id TEXT PRIMARY KEY, name TEXT NOT NULL, slug TEXT NOT NULL, joinUrl TEXT, createdBy TEXT NOT NULL, createdAt TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS idx_workspaces_slug ON workspaces(slug);
 CREATE TABLE IF NOT EXISTS sources (id TEXT PRIMARY KEY, communityId TEXT NOT NULL, kind TEXT NOT NULL, name TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS idx_sources_ws ON sources(communityId);
 CREATE TABLE IF NOT EXISTS messages (id TEXT PRIMARY KEY, communityId TEXT NOT NULL, sourceId TEXT NOT NULL, sourceMessageId TEXT NOT NULL, authorRaw TEXT NOT NULL, memberId TEXT, body TEXT NOT NULL, sentAt TEXT NOT NULL, isNoise INTEGER NOT NULL);
 CREATE INDEX IF NOT EXISTS idx_messages_ws ON messages(communityId);
-CREATE UNIQUE INDEX IF NOT EXISTS idx_messages_dedup_v2 ON messages(communityId, sourceId, sourceMessageId);
-DROP INDEX IF EXISTS idx_messages_dedup;
 CREATE TABLE IF NOT EXISTS files (id TEXT PRIMARY KEY, communityId TEXT NOT NULL, messageId TEXT, name TEXT NOT NULL, storagePath TEXT NOT NULL, mime TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS idx_files_ws ON files(communityId);
 CREATE TABLE IF NOT EXISTS members (id TEXT PRIMARY KEY, communityId TEXT NOT NULL, displayName TEXT NOT NULL, aliases TEXT NOT NULL, "do" TEXT, want TEXT, offer TEXT, notes TEXT, publicOptIn INTEGER NOT NULL, publicSlug TEXT, lastActive TEXT, leadLockedFields TEXT NOT NULL);
@@ -73,9 +71,8 @@ CREATE TABLE IF NOT EXISTS sponsors (id TEXT PRIMARY KEY, communityId TEXT NOT N
 CREATE INDEX IF NOT EXISTS idx_sponsors_ws ON sponsors(communityId);
 CREATE TABLE IF NOT EXISTS proposals (id TEXT PRIMARY KEY, communityId TEXT NOT NULL, demandId TEXT NOT NULL, venueId TEXT, speakerIds TEXT NOT NULL, status TEXT NOT NULL, explanation TEXT, outreachDraft TEXT);
 CREATE INDEX IF NOT EXISTS idx_proposals_ws ON proposals(communityId);
-CREATE TABLE IF NOT EXISTS events (id TEXT PRIMARY KEY, communityId TEXT NOT NULL, proposalId TEXT NOT NULL, slug TEXT NOT NULL, title TEXT NOT NULL, startsAt TEXT, qrSvg TEXT NOT NULL, publishedAt TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS events (id TEXT PRIMARY KEY, communityId TEXT NOT NULL, proposalId TEXT NOT NULL, slug TEXT NOT NULL, title TEXT NOT NULL, startsAt TEXT, qrSvg TEXT NOT NULL, publishedAt TEXT NOT NULL, rsvpCount INTEGER NOT NULL DEFAULT 0);
 CREATE INDEX IF NOT EXISTS idx_events_ws ON events(communityId);
-CREATE UNIQUE INDEX IF NOT EXISTS idx_events_slug ON events(slug);
 CREATE TABLE IF NOT EXISTS guests (id TEXT PRIMARY KEY, eventId TEXT NOT NULL, communityId TEXT NOT NULL, memberId TEXT, name TEXT NOT NULL, email TEXT NOT NULL, source TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS idx_guests_event ON guests(eventId);
 CREATE TABLE IF NOT EXISTS timeline (id TEXT PRIMARY KEY, communityId TEXT NOT NULL, kind TEXT NOT NULL, payload TEXT NOT NULL, createdAt TEXT NOT NULL);
@@ -88,6 +85,18 @@ CREATE TABLE IF NOT EXISTS artifacts (id TEXT PRIMARY KEY, eventId TEXT NOT NULL
 CREATE INDEX IF NOT EXISTS idx_artifacts_event ON artifacts(eventId);
 CREATE TABLE IF NOT EXISTS webhookSubscriptions (id TEXT PRIMARY KEY, communityId TEXT NOT NULL, url TEXT NOT NULL, secret TEXT NOT NULL, kinds TEXT NOT NULL, createdAt TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS idx_webhooks_ws ON webhookSubscriptions(communityId);
+`;
+
+// Unique constraints run as a separate final phase: migrate() reconciles
+// historical duplicates first, so opening an older database can't fail
+// here the way a single combined schema did.
+const SCHEMA_UNIQUE = `
+CREATE UNIQUE INDEX IF NOT EXISTS idx_messages_dedup_v2 ON messages(communityId, sourceId, sourceMessageId);
+DROP INDEX IF EXISTS idx_messages_dedup;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_members_public_slug ON members(publicSlug);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_members_name_norm ON members(communityId, lower(trim(displayName)));
+CREATE UNIQUE INDEX IF NOT EXISTS idx_events_slug ON events(slug);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_guests_event_email ON guests(eventId, email);
 `;
 
 // Columns that are stored as JSON text / integer booleans. Everything else is
@@ -136,7 +145,31 @@ export class SqliteStore implements Store {
 
   constructor(path = ":memory:") {
     this.db = new DatabaseSync(path);
-    this.db.exec(SCHEMA);
+    this.db.exec(SCHEMA_TABLES);
+    this.migrate();
+    this.db.exec(SCHEMA_UNIQUE);
+  }
+
+  /** Upgrade hook between the table and unique-index phases. Reconciles
+   *  rows written by versions that predated the constraints below, so an
+   *  older database opens cleanly instead of dying on CREATE UNIQUE INDEX.
+   *  Policy is deterministic: the lowest rowid keeps the claim, duplicates
+   *  keep their row (and every reference to it) under an id-derived suffix —
+   *  except guest rows, where a second (eventId, email) row is a pure
+   *  duplicate registration and is dropped. */
+  private migrate() {
+    const eventCols = this.db.prepare("PRAGMA table_info(events)").all() as Row[];
+    if (!eventCols.some((c) => c.name === "rsvpCount")) {
+      this.db.exec("ALTER TABLE events ADD COLUMN rsvpCount INTEGER NOT NULL DEFAULT 0");
+    }
+    this.db.exec("DELETE FROM guests WHERE rowid NOT IN (SELECT min(rowid) FROM guests GROUP BY eventId, email)");
+    this.db.exec("UPDATE events SET rsvpCount = (SELECT count(*) FROM guests WHERE guests.eventId = events.id)");
+    this.db.exec(`UPDATE members SET publicSlug = publicSlug || '-' || substr(id, 1, 6)
+      WHERE publicSlug IS NOT NULL AND rowid NOT IN (
+        SELECT min(rowid) FROM members WHERE publicSlug IS NOT NULL GROUP BY publicSlug)`);
+    this.db.exec(`UPDATE members SET displayName = displayName || ' #' || substr(id, 1, 6)
+      WHERE rowid NOT IN (
+        SELECT min(rowid) FROM members GROUP BY communityId, lower(trim(displayName)))`);
   }
 
   private ins(table: string, obj: Record<string, unknown>) {
@@ -254,8 +287,8 @@ export class SqliteStore implements Store {
     displayName = displayName.trim();
     const existing = this.one<Member>(
       "members",
-      `communityId = ? AND EXISTS (SELECT 1 FROM json_each(members.aliases) WHERE lower(trim(value)) = lower(?))`,
-      [communityId, displayName],
+      `communityId = ? AND (lower(trim(displayName)) = lower(?) OR EXISTS (SELECT 1 FROM json_each(members.aliases) WHERE lower(trim(value)) = lower(?)))`,
+      [communityId, displayName, displayName],
     );
     if (existing) {
       if (lastActive && (!existing.lastActive || lastActive > existing.lastActive)) {
@@ -425,8 +458,11 @@ export class SqliteStore implements Store {
   async createEvent(event: EventRecord) {
     const clash = this.one<EventRecord>("events", "slug = ? AND id != ?", [event.slug, event.id]);
     if (clash) throw new Error(`event slug "${event.slug}" is already in use`);
-    this.ins("events", { ...event });
-    return event;
+    // rsvpCount is store-owned — resaving a stale record must not rewind it.
+    const prev = this.one<EventRecord>("events", "id = ?", [event.id]);
+    const next = prev ? { ...event, rsvpCount: prev.rsvpCount } : event;
+    this.ins("events", { ...next });
+    return next;
   }
 
   async getEventBySlug(slug: string) {
@@ -443,7 +479,42 @@ export class SqliteStore implements Store {
 
   async createGuest(guest: Guest) {
     this.ins("guests", { ...guest });
+    // The seat counter tracks every guest row — whether it arrived through
+    // this raw insert or rsvpGuest's claim — so it always equals the
+    // event's guest count (an OR REPLACE on a colliding row is a replace,
+    // which slightly over-counts; that's the safe direction).
+    this.db.prepare("UPDATE events SET rsvpCount = rsvpCount + 1 WHERE id = ?").run(guest.eventId);
     return guest;
+  }
+
+  async rsvpGuest(guest: Guest, capacity: number | null) {
+    // BEGIN IMMEDIATE takes the write lock up front — two processes sharing
+    // this file serialize their whole check-claim-insert unit here.
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      const existing = this.one<Guest>("guests", "eventId = ? AND email = ?", [guest.eventId, guest.email]);
+      if (existing) {
+        this.upd("guests", existing.id, { name: guest.name, memberId: guest.memberId ?? existing.memberId });
+        const updated = this.one<Guest>("guests", "id = ?", [existing.id])!;
+        this.db.exec("COMMIT");
+        return { guest: updated, created: false };
+      }
+      // Every created guest counts a seat — the capacity predicate only
+      // applies to capped events, so uncapped reservations bump the counter
+      // unconditionally.
+      const claimed = capacity != null
+        ? this.db
+            .prepare("UPDATE events SET rsvpCount = rsvpCount + 1 WHERE id = ? AND rsvpCount < ?")
+            .run(guest.eventId, capacity)
+        : this.db.prepare("UPDATE events SET rsvpCount = rsvpCount + 1 WHERE id = ?").run(guest.eventId);
+      if (capacity != null && !claimed.changes) throw new Error(`event at capacity (${capacity})`);
+      this.ins("guests", { ...guest });
+      this.db.exec("COMMIT");
+      return { guest, created: true };
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
   }
 
   async updateGuest(id: string, patch: Partial<Pick<Guest, "name" | "memberId">>) {

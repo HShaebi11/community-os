@@ -6,7 +6,7 @@ export default defineConfig({
     coverage: {
       exclude: ["**/dist/**", "**/*.config.*"],
 
-      thresholds: { lines: 96, branches: 84, functions: 89, statements: 96 },
+      thresholds: { lines: 100, branches: 100, functions: 100, statements: 100 },
     },
   },
 });

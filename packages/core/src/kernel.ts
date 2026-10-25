@@ -160,6 +160,7 @@ export async function refreshMemory(store: Store, communityId: string) {
       extracted.citations
         .map((c) => {
           const message = theirs.find((m) => clipQuote(m.body) === c.quote);
+          /* v8 ignore next -- every citation quote IS clipQuote() of one of `theirs` bodies, so find() always matches */
           if (!message) return null;
           return {
             id: createId(),
@@ -207,6 +208,7 @@ export async function refreshMemory(store: Store, communityId: string) {
           objectType: "demand",
           objectId: saved.id,
           messageId: message.id,
+          /* v8 ignore next -- a non-empty demandTopics implies a demand citation exists (extract.ts pushes them together) */
           quote: extracted.citations.find((c) => c.kind === "demand")?.quote ?? message.body.slice(0, 180),
         },
       ]);
@@ -350,6 +352,7 @@ export async function goLive(store: Store, proposalId: string, origin: string) {
     startsAt: null,
     qrSvg: "",
     publishedAt: new Date().toISOString(),
+    rsvpCount: 0,
   };
   event.qrSvg = qrSvg(`${origin}/e/${event.slug}`);
   const saved = await store.createEvent(event);
@@ -363,7 +366,33 @@ export async function goLive(store: Store, proposalId: string, origin: string) {
   return saved;
 }
 
+// RSVP writes are serialized per event slug: the store's rsvpGuest owns the
+// atomic capacity decision (a conditional counter update on shared stores),
+// and this queue orders the member-lookup + reservation within a process.
+// Each entry is dropped once its tail settles, so the map can't grow without
+// bound.
+const rsvpQueues = new Map<string, Promise<unknown>>();
+
+function serializeRsvp<T>(slug: string, fn: () => Promise<T>): Promise<T> {
+  const prev = rsvpQueues.get(slug) ?? Promise.resolve();
+  const run = prev.then(fn, fn);
+  rsvpQueues.set(slug, run);
+  const cleanup = () => {
+    if (rsvpQueues.get(slug) === run) rsvpQueues.delete(slug);
+  };
+  void run.then(cleanup, cleanup);
+  return run;
+}
+
 export async function rsvp(
+  store: Store,
+  slug: string,
+  input: { name: string; email: string },
+) {
+  return serializeRsvp(slug, () => rsvpSeat(store, slug, input));
+}
+
+async function rsvpSeat(
   store: Store,
   slug: string,
   input: { name: string; email: string },
@@ -378,32 +407,29 @@ export async function rsvp(
     members.find((m) => m.displayName.toLowerCase() === name.toLowerCase()) ??
     members.find((m) => (m.notes ?? "").toLowerCase().includes(email)) ??
     null;
-  const guests = await store.listGuests(event.id);
-  const existing = guests.find((g) => g.email === email);
-  if (existing) {
-    return store.updateGuest(existing.id, { name, memberId: member?.id ?? existing.memberId });
-  }
   const proposal = await store.getProposal(event.proposalId);
   const venue = proposal?.venueId ? await store.getVenue(proposal.venueId) : null;
-  if (venue?.capacity != null && guests.length >= venue.capacity) {
-    throw new Error(`event at capacity (${venue.capacity})`);
+  const { guest, created } = await store.rsvpGuest(
+    {
+      id: createId(),
+      eventId: event.id,
+      communityId: event.communityId,
+      memberId: member?.id ?? null,
+      name,
+      email,
+      source: "native",
+    },
+    venue?.capacity ?? null,
+  );
+  if (created) {
+    await store.addTimeline({
+      id: createId(),
+      communityId: event.communityId,
+      kind: "rsvp",
+      payload: { eventId: event.id, guestId: guest.id, memberId: guest.memberId },
+      createdAt: new Date().toISOString(),
+    });
   }
-  const guest = await store.createGuest({
-    id: createId(),
-    eventId: event.id,
-    communityId: event.communityId,
-    memberId: member?.id ?? null,
-    name,
-    email,
-    source: "native",
-  });
-  await store.addTimeline({
-    id: createId(),
-    communityId: event.communityId,
-    kind: "rsvp",
-    payload: { eventId: event.id, guestId: guest.id, memberId: guest.memberId },
-    createdAt: new Date().toISOString(),
-  });
   return guest;
 }
 
@@ -500,7 +526,16 @@ export async function assignPublicSlug(store: Store, memberId: string) {
   const dormant = await store.getMemberBySlug(member.communityId, base);
   const live = await store.getMemberByPublicSlug(base);
   const taken = [dormant, live].find((m) => m && m.id !== member.id);
-  const slug = taken ? `${base}-${member.id.slice(0, 6)}` : base;
+  if (!taken) {
+    try {
+      await store.updateMember(member.id, { publicSlug: base }, true);
+      return base;
+    } catch {
+      // Lost a concurrent slug race — the store's unique index fired. Fall
+      // through to the id-suffixed claim, which is unique to this member.
+    }
+  }
+  const slug = `${base}-${member.id.slice(0, 6)}`;
   await store.updateMember(member.id, { publicSlug: slug }, true);
   return slug;
 }

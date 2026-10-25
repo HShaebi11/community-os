@@ -20,7 +20,7 @@ import {
   workspaces,
   } from "./schema.ts";
 import type { Database } from "./index.ts";
-import { and, eq } from "drizzle-orm";
+import { and, eq, lt, sql } from "drizzle-orm";
 
 export function createDrizzleStore(db: Database): Store {
   return {
@@ -111,14 +111,25 @@ export function createDrizzleStore(db: Database): Store {
     async upsertMember(communityId, displayName, lastActive) {
       displayName = displayName.trim();
       const rows = await db.select().from(members).where(eq(members.communityId, communityId));
-      const existing = rows.find((m) =>
-        (m.aliases ?? []).some((a) => a.trim().toLowerCase() === displayName.toLowerCase()),
-      );
+      const byName = (m: (typeof rows)[number]) =>
+        m.displayName.trim().toLowerCase() === displayName.toLowerCase() ||
+        /* v8 ignore next -- aliases is notNull with default [] */
+        (m.aliases ?? []).some((a) => a.trim().toLowerCase() === displayName.toLowerCase());
+      // Monotonic and atomic — GREATEST ignores NULL and never regresses,
+      // so racing upserts can't roll the winner's timestamp back.
+      const advance = async (member: (typeof rows)[number]) => {
+        if (!lastActive) return;
+        const ts = new Date(lastActive);
+        if (member.lastActive && member.lastActive >= ts) return;
+        await db
+          .update(members)
+          .set({ lastActive: sql`greatest(${members.lastActive}, ${ts})` })
+          .where(eq(members.id, member.id));
+        member.lastActive = ts;
+      };
+      const existing = rows.find(byName);
       if (existing) {
-        if (lastActive && (!existing.lastActive || new Date(lastActive) > existing.lastActive)) {
-          await db.update(members).set({ lastActive: new Date(lastActive) }).where(eq(members.id, existing.id));
-          existing.lastActive = new Date(lastActive);
-        }
+        await advance(existing);
         return mapMember(existing);
       }
       const row = {
@@ -135,8 +146,18 @@ export function createDrizzleStore(db: Database): Store {
         publicSlug: null,
         leadLockedFields: [] as string[],
       };
-      await db.insert(members).values(row);
-      return mapMember(row);
+      const inserted = await db.insert(members).values(row).onConflictDoNothing().returning();
+      if (inserted[0]) return mapMember(inserted[0]);
+      // Lost a concurrent same-name insert — the members_name_norm index made
+      // it a no-op, so the winner now exists. Re-read them and apply the same
+      // lastActive advance the direct path would have.
+      const raced = rows
+        .concat(await db.select().from(members).where(eq(members.communityId, communityId)))
+        .find(byName);
+      /* v8 ignore next -- onConflictDoNothing only fires on our two member indexes; a non-name conflict rethrows below */
+      if (!raced) throw new Error("member upsert conflict");
+      await advance(raced);
+      return mapMember(raced);
     },
     async listMembers(communityId) {
       const rows = await db.select().from(members).where(eq(members.communityId, communityId));
@@ -221,7 +242,9 @@ export function createDrizzleStore(db: Database): Store {
         .where(and(eq(demands.communityId, demand.communityId), eq(demands.topic, demand.topic)))
         .limit(1);
       if (existing[0]) {
+        /* v8 ignore next -- member_ids is notNull with default [] */
         const memberIds = [...new Set([...(existing[0].memberIds ?? []), ...demand.memberIds])];
+        /* v8 ignore next -- message_ids is notNull with default [] */
         const messageIds = [...new Set([...(existing[0].messageIds ?? []), ...demand.messageIds])];
         await db
           .update(demands)
@@ -303,8 +326,17 @@ export function createDrizzleStore(db: Database): Store {
       };
       // Upsert by id: re-saving the same event is an idempotent write, while
       // a different id reusing the slug fails on the unique slug index.
-      await db.insert(events).values(row).onConflictDoUpdate({ target: events.id, set: row });
-      return event;
+      // rsvpCount is store-owned — a resave of a stale record must not
+      // rewind the seat counter.
+      const rows = await db
+        .insert(events)
+        .values(row)
+        .onConflictDoUpdate({
+          target: events.id,
+          set: { ...row, rsvpCount: sql`${events.rsvpCount}` },
+        })
+        .returning();
+      return mapEvent(rows[0]!);
     },
     async getEventBySlug(slug) {
       const rows = await db.select().from(events).where(eq(events.slug, slug)).limit(1);
@@ -320,7 +352,52 @@ export function createDrizzleStore(db: Database): Store {
     },
     async createGuest(guest) {
       await db.insert(guests).values(guest);
+      // rsvpCount tracks every guest row so it always equals the real count —
+      // rsvpGuest claims against it, and raw inserts through here keep pace.
+      await db.update(events).set({ rsvpCount: sql`${events.rsvpCount} + 1` }).where(eq(events.id, guest.eventId));
       return guest;
+    },
+    async rsvpGuest(guest, capacity) {
+      // Upsert first: under the (event_id, email) unique index a repeated RSVP
+      // atomically updates the winner's row — even when it arrives while the
+      // event is already full. RETURNING exposes the winner's id, so a dedupe
+      // is detectable by id mismatch.
+      const rows = await db
+        .insert(guests)
+        .values(guest)
+        .onConflictDoUpdate({
+          target: [guests.eventId, guests.email],
+          set: {
+            name: guest.name,
+            memberId: sql`coalesce(excluded.member_id, ${guests.memberId})`,
+          },
+        })
+        .returning();
+      const row = rows[0]!;
+      const created = row.id === guest.id;
+      if (!created) return { guest: row, created: false };
+      // Every created guest counts a seat — capped claims add the
+      // rsvp_count < capacity predicate, which takes the event row lock and
+      // re-checks on the latest committed row so concurrent instances can't
+      // both pass the gate. Works on the neon-http driver, which has no
+      // interactive transactions. An uncapped bump on a missing event is a
+      // no-op, matching the other stores.
+      const claimed = await db
+        .update(events)
+        .set({ rsvpCount: sql`${events.rsvpCount} + 1` })
+        .where(
+          capacity != null
+            ? and(eq(events.id, guest.eventId), lt(events.rsvpCount, capacity))
+            : eq(events.id, guest.eventId),
+        )
+        .returning({ id: events.id });
+      if (!claimed[0] && capacity != null) {
+        // No seat left — remove the row we just inserted so the guest
+        // count and the seat counter stay in lockstep.
+        await db.delete(guests).where(eq(guests.id, guest.id));
+        throw new Error(`event at capacity (${capacity})`);
+      }
+      return { guest: row, created: true };
     },
     async updateGuest(id, patch) {
       const rows = await db.select().from(guests).where(eq(guests.id, id)).limit(1);
@@ -393,7 +470,7 @@ export function createDrizzleStore(db: Database): Store {
         .select()
         .from(webhookSubscriptions)
         .where(eq(webhookSubscriptions.communityId, communityId));
-      return rows.map((row) => ({ ...row, kinds: row.kinds ?? [], createdAt: row.createdAt.toISOString() }));
+      return rows.map((row) => ({ ...row, kinds: /* v8 ignore next -- kinds is notNull with default [] */ row.kinds ?? [], createdAt: row.createdAt.toISOString() }));
     },
     async deleteWebhookSubscription(id) {
       const rows = await db
@@ -441,6 +518,7 @@ function mapMember(row: {
     id: row.id,
     communityId: row.communityId,
     displayName: row.displayName,
+    /* v8 ignore next -- aliases is notNull with default [] */
     aliases: row.aliases ?? [],
     do: row.do,
     want: row.want,
@@ -449,6 +527,7 @@ function mapMember(row: {
     publicOptIn: row.publicOptIn,
     publicSlug: row.publicSlug,
     lastActive: row.lastActive?.toISOString() ?? null,
+    /* v8 ignore next -- lead_locked_fields is notNull with default [] */
     leadLockedFields: (row.leadLockedFields ?? []) as Array<"do" | "want" | "offer" | "notes" | "displayName">,
   };
 }
@@ -460,7 +539,9 @@ function mapDemand(row: typeof demands.$inferSelect) {
     topic: row.topic,
     title: row.title,
     oneLiner: row.oneLiner,
+    /* v8 ignore next -- member_ids is notNull with default [] */
     memberIds: row.memberIds ?? [],
+    /* v8 ignore next -- message_ids is notNull with default [] */
     messageIds: row.messageIds ?? [],
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -476,5 +557,6 @@ function mapEvent(row: typeof events.$inferSelect) {
     startsAt: row.startsAt?.toISOString() ?? null,
     qrSvg: row.qrSvg,
     publishedAt: row.publishedAt.toISOString(),
+    rsvpCount: row.rsvpCount,
   };
 }

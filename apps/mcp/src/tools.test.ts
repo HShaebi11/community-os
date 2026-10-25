@@ -56,6 +56,8 @@ describe("MCP tools", () => {
     await expect(dispatch("send_message", {}, ctx)).rejects.toThrow("unknown tool");
 
     const hits = (await dispatch("search_memory", { q: "workshop" }, ctx)) as Array<{ type: string }>;
+    // Missing q falls back to an empty query rather than crashing.
+    await dispatch("search_memory", {}, ctx);
     expect(hits.length).toBeGreaterThan(0);
     expect(hits.some((h) => h.type === "member" || h.type === "demand")).toBe(true);
 

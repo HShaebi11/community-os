@@ -69,6 +69,15 @@ npm run db:push                                    # creates the schema
 That's the only env var. See
 [`apps/api/.dev.vars.example`](apps/api/.dev.vars.example).
 
+**Upgrading an existing database:** the SQL migrations in
+[`packages/db/drizzle`](packages/db/drizzle) reconcile pre-constraint
+duplicates (public slugs, normalized member names, guest emails) before
+creating the unique indexes — the earliest claimant keeps the name, and
+duplicates keep their rows under deterministic suffixes. `db:push` runs
+`drizzle-kit push`, which applies DDL only and skips those data fixes; if a
+push fails creating a unique index, run the `UPDATE`/`DELETE` statements at
+the top of the newest `drizzle/*.sql` files by hand, then push again.
+
 ### 2. API
 
 Two transports, same Hono app:

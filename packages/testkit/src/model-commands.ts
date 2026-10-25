@@ -25,6 +25,7 @@ import {
   eventRecord,
   fileRecord,
   guest,
+  makeId,
   message,
   proposal,
   resource,
@@ -244,6 +245,28 @@ class UpdateMember implements fc.AsyncCommand<M, R> {
     const mem = membersOf(m, wsRef(m, this.wsIdx).id);
     if (mem.length === 0) return;
     const mm = mem[this.memIdx % mem.length];
+    // Public slugs are globally unique, and display names are unique within a
+    // community — when the model says either would collide, the contract
+    // requires the real store to throw too. A locked displayName patched by a
+    // non-lead is a silent no-op, so it must not throw.
+    const nameNorm = (s: string) => s.trim().toLowerCase();
+    const nameApplies =
+      typeof this.patch.displayName === "string" &&
+      (this.byLead || !mm.leadLockedFields.includes("displayName"));
+    const wouldThrow =
+      (this.patch.publicSlug != null &&
+        m.members.some((x) => x.id !== mm.id && x.publicSlug === this.patch.publicSlug)) ||
+      (nameApplies &&
+        m.members.some(
+          (x) =>
+            x.id !== mm.id &&
+            x.communityId === mm.communityId &&
+            nameNorm(x.displayName) === nameNorm(this.patch.displayName as string),
+        ));
+    if (wouldThrow) {
+      await expect(r.updateMember(m.realFor.get(mm.id)!, this.patch, this.byLead)).rejects.toThrow();
+      return;
+    }
     const real = await r.updateMember(m.realFor.get(mm.id)!, this.patch, this.byLead);
     m.updateMember(mm.id, this.patch, this.byLead);
     expect(canon(real, m.tags)).toEqual({ ...mm });
@@ -482,9 +505,14 @@ class CreateGuest implements fc.AsyncCommand<M, R> {
     const evts = eventsOf(m, wsRef(m, this.wsIdx).id);
     if (!evts.length) return;
     const e = evts[this.evtIdx % evts.length];
-    const rec = guest({ eventId: m.realFor.get(e.id)!, communityId: m.realFor.get(e.communityId)!, name: this.name });
+    // Unique email per command — guests dedupe on (eventId, email) now, so
+    // reusing the fixture default would collapse rows instead of adding.
+    const rec = guest({ eventId: m.realFor.get(e.id)!, communityId: m.realFor.get(e.communityId)!, name: this.name, email: `${this.name}-${m.guests.length}-${makeId()}@x.test` });
     const real = await r.createGuest(rec);
     m.guests.push({ ...rec, eventId: e.id, communityId: e.communityId, id: m.bind("gst", real.id) });
+    // createGuest bumps the event's seat counter — mirror it so a later
+    // listEvents comparison sees the same rsvpCount.
+    e.rsvpCount += 1;
     expectSame(await r.listGuests(m.realFor.get(e.id)!), guestsOfEvt(m, e.id), m, false);
   }
   toString() {

@@ -91,4 +91,47 @@ describe("slackChannel — socket mode lifecycle", () => {
     expect(calls.filter((u) => u.includes("apps.connections.open"))).toHaveLength(1);
     expect(FakeWebSocket.instances).toHaveLength(1);
   });
+
+  it("falls back to real_name when display_name is empty", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("apps.connections.open")) return Response.json({ ok: true, url: "wss://socket-mode.test" });
+      if (url.includes("users.info")) return Response.json({ user: { profile: { display_name: "", real_name: "Ada Lovelace" } } });
+      return Response.json({ ok: false }, { status: 500 });
+    }));
+    const emit = vi.fn(async (_msgs: unknown[]) => {});
+    const adapter = slackChannel({ appToken: "xapp-t", botToken: "xoxb-t" });
+    await adapter.start({ emit });
+    await FakeWebSocket.latest.simulateMessage(envelope(messageEvent({ user: "U42" })));
+    expect(emit.mock.calls[0][0]).toMatchObject([{ author: "Ada Lovelace" }]);
+  });
+
+  it("keeps the user id when users.info fails — name resolution is best-effort", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("apps.connections.open")) return Response.json({ ok: true, url: "wss://socket-mode.test" });
+      if (url.includes("users.info")) throw new Error("slack down");
+      return Response.json({ ok: false }, { status: 500 });
+    }));
+    const emit = vi.fn(async (_msgs: unknown[]) => {});
+    const adapter = slackChannel({ appToken: "xapp-t", botToken: "xoxb-t" });
+    await adapter.start({ emit });
+    await FakeWebSocket.latest.simulateMessage(envelope(messageEvent({ user: "U43" })));
+    expect(emit.mock.calls[0][0]).toMatchObject([{ author: "U43" }]);
+  });
+
+  it("rejects start() when apps.connections.open fails", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ ok: false })));
+    const adapter = slackChannel({ appToken: "xapp-t" });
+    await expect(adapter.start({ emit: async () => {} })).rejects.toThrow("apps.connections.open failed");
+  });
+
+  it("ignores envelopes without an event", async () => {
+    stubSlackApi();
+    const emit = vi.fn(async (_msgs: unknown[]) => {});
+    const adapter = slackChannel({ appToken: "xapp-t" });
+    await adapter.start({ emit });
+    await FakeWebSocket.latest.simulateMessage(envelope({}));
+    expect(emit).not.toHaveBeenCalled();
+  });
 });

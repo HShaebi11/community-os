@@ -22,7 +22,13 @@ export async function apiBinary<T>(path: string, body: ArrayBuffer, contentType:
   const headers = new Headers();
   headers.set("content-type", contentType);
   const res = await fetch(path, { method: "POST", headers, body });
-  const data = (await res.json()) as T & { error?: string };
+  const text = await res.text();
+  let data: T & { error?: string };
+  try {
+    data = JSON.parse(text) as T & { error?: string };
+  } catch {
+    data = { error: text } as T & { error?: string };
+  }
   if (!res.ok) throw new Error(data.error || res.statusText);
   return data;
 }

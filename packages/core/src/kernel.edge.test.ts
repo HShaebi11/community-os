@@ -85,6 +85,38 @@ describe("rsvp vs venue capacity", () => {
     expect(await store.listGuests(event.id)).toHaveLength(1);
   });
 
+  it("enforces capacity under concurrent RSVPs — check-then-act must not oversell", async () => {
+    const store = new MemoryStore();
+    const event = await liveEvent(store, 1);
+    const results = await Promise.allSettled(
+      Array.from({ length: 10 }, (_, i) => rsvp(store, event.slug, { name: `R${i}`, email: `r${i}@x.com` })),
+    );
+    const seats = results.filter((r) => r.status === "fulfilled").length;
+    expect(seats).toBe(1);
+    expect(await store.listGuests(event.id)).toHaveLength(1);
+  });
+
+  it("serializes concurrent assignPublicSlug calls — one base slug, one suffixed claim", async () => {
+    const store = new MemoryStore();
+    const w = await store.createWorkspace({ name: "W", createdBy: "l" });
+    // Distinct names that slugify identically → both racers compute the
+    // same base slug.
+    const a = await store.upsertMember(w.id, "Ada Lane", null);
+    const b = await store.upsertMember(w.id, "ada-lane", null);
+    expect(a.id).not.toBe(b.id);
+    const [slugA, slugB] = await Promise.all([assignPublicSlug(store, a.id), assignPublicSlug(store, b.id)]);
+    expect(slugA).not.toBe(slugB);
+    const claims = new Set([slugA, slugB]);
+    expect(claims).toContain("ada-lane");
+    expect([...claims].find((s) => s !== "ada-lane")).toMatch(/^ada-lane-[0-9a-f]{6}$/);
+    // Idempotent: a second run returns the already-claimed slug.
+    expect(await assignPublicSlug(store, a.id)).toBe(slugA);
+    expect(await assignPublicSlug(store, b.id)).toBe(slugB);
+    // Both claims resolve to distinct members.
+    expect((await store.getMember(a.id))!.publicSlug).toBe(slugA);
+    expect((await store.getMember(b.id))!.publicSlug).toBe(slugB);
+  });
+
   it("null capacity means unlimited; zero means closed", async () => {
     const store = new MemoryStore();
     const open = await liveEvent(store, null);

@@ -175,7 +175,7 @@ Status moves only forward: `draft → approved → live`.
 | `GET /v1/proposals/:proposalId` | the pack (same shape as create). `404` unknown id |
 | `POST /v1/proposals/:proposalId/approve` | → pack with `status: "approved"`. `400` unless currently `draft` |
 | `POST /v1/proposals/:proposalId/outreach` | → pack with `outreachDraft` filled (idempotent — returns the existing draft). **Draft only; nothing is sent.** |
-| `POST /v1/proposals/:proposalId/go-live` | → `EventRecord` `{ id, communityId, proposalId, slug, title, startsAt: null, qrSvg, publishedAt }`. `400` unless `approved`. The public page slug and QR are minted here using `X-Public-Origin`/`Origin`. |
+| `POST /v1/proposals/:proposalId/go-live` | → `EventRecord` `{ id, communityId, proposalId, slug, title, startsAt: null, qrSvg, publishedAt, rsvpCount }`. `400` unless `approved`. The public page slug and QR are minted here using `X-Public-Origin`/`Origin`. |
 
 | Route | Returns |
 | --- | --- |
@@ -194,7 +194,7 @@ always unauthenticated — they're the pages your community sees.
 | --- | --- |
 | `GET /v1/public/communities/:slug` | `{ name, slug, joinUrl, qrSvg, events: [{ slug, title }] }`. `joinUrl` is published verbatim — set it on the workspace if you want a join link on the public page. `404` unknown slug |
 | `GET /v1/public/events/:slug` | `{ slug, title, explanation, qrSvg, startsAt, publishedAt, community: { name, slug }, venue: { name, area } \| null, speakers: [{ name, slug }] }`. `explanation` is the proposal's cited-quotes string — it is public by design. `speaker.slug` is `null` unless the member opted in. Each call also records a `page_view` timeline event. `404` unknown slug |
-| `POST /v1/public/events/:slug/rsvp` `{ name, email }` | `201` Guest. **Upserts by email** — re-posting updates name/member link rather than duplicating. Links the guest to a member on display-name or email-in-notes match. `400` on missing/invalid name/email **or** unknown slug |
+| `POST /v1/public/events/:slug/rsvp` `{ name, email }` | `201` Guest. **Upserts by email** — re-posting updates name/member link rather than duplicating. Links the guest to a member on display-name or email-in-notes match. The seat check is atomic across instances, so a full venue can't be oversold. `400` on missing/invalid name/email, unknown slug, **or** `event at capacity` |
 | `GET /v1/public/members/:slug` | `{ name, slug, do, offer }` — only for members with `publicOptIn` and a `publicSlug`; everyone else `404`s. No `want`, no contact details |
 
 ## Gatekeeper — applications & blocklist

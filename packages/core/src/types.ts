@@ -119,6 +119,12 @@ export type EventRecord = {
   startsAt: string | null;
   qrSvg: string;
   publishedAt: string;
+  // Seats claimed for this event. Maintained by the store — every guest
+  // insert path (createGuest and the atomic rsvpGuest claim) increments it,
+  // so it always equals the number of guest rows and capacity checks can use
+  // it without counting. RSVPs that only update an existing guest don't
+  // consume a seat.
+  rsvpCount: number;
 };
 
 export type Guest = {

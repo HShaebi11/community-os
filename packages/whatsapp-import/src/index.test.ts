@@ -59,4 +59,17 @@ describe("parseWhatsAppExport — zip archives", () => {
     // Not text-looking → zip path → fflate rejects it.
     expect(() => parseWhatsAppExport(garbage, "export.zip")).toThrow();
   });
+  it("guesses every known extension and falls back to octet-stream", () => {
+    const zip = makeWhatsAppZip(transcripts.attachment, {
+      "shot.webp": new Uint8Array([1]),
+      "clip.mp4": new Uint8Array([2]),
+      "logo.png": new Uint8Array([3]),
+      "payload.bin": new Uint8Array([9]),
+    });
+    const out = parseWhatsAppExport(zip);
+    expect(out.files.find((f) => f.name === "shot.webp")?.mime).toBe("image/webp");
+    expect(out.files.find((f) => f.name === "clip.mp4")?.mime).toBe("video/mp4");
+    expect(out.files.find((f) => f.name === "logo.png")?.mime).toBe("image/png");
+    expect(out.files.find((f) => f.name === "payload.bin")?.mime).toBe("application/octet-stream");
+  });
 });

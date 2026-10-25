@@ -252,6 +252,42 @@ export function testStoreContract<S extends Store>(
         expect((await s.getMemberByPublicSlug("ada"))?.id).toBe(m.id);
       });
 
+      it("rejects a publicSlug already held by another member — public URLs must be unique", async () => {
+        const s = await fresh();
+        const { ws } = await seed(s);
+        const ada = await s.upsertMember(ws.id, "Ada", null);
+        const bob = await s.upsertMember(ws.id, "Bob", null);
+        await s.updateMember(ada.id, { publicSlug: "ada" }, true);
+        await expect(s.updateMember(bob.id, { publicSlug: "ada" }, true)).rejects.toThrow();
+        // The holder may re-set its own slug, and clearing a claim is allowed.
+        await s.updateMember(ada.id, { publicSlug: "ada" }, true);
+        await s.updateMember(ada.id, { publicSlug: null }, true);
+        await s.updateMember(bob.id, { publicSlug: "ada" }, true);
+      });
+
+      it("dedupes on displayName after a rename — upsertMember never creates a second member with the same name", async () => {
+        const s = await fresh();
+        const { ws } = await seed(s);
+        await s.upsertMember(ws.id, "Ada", null);
+        const bob = await s.upsertMember(ws.id, "Bob", null);
+        // Rename Bob without touching aliases — the old aliases no longer
+        // contain the new name, so only a displayName-aware dedupe finds him.
+        await s.updateMember(bob.id, { displayName: "Grace" }, true);
+        const again = await s.upsertMember(ws.id, " grace ", null);
+        expect(again.id).toBe(bob.id);
+        expect((await s.listMembers(ws.id)).length).toBe(2);
+      });
+
+      it("rejects renaming a member onto an existing member's name — normalized, community-scoped", async () => {
+        const s = await fresh();
+        const { ws } = await seed(s);
+        await s.upsertMember(ws.id, "Ada", null);
+        const bob = await s.upsertMember(ws.id, "Bob", null);
+        await expect(s.updateMember(bob.id, { displayName: " ada " }, true)).rejects.toThrow();
+        // Self-rename stays legal.
+        await s.updateMember(bob.id, { displayName: " BOB " }, true);
+      });
+
       it("lead edits lock fields; non-lead writes cannot overwrite locked fields", async () => {
         const s = await fresh();
         const { ws } = await seed(s);
@@ -400,6 +436,99 @@ export function testStoreContract<S extends Store>(
         expect(await s.listGuests("e1")).toHaveLength(1);
         expect((await s.listGuests("e1"))[0].name).toBe("Grace H");
         await expect(s.updateGuest("nope", { name: "x" })).rejects.toThrow();
+      });
+
+      it("rsvpGuest dedupes on email and never oversells — even under concurrent calls", async () => {
+        const s = await fresh();
+        const { ws } = await seed(s);
+        const e = await s.createEvent(eventRecord({ communityId: ws.id }));
+        // First reservation creates the guest and consumes a seat.
+        const first = await s.rsvpGuest(guest({ eventId: e.id, communityId: ws.id, email: "a@x" }), 2);
+        expect(first.created).toBe(true);
+        // A repeated RSVP from the same email updates the row — same id,
+        // no seat consumed.
+        const again = await s.rsvpGuest(
+          guest({ eventId: e.id, communityId: ws.id, name: "Grace H", email: "a@x" }),
+          2,
+        );
+        expect(again.created).toBe(false);
+        expect(again.guest.id).toBe(first.guest.id);
+        expect(again.guest.name).toBe("Grace H");
+        // One seat left, three racers — exactly one lands regardless of how
+        // the adapter serializes its writes (single process, file, or shared
+        // Postgres behind several instances).
+        const racers = await Promise.allSettled(
+          [1, 2, 3].map((i) => s.rsvpGuest(guest({ eventId: e.id, communityId: ws.id, email: `g${i}@x` }), 2)),
+        );
+        expect(racers.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+        expect(await s.listGuests(e.id)).toHaveLength(2);
+        await expect(
+          s.rsvpGuest(guest({ eventId: e.id, communityId: ws.id, email: "z@x" }), 2),
+        ).rejects.toThrow("event at capacity (2)");
+        // A cap on an event row that doesn't exist can't be claimed either.
+        await expect(
+          s.rsvpGuest(guest({ eventId: "ghost-event", communityId: ws.id }), 1),
+        ).rejects.toThrow("event at capacity");
+        // The counter equals the real guest count — creates and updates
+        // both accounted for.
+        expect((await s.getEvent(e.id))?.rsvpCount).toBe(2);
+      });
+
+      it("a same-email RSVP on a capped event dedupes without leaking a seat", async () => {
+        const s = await fresh();
+        const { ws } = await seed(s);
+        const e = await s.createEvent(eventRecord({ communityId: ws.id }));
+        await s.rsvpGuest(guest({ eventId: e.id, communityId: ws.id, email: "dup@x" }), 1);
+        const again = await s.rsvpGuest(
+          guest({ eventId: e.id, communityId: ws.id, email: "dup@x" }),
+          1,
+        );
+        expect(again.created).toBe(false);
+        expect(await s.listGuests(e.id)).toHaveLength(1);
+        // The claimed seat rolled back — the counter matches the guest count.
+        expect((await s.getEvent(e.id))?.rsvpCount).toBe(1);
+      });
+
+      it("rsvpGuest is uncapped with a null capacity and preserves an existing memberId", async () => {
+        const s = await fresh();
+        const { ws } = await seed(s);
+        const e = await s.createEvent(eventRecord({ communityId: ws.id }));
+        for (let i = 0; i < 5; i++) {
+          await s.rsvpGuest(guest({ eventId: e.id, communityId: ws.id, email: `u${i}@x` }), null);
+        }
+        expect(await s.listGuests(e.id)).toHaveLength(5);
+        // Uncapped reservations still count — the counter always equals the
+        // event's guest count, so a later cap can't be re-opened by drift.
+        expect((await s.getEvent(e.id))?.rsvpCount).toBe(5);
+        // Re-registering without a member link keeps the stored one.
+        await s.rsvpGuest(guest({ eventId: e.id, communityId: ws.id, email: "keep@x", memberId: "m-1" }), null);
+        const again = await s.rsvpGuest(
+          guest({ eventId: e.id, communityId: ws.id, email: "keep@x", memberId: null }),
+          null,
+        );
+        expect(again.created).toBe(false);
+        expect(again.guest.memberId).toBe("m-1");
+      });
+
+      it("resaving an event after RSVPs preserves the store-owned seat count", async () => {
+        const s = await fresh();
+        const { ws } = await seed(s);
+        const e = await s.createEvent(eventRecord({ communityId: ws.id }));
+        await s.rsvpGuest(guest({ eventId: e.id, communityId: ws.id }), null);
+        // A caller holding the original record resaves it — the stored
+        // counter wins over the stale one in the payload.
+        await s.createEvent({ ...e, title: "Renamed", rsvpCount: 999 });
+        const saved = await s.getEvent(e.id);
+        expect(saved?.title).toBe("Renamed");
+        expect(saved?.rsvpCount).toBe(1);
+      });
+
+      it("counts raw createGuest inserts toward the event's seat counter", async () => {
+        const s = await fresh();
+        const { ws } = await seed(s);
+        const e = await s.createEvent(eventRecord({ communityId: ws.id }));
+        await s.createGuest(guest({ eventId: e.id, communityId: ws.id }));
+        expect((await s.getEvent(e.id))?.rsvpCount).toBe(1);
       });
     });
 

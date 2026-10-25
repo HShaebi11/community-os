@@ -826,6 +826,7 @@ components:
         startsAt: { type: string, format: date-time, nullable: true }
         qrSvg: { type: string }
         publishedAt: { type: string, format: date-time }
+        rsvpCount: { type: integer, description: Seats claimed for this event — always equals its guest count }
     Guest:
       type: object
       properties:
