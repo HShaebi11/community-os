@@ -31,3 +31,4 @@ type _ProposalStatus = Assert<Equal<Core.ProposalStatus, Public.ProposalStatus>>
 type _ApplicationDecision = Assert<Equal<Core.ApplicationDecision, Public.ApplicationDecision>>;
 type _LeadRole = Assert<Equal<Core.LeadRole, Public.LeadRole>>;
 type _Store = Assert<Equal<Core.Store, Public.Store>>;
+type _NormalizedMessage = Assert<Equal<Core.NormalizedMessage, Public.NormalizedMessage>>;

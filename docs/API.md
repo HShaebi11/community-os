@@ -125,7 +125,8 @@ Chat history is append-only evidence. Import is deduplicated by
 | Route | Body → Returns |
 | --- | --- |
 | `POST /v1/workspaces/:id/imports?filename=` | **Raw bytes** (not JSON): a WhatsApp `.txt` transcript or an export `.zip` (transcript + media). Filename decides parsing; `.txt` and text-looking bytes are treated as transcripts, anything else is unzipped — inside a zip the transcript is the last `.txt` entry whose name contains `chat`, or the first `.txt` entry if none does; `400 "No chat.txt in WhatsApp export"` only when the archive contains no `.txt` at all. → `{ inserted, skipped, members: Member[] }`. Zip media lands as `memory://` file records. |
-| `POST /v1/ingest/discord` | `{ communityId, id, content, timestamp, author: { id, username } }` → `{ inserted, skipped, member }`. One message per call. `404` unknown `communityId`. |
+| `POST /v1/ingest` | Normalized batch ingest — what channel adapters push: `{ communityId, source: { kind, name }, messages: [{ id, author, body, sentAt }] }` → `{ inserted, skipped, members }`. Dedupes on `sourceMessageId`; resolves members by display name. `404` unknown `communityId`. See `docs/CHANNELS.md`. |
+| `POST /v1/ingest/discord` | Compat single-message shape: `{ communityId, id, content, timestamp, author: { id, username } }` → `{ inserted, skipped, member }`. `404` unknown `communityId`. |
 | `GET /v1/workspaces/:id/messages` | → `Message[]` `{ id, communityId, sourceId, sourceMessageId, authorRaw, memberId, body, sentAt, isNoise }` |
 | `GET /v1/workspaces/:id/files` | → `FileRecord[]` `{ id, communityId, messageId, name, storagePath, mime }` |
 | `GET /v1/workspaces/:id/timeline` | → `TimelineEvent[]` `{ id, communityId, kind, payload, createdAt }`. Kinds emitted today: `import`, `memory`, `proposal`, `published`, `rsvp`, `page_view`. |
@@ -263,8 +264,10 @@ not exist yet — don't fake it client-side.
   but is not routed; the decision is fixed at submit time.
 - **No blocklist listing or removal route.**
 - **No sources or import-history route** — `listSources` is internal.
-- **No Slack or "native" ingest routes** — `SourceKind` includes them; only
-  WhatsApp import and Discord ingest are wired.
+- **No per-platform ingest parsing server-side** — `POST /v1/ingest` accepts
+  already-normalized messages for any `SourceKind` (slack/native included);
+  platform-specific parsing lives in import adapters and channel packages
+  (`docs/CHANNELS.md`), not the API.
 - **No member-facing or public read of messages, demands, or guest lists** —
   raw evidence stays on the operator surface; the public surface is the four
   `/v1/public/*` routes above.

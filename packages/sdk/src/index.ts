@@ -8,6 +8,7 @@ import {
   goLive,
   importWhatsApp,
   ingestDiscord,
+  ingestMessages,
   makeOutreachDraft,
   memberCard,
   MemoryStore,
@@ -29,6 +30,7 @@ import type {
   Application,
   AutopilotArtifact,
   BlocklistEntry,
+  ChannelAdapter,
   Citation,
   Demand,
   EventRecord,
@@ -36,6 +38,7 @@ import type {
   Guest,
   Member,
   Message,
+  NormalizedMessage,
   Proposal,
   Resource,
   Source,
@@ -172,6 +175,10 @@ const DEFAULT_ORIGIN = "http://localhost:5173";
 export class CommunityOS {
   private remote?: { base: string; origin: string | undefined; fetch: typeof globalThis.fetch };
   private local?: { store: CoreStore; origin: string };
+  private handlers: Map<string, Set<{ fn: (event: TimelineEvent) => void; since: string }>>;
+  private pollTimer?: ReturnType<typeof setInterval>;
+  private seenIds: Set<string>;
+  private appPromise?: Promise<{ fetch(request: Request): Response | Promise<Response> }>;
 
   constructor(options: CommunityOSOptions) {
     this.remote = {
@@ -179,6 +186,8 @@ export class CommunityOS {
       origin: options.publicOrigin,
       fetch: options.fetch ?? globalThis.fetch,
     };
+    this.handlers = new Map();
+    this.seenIds = new Set();
   }
 
   /** The whole kernel in-process on a volatile in-memory store. */
@@ -192,7 +201,18 @@ export class CommunityOS {
    *  the developer's choice; the product is the same. */
   static store(store: Store, options: { publicOrigin?: string } = {}): CommunityOS {
     const cos = Object.create(CommunityOS.prototype) as CommunityOS;
-    cos.local = { store: store as CoreStore, origin: options.publicOrigin ?? DEFAULT_ORIGIN };
+    const wrapped = new Proxy(store as CoreStore, {
+      get: (target, prop, receiver) =>
+        prop === "addTimeline"
+          ? async (event: TimelineEvent) => {
+              await store.addTimeline(event);
+              cos.dispatch(event);
+            }
+          : Reflect.get(target, prop, receiver),
+    });
+    cos.local = { store: wrapped, origin: options.publicOrigin ?? DEFAULT_ORIGIN };
+    cos.handlers = new Map();
+    cos.seenIds = new Set();
     return cos;
   }
 
@@ -200,9 +220,8 @@ export class CommunityOS {
    *  instance's store. Requires @hono/node-server (peer dep, Node only). */
   async serve(options: { port?: number; hostname?: string } = {}): Promise<{ port: number; close: () => void }> {
     if (!this.local) throw new ApiError(500, "serve() needs an embedded instance — CommunityOS.memory() or CommunityOS.store()");
-    const { createApp } = await import("@community-os/server");
     const { serve } = await import("@hono/node-server");
-    const app = createApp(this.local.store);
+    const app = await this.getApp();
     const server = serve({ fetch: app.fetch, port: options.port ?? 5173, hostname: options.hostname });
     const address = server.address();
     const port = typeof address === "object" && address ? address.port : (options.port ?? 5173);
@@ -233,6 +252,114 @@ export class CommunityOS {
   }
   private patch<T>(path: string, body: unknown) {
     return this.call<T>(path, { method: "PATCH", body: JSON.stringify(body) });
+  }
+
+  /** Raw escape hatch — call any /v1 route the SDK hasn't wrapped yet.
+   *  Remote mode goes over HTTP; embedded mode runs it through this.fetch()
+   *  on the real app, so the contract is identical. */
+  async request<T = unknown>(path: string, init: RequestInit = {}): Promise<T> {
+    if (this.remote) return this.call<T>(path, init);
+    const res = await this.fetch(new Request(`http://local${path}`, init));
+    if (!res.ok) {
+      const err = (await res.json().catch(() => null)) as { error?: string } | null;
+      throw new ApiError(res.status, err?.error ?? res.statusText);
+    }
+    return (await res.json()) as T;
+  }
+
+  /** The real Community OS app as a fetch handler — mount it into anything
+   *  that speaks fetch: Bun.serve, Deno.serve, a Worker export, a Next.js
+   *  route handler, tests. Embedded instances only; remote already has a URL. */
+  fetch(request: Request): Promise<Response> {
+    if (!this.local) return Promise.reject(new ApiError(500, "fetch() needs an embedded instance — remote mode already has a baseUrl"));
+    return Promise.resolve(this.getApp()).then((app) => app.fetch(request));
+  }
+
+  private getApp() {
+    this.appPromise ??= import("@community-os/server").then(
+      (m) => m.createApp(this.local!.store) as { fetch(request: Request): Response | Promise<Response> },
+    );
+    return this.appPromise;
+  }
+
+  /** Continuously ingest a channel — Discord, Slack, WhatsApp, or your own
+   *  adapter — into a workspace. Messages flow through the same dedupe +
+   *  member-resolution path as imports; works on any store. */
+  async listen(
+    channel: ChannelAdapter,
+    options: { workspaceId: string; sourceName?: string },
+  ): Promise<{ stop: () => Promise<void> }> {
+    await this.getWorkspace(options.workspaceId); // 404 early, both modes
+    const source = { kind: channel.kind, name: options.sourceName ?? channel.name };
+    const emit = async (messages: NormalizedMessage[]) => {
+      if (!messages.length) return;
+      if (this.local) {
+        await ingestMessages(this.store, options.workspaceId, source, messages);
+      } else {
+        await this.post("/v1/ingest", { communityId: options.workspaceId, source, messages });
+      }
+    };
+    await channel.start({ emit });
+    return { stop: () => channel.stop() };
+  }
+
+  /** React to kernel events (import, memory, proposal, published, rsvp,
+   *  page_view, application — or "*" for all). Embedded dispatches as the
+   *  kernel writes the timeline; remote polls the timeline (`pollMs`,
+   *  default 5s) and fires on new events only. Returns an unsubscribe fn. */
+  on(kind: string, handler: (event: TimelineEvent) => void, options: { pollMs?: number } = {}): () => void {
+    let set = this.handlers.get(kind);
+    if (!set) {
+      set = new Set();
+      this.handlers.set(kind, set);
+    }
+    // Watermark: only events written after this subscribe fire the handler.
+    set.add({ fn: handler, since: new Date().toISOString() });
+    if (this.remote) this.ensurePoller(options.pollMs ?? 5000);
+    return () => this.off(kind, handler);
+  }
+
+  off(kind: string, handler: (event: TimelineEvent) => void): void {
+    const set = this.handlers.get(kind);
+    if (set) {
+      for (const entry of [...set]) if (entry.fn === handler) set.delete(entry);
+      if (!set.size) this.handlers.delete(kind);
+    }
+    if (!this.handlers.size && this.pollTimer) {
+      clearInterval(this.pollTimer);
+      this.pollTimer = undefined;
+    }
+  }
+
+  private dispatch(event: TimelineEvent) {
+    for (const kind of [event.kind, "*"]) {
+      for (const entry of this.handlers.get(kind) ?? []) {
+        if (event.createdAt < entry.since) continue;
+        try {
+          entry.fn(event);
+        } catch (err) {
+          console.error(JSON.stringify({ message: "event handler failed", error: String(err) }));
+        }
+      }
+    }
+  }
+
+  private ensurePoller(pollMs: number) {
+    if (this.pollTimer) return;
+    this.pollTimer = setInterval(async () => {
+      try {
+        for (const ws of await this.listWorkspaces()) {
+          for (const event of await this.listTimeline(ws.id)) {
+            if (this.seenIds.has(event.id)) continue;
+            this.seenIds.add(event.id);
+            this.dispatch(event);
+          }
+        }
+      } catch {
+        // polling is best-effort — a dead remote just means quiet handlers
+      }
+    }, pollMs);
+    this.pollTimer.unref?.();
   }
 
   private get store(): CoreStore {

@@ -6,7 +6,16 @@ import { MemoryStore } from "@community-os/core";
 import { SqliteStore } from "@community-os/store-sqlite";
 import { describe, expect, it } from "vitest";
 import { createApp } from "../../../apps/api/src/app.ts";
-import { ApiError, CommunityOS, verifyWebhookSignature } from "./index.ts";
+import { ApiError, CommunityOS, verifyWebhookSignature, type ChannelAdapter, type NormalizedMessage } from "./index.ts";
+
+const fakeChannel = (msgs: NormalizedMessage[]): ChannelAdapter => ({
+  name: "test-channel",
+  kind: "native",
+  async start(ctx) {
+    await ctx.emit(msgs);
+  },
+  async stop() {},
+});
 
 const chat = readFileSync(
   join(dirname(fileURLToPath(import.meta.url)), "../../../fixtures/whatsapp-sample/_chat.txt"),
@@ -130,6 +139,77 @@ describe("serve()", () => {
     const res = await fetch(`http://localhost:${port}/v1/health`);
     expect((await res.json()) as { ok: boolean }).toMatchObject({ ok: true });
     close();
+  });
+});
+
+describe("listen() — continuous channel ingest", () => {
+  const sample: NormalizedMessage[] = [
+    { id: "p1", author: "Ada", body: "first message", sentAt: "2025-01-01T00:00:00Z" },
+    { id: "p2", author: "Bob", body: "we should do a coffee meetup", sentAt: "2025-01-01T00:01:00Z" },
+  ];
+
+  it("feeds a channel into an embedded store", async () => {
+    const cos = CommunityOS.memory();
+    const ws = await cos.createWorkspace({ name: "T" });
+    const handle = await cos.listen(fakeChannel(sample), { workspaceId: ws.id });
+    await handle.stop();
+    const messages = await cos.listMessages(ws.id);
+    expect(messages.length).toBe(2);
+    expect((await cos.listMembers(ws.id)).map((m) => m.displayName).sort()).toEqual(["Ada", "Bob"]);
+  });
+
+  it("feeds a channel over remote HTTP via POST /v1/ingest", async () => {
+    const cos = remoteCos();
+    const ws = await cos.createWorkspace({ name: "T" });
+    const handle = await cos.listen(fakeChannel(sample), { workspaceId: ws.id });
+    await handle.stop();
+    expect((await cos.listMessages(ws.id)).length).toBe(2);
+  });
+
+  it("dedupes on platform message id across emits", async () => {
+    const cos = CommunityOS.memory();
+    const ws = await cos.createWorkspace({ name: "T" });
+    await cos.listen(fakeChannel([...sample, sample[0]!]), { workspaceId: ws.id });
+    expect((await cos.listMessages(ws.id)).length).toBe(2);
+  });
+});
+
+describe("on() — react to kernel events", () => {
+  it("fires on embedded timeline writes", async () => {
+    const cos = CommunityOS.memory();
+    const ws = await cos.createWorkspace({ name: "T" });
+    const seen: string[] = [];
+    const unsub = cos.on("import", (e) => seen.push(e.kind));
+    await cos.importChat(ws.id, chat, "_chat.txt");
+    expect(seen).toEqual(["import"]);
+    unsub();
+    await cos.importChat(ws.id, chat, "_chat.txt");
+    expect(seen.length).toBe(1);
+  });
+
+  it("fires on remote timeline polling", async () => {
+    const cos = remoteCos();
+    const ws = await cos.createWorkspace({ name: "T" });
+    const seen: string[] = [];
+    cos.on("import", (e) => seen.push(e.kind), { pollMs: 30 });
+    await cos.importChat(ws.id, chat, "_chat.txt");
+    await new Promise((r) => setTimeout(r, 250));
+    expect(seen).toEqual(["import"]);
+  });
+});
+
+describe("fetch() + request() — mount and escape hatch", () => {
+  it("embedded instances answer as a fetch handler", async () => {
+    const cos = CommunityOS.memory();
+    const res = await cos.fetch(new Request("http://local/v1/health"));
+    expect((await res.json()) as { ok: boolean }).toMatchObject({ ok: true, product: "community-os" });
+  });
+
+  it("request() works both directions", async () => {
+    for (const cos of [remoteCos(), CommunityOS.memory()]) {
+      const health = await cos.request<{ ok: boolean }>("/v1/health");
+      expect(health.ok).toBe(true);
+    }
   });
 });
 

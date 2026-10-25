@@ -8,6 +8,7 @@ import {
   goLive,
   importWhatsApp,
   ingestDiscord,
+  ingestMessages,
   makeOutreachDraft,
   memberCard,
   openDemand,
@@ -22,6 +23,8 @@ import {
   setProposalStatus,
   sha256Hex,
   submitApplication,
+  type NormalizedMessage,
+  type Source,
   type Store,
 } from "@community-os/core";
 import { parseWhatsAppExport } from "@community-os/whatsapp-import";
@@ -331,6 +334,21 @@ export function createApp(store: Store, options: AppOptions = {}) {
   app.post("/v1/events/:eventId/autopilot", async (c) => {
     const event = await requireEvent(store, c.req.param("eventId"));
     return c.json(await generateAutopilot(store, event.id, requestOrigin(c)));
+  });
+
+  // Generic normalized ingest — what channel adapters and listeners push to.
+  // /v1/ingest/discord remains as the original single-message compat shape.
+  app.post("/v1/ingest", async (c) => {
+    const body = await c.req.json<{
+      communityId: string;
+      source: { kind: Source["kind"]; name: string };
+      messages: NormalizedMessage[];
+    }>();
+    await requireWorkspace(body.communityId);
+    if (!Array.isArray(body.messages)) throw new HTTPException(400, { message: "messages must be an array" });
+    const result = await ingestMessages(store, body.communityId, body.source, body.messages);
+    await emit(c, "import", body.communityId, result);
+    return c.json(result);
   });
 
   app.post("/v1/ingest/discord", async (c) => {

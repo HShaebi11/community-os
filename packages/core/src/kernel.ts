@@ -4,7 +4,7 @@ import { draftOutreach, explainProposal, matchSpeakers, matchVenues, newsletter,
 import { extractUrls, isNoiseMessage } from "./noise.ts";
 import { qrSvg } from "./qr.ts";
 import type { Store } from "./store.ts";
-import type { Demand, EventRecord, FileRecord, Member, Message, Proposal } from "./types.ts";
+import type { Demand, EventRecord, FileRecord, Member, Message, NormalizedMessage, Proposal, Source } from "./types.ts";
 import { parseWhatsAppTranscript } from "./whatsapp.ts";
 
 export async function importWhatsApp(
@@ -53,28 +53,57 @@ export async function importWhatsApp(
   return { ...result, members: await store.listMembers(communityId) };
 }
 
+/** Continuous-ingest path: every channel adapter (Discord gateway, Slack
+ *  socket mode, WhatsApp, custom) normalizes platform events into
+ *  NormalizedMessage and pushes batches here — find-or-create the source,
+ *  resolve members, dedupe on (communityId, sourceMessageId). */
+export async function ingestMessages(
+  store: Store,
+  communityId: string,
+  sourceSpec: { kind: Source["kind"]; name: string },
+  incoming: NormalizedMessage[],
+) {
+  if (!incoming.length) return { inserted: 0, skipped: 0, members: [] as Member[] };
+  let source = (await store.listSources(communityId)).find((s) => s.kind === sourceSpec.kind);
+  if (!source) source = await store.createSource({ communityId, kind: sourceSpec.kind, name: sourceSpec.name });
+
+  const memberIds = new Set<string>();
+  const messages: Message[] = [];
+  for (const msg of incoming) {
+    const member = await store.upsertMember(communityId, msg.author, msg.sentAt);
+    memberIds.add(member.id);
+    messages.push({
+      id: createId(),
+      communityId,
+      sourceId: source.id,
+      sourceMessageId: msg.id,
+      authorRaw: msg.author,
+      memberId: member.id,
+      body: msg.body,
+      sentAt: msg.sentAt,
+      isNoise: isNoiseMessage(msg.body, msg.author),
+    });
+  }
+  const result = await store.insertMessages(messages);
+  const members = await store.listMembers(communityId);
+  return { ...result, members };
+}
+
 export async function ingestDiscord(
   store: Store,
   communityId: string,
   payload: { id: string; content: string; timestamp: string; author: { id: string; username: string } },
 ) {
-  let source = (await store.listSources(communityId)).find((s) => s.kind === "discord");
-  if (!source) source = await store.createSource({ communityId, kind: "discord", name: "Discord" });
   const member = await store.upsertMember(communityId, payload.author.username, payload.timestamp);
-  const result = await store.insertMessages([
+  const result = await ingestMessages(store, communityId, { kind: "discord", name: "Discord" }, [
     {
-      id: createId(),
-      communityId,
-      sourceId: source.id,
-      sourceMessageId: payload.id,
-      authorRaw: payload.author.username,
-      memberId: member.id,
+      id: payload.id,
+      author: payload.author.username,
       body: payload.content,
       sentAt: payload.timestamp,
-      isNoise: isNoiseMessage(payload.content, payload.author.username),
     },
   ]);
-  return { ...result, member };
+  return { inserted: result.inserted, skipped: result.skipped, member };
 }
 
 function citationKey(citation: { objectId: string; messageId: string; quote: string }) {

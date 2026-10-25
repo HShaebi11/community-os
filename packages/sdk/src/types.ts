@@ -266,3 +266,24 @@ export type Store = {
   listWebhookSubscriptions(communityId: string): Promise<WebhookSubscription[]>;
   deleteWebhookSubscription(id: string): Promise<boolean>;
 };
+
+/** Platform-neutral inbound message — what channel adapters normalize into.
+ *  `id` is the platform's message id (dedupe key); `author` is the display
+ *  name used for member resolution. */
+export type NormalizedMessage = {
+  id: string;
+  author: string;
+  body: string;
+  sentAt: string;
+};
+
+/** A live channel — anything that can continuously produce normalized
+ *  messages (Discord gateway, Slack socket mode, WhatsApp, your own poller).
+ *  `start` receives `emit`; call it with batches whenever the platform has
+ *  new messages. `stop` tears the connection down. */
+export type ChannelAdapter = {
+  name: string;
+  kind: SourceKind;
+  start(ctx: { emit(messages: NormalizedMessage[]): Promise<void> }): Promise<void>;
+  stop(): Promise<void>;
+};

@@ -65,12 +65,44 @@ await cos.rsvp(event.slug, { name: "Ada", email: "ada@test.dev" });
 const backup = await cos.exportWorkspace(ws.id);          // everything, as JSON
 ```
 
-## Ingest adapters
+## Continuous listening — channels
 
-`importChat` defaults to WhatsApp parsing. In embedded mode pass any
-`IngestAdapter` — `parse(bytes, filename) → { transcript, files }` — to teach
-it Slack, Telegram, or whatever format your community exports. Writing an
-adapter is the intended contribution path for new platforms.
+One-shot imports are `importChat`. For live feeds, `cos.listen()` runs a
+channel adapter — Discord gateway, Slack Socket Mode, WhatsApp — against
+whatever store you chose:
+
+```ts
+import { discordChannel } from "@community-os/channel-discord";
+
+const handle = await cos.listen(discordChannel({ token }), { workspaceId: ws.id });
+await handle.stop();
+```
+
+A `ChannelAdapter` is `{ name, kind, start(ctx), stop() }` — `start` gets an
+`emit` for `NormalizedMessage` batches. Write your own in ~30 lines; ingest
+lands through the same dedupe + member-resolution path either way. See
+[`docs/CHANNELS.md`](https://github.com/HShaebi11/community-os/blob/main/docs/CHANNELS.md).
+
+React to what arrives:
+
+```ts
+const unsub = cos.on("rsvp", (event) => …); // embedded: instant; remote: polls timeline
+```
+
+And for one-shot imports beyond WhatsApp, `importChat` takes an
+`IngestAdapter` — `parse(bytes, filename) → { transcript, files }`.
+
+## Mount it anywhere — `cos.fetch()`
+
+Every embedded instance is the whole app as a fetch handler — Worker
+`export default`, `Bun.serve`, `Deno.serve`, Next route handlers, tests:
+
+```ts
+export default { fetch: (req: Request) => cos.fetch(req) };
+```
+
+`cos.request(path, init)` is the raw escape hatch — any `/v1` route, same in
+both modes (embedded runs it through `fetch`).
 
 ## Webhooks
 

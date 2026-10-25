@@ -174,3 +174,13 @@ export type WebhookSubscription = {
   kinds: string[];
   createdAt: string;
 };
+
+/** Platform-neutral inbound message — what channel adapters normalize into.
+ *  `id` is the platform's message id (dedupe key); `author` is the display
+ *  name used for member resolution. */
+export type NormalizedMessage = {
+  id: string;
+  author: string;
+  body: string;
+  sentAt: string;
+};
