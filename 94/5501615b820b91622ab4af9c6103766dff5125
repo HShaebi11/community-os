@@ -1,0 +1,19 @@
+package.json
+  s_23d2d440a64f29::t_16c648b7b8987e 18
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "945501615b820b91622ab4af9c6103766dff5125",
+  "prompts": {},
+  "sessions": {
+    "s_23d2d440a64f29": {
+      "agent_id": {
+        "tool": "devin",
+        "id": "s_23d2d440a64f29",
+        "model": "unknown"
+      },
+      "human_author": "Hamza <hshaebi.11@gmail.com>"
+    }
+  }
+}
