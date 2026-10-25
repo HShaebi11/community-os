@@ -1,0 +1,139 @@
+.dockerignore
+  s_c2e28cb33412a1::t_826a7d0feb7fc1 1-17
+.github/ISSUE_TEMPLATE/bug_report.md
+  s_c2e28cb33412a1::t_d75aa48e7d2ffe 1-6,8,10,12,14-25
+.github/ISSUE_TEMPLATE/feature_request.md
+  s_c2e28cb33412a1::t_e7b2aa1799e162 1-17
+.github/PULL_REQUEST_TEMPLATE.md
+  s_c2e28cb33412a1::t_718271e86c9a90 1,3,5,7-11,13,15
+.github/workflows/ci.yml
+  s_c2e28cb33412a1::t_03d10c78a7d1f3 1-18
+CHANGELOG.md
+  s_c2e28cb33412a1::t_ba97fc3b438dd5 1-28
+CODE_OF_CONDUCT.md
+  s_c2e28cb33412a1::t_3d45c2b3b3d0d9 1-12
+CONTRIBUTING.md
+  s_c2e28cb33412a1::t_ade0d5a8262138 1-40
+README.md
+  s_c2e28cb33412a1::t_6d540d199d5e78 3-32,36-37,40-45,47,49,51-55,57,59-65,67-68,70,72,75-76,79-82,84-107,109,111-115,119-120,122-123,129,135-138,140,144,150-151,154,156-169,171-194
+ROADMAP.md
+  s_c2e28cb33412a1::t_b25274501c82c8 1-36
+SECURITY.md
+  s_c2e28cb33412a1::t_cbb43b3afc0cc5 1,3,5-9,11-15,17-19,21,23-26,28-29
+apps/api/.dev.vars.example
+  s_c2e28cb33412a1::t_47b1ec5cec83b8 1-3
+apps/api/Dockerfile
+  s_c2e28cb33412a1::t_4c368633cb434e 1-22
+apps/api/package.json
+  s_c2e28cb33412a1::t_59443e637e491a 9,18,20-21
+apps/api/src/app.test.ts
+  s_c2e28cb33412a1::t_6ced8484356d10 1,7,13-14,16,29,37,54,58,69,74,84,90,107,111,142,148,153,171,174,187-188,194,198,237,253,256-257,264-265,267,270,272-274,277,280,285,294,301,320,322-327,331,333-334,336,338,340-341,343-346,348,351,353-376,379-383,385-391,393,395-396,398,400,402-403,405,407-412,414-415,417
+apps/api/src/app.ts
+  s_c2e28cb33412a1::t_fd050704c825b1 27,38-48,50-66,69-79,81-82,85-86,112-116,118-130,132-158,162,167,173-174,177,180,183,185,190-191,205,209-211,213,219,221,225,227,237-245,247-249,251,254-255,257-258,272-273,275-276,289-290,292-294,296-298,301-305,307-308,310-318,321-323,326-327,330-331,335,343-346,349,351-358,360,363-364,373,389-391,397,399,413-445,463-474,492,509,532
+apps/api/src/drizzle-store.ts
+  s_c2e28cb33412a1::t_c755043d44c4ff 1,19,33,36-43,63-65,375-393
+apps/api/src/export.test.ts
+  s_c2e28cb33412a1::t_6a1bde7d7399e0 12,15,24,40,81
+apps/api/src/index.ts
+  s_c2e28cb33412a1::t_35a55034e13a32 5,16
+apps/api/src/kernel-loop.test.ts
+  s_c2e28cb33412a1::t_c3255fd12f0e9f 12-13,28
+apps/api/src/node.ts
+  s_c2e28cb33412a1::t_7e01e3598866bc 1-15
+apps/app/Dockerfile
+  s_c2e28cb33412a1::t_0c372f8bb26d9f 1-25
+apps/app/next.config.ts
+  s_c2e28cb33412a1::t_35e6523297c127 7,14-15
+apps/app/src/app/(marketing)/changelog/page.tsx
+  s_c2e28cb33412a1::t_2d1ee141626920 9-17
+apps/app/src/app/(marketing)/docs/page.tsx
+  s_c2e28cb33412a1::t_154853bfb5348c 9,11-12,15,55,76-83,92-94
+apps/app/src/app/(marketing)/page.tsx
+  s_c2e28cb33412a1::t_158f90d138b719 38,42,46,50,68-69,114-115,126,128,183
+apps/app/src/app/(marketing)/pricing/page.tsx
+  s_c2e28cb33412a1::t_56f4061368d3ed 11-14,22,24-25,29-51
+apps/app/src/app/(marketing)/privacy/page.tsx
+  s_c2e28cb33412a1::t_faefb79f4d0516 8-9,20-21,25
+apps/app/src/app/(marketing)/terms/page.tsx
+  s_c2e28cb33412a1::t_2972d5249de961 8-9,17,25
+apps/app/src/app/desk/page.tsx
+  s_c2e28cb33412a1::t_20d56b28e73c3c 23
+apps/app/src/app/onboarding/page.tsx
+  s_c2e28cb33412a1::t_8ca84a90eac5f3 17,310-311,328
+apps/app/src/app/w/[slug]/settings/agents/page.tsx
+  s_c2e28cb33412a1::t_5ab02360c4e1ff 10-11,13-23,25,30,32,46-47,50-59,61,63,65-74,76-88
+apps/app/src/app/w/[slug]/settings/layout.tsx
+  s_c2e28cb33412a1::t_f4f01eac5a594e 10
+apps/app/src/app/w/[slug]/settings/page.tsx
+  s_c2e28cb33412a1::t_5135214004ea66 20,89,112-114
+apps/app/src/components/marketing/marketing-chrome.tsx
+  s_c2e28cb33412a1::t_4ba4b0dd8d45e3 31-32
+apps/app/src/components/workspace/app-header.tsx
+  s_c2e28cb33412a1::t_79ae01f7368db7 4-5,7,17-21
+apps/app/src/components/workspace/workspace-context.tsx
+  s_c2e28cb33412a1::t_fe0693c5a1ff47 4
+apps/app/src/components/workspace/workspace-shell.tsx
+  s_c2e28cb33412a1::t_b95f5c3516c000 19,51,68,79,81-82,85,97,99
+apps/app/src/lib/api.ts
+  s_c2e28cb33412a1::t_7bb0e8c872b4ac 6,24
+apps/mcp/src/remote.test.ts
+  s_c2e28cb33412a1::t_6014159dda3daf 23,27,39,48,55-57
+apps/mcp/src/remote.ts
+  s_c2e28cb33412a1::t_33964922a03ea4 33
+apps/mcp/src/tools.test.ts
+  s_c2e28cb33412a1::t_057f73c98b1f64 14,25
+docker-compose.yml
+  s_c2e28cb33412a1::t_106f74b3f781e0 1-55
+docs/API.md
+  s_c2e28cb33412a1::t_4ddd95d878cc7d 20-23,32-35,37-38,58-59,62,64,67-68,71-72,74,76-78,80-81,84-85,87,89-92,95,100-101,109-118,125-132,141-151,155,157-162,170-177,179-184,186,189-190,194-197,201-240,247-249,257,269,271,277-280,288-290,296-297
+docs/HOSTED.md
+  s_c2e28cb33412a1::t_9e0e2e4cadca61 1-79
+docs/MAP.md
+  s_c2e28cb33412a1::t_b6ffbd419868b7 6-7,12-13,17-19,25,27,30-32,34-36,38,46,48
+docs/PHASE-A.md
+  s_c2e28cb33412a1::t_bb44df8b447c83 11
+docs/PRODUCT-SPEC.md
+  s_c2e28cb33412a1::t_61bace4ebbe04b 157
+docs/openapi.yaml
+  s_c2e28cb33412a1::t_e98b9e16192ba6 1-885
+package-lock.json
+  s_c2e28cb33412a1::t_630595001f4907 23,25-26,413-414,438,456,470,487,504,521,538,555,572,589,606,623,640,657,674,691,708,725,742,759,776,793,810,827,841,880,1960,2021,4018,4032,4046,4060,4074,4088,4102,4119,4136,4153,4170,4187,4204,4221,4238,4255,4272,4289,4306,4323,4337,4351,4365,4379,4393,4989,5000,5007,5020,5050,5067,5080,5095,5110,5123,5238,5297,5313,5372,5402,5574,5609,5628,5645,5662,5679,5696,5713,5730,5747,5764,5781,5798,5815,5832,5849,5866,5883,5900,5917,5934,5951,5968,5985,6002,6019,6036,6053,6067,6316,6392,6432,6539,6694,6831,6850,6879,6912,6933,6954,6975,6996,7017,7041,7065,7089,7113,7134,7152,7174,7469,7476,7492,7514,7539-7551,7793,7837,8141,8164,8183,8194,8210,8251,8331,8338,8345,8362,8372,8382,8500,8656,8679,8754,8827,8854,8944,9132-9133,9140-9150
+package.json
+  s_c2e28cb33412a1::t_23de439b680281 10,12
+packages/core/src/kernel.test.ts
+  s_c2e28cb33412a1::t_52bcd92eb9c214 44,125,141,161,177
+packages/core/src/memory-store.ts
+  s_c2e28cb33412a1::t_8c7d01a6e1f015 19,44,77-78,359-372
+packages/core/src/store.ts
+  s_c2e28cb33412a1::t_6717fa6c14c187 18,27,92-100
+packages/core/src/types.ts
+  s_c2e28cb33412a1::t_6b3a040f7f1271 168-176
+packages/db/package.json
+  s_c2e28cb33412a1::t_5a5086f5fb6713 17-18
+packages/db/src/index.ts
+  s_c2e28cb33412a1::t_f76e0ded2a69fd 2-5,10-11,14,17-26
+packages/db/src/schema.ts
+  s_c2e28cb33412a1::t_b1937a49cab1b7 1,205-215
+packages/sdk/package.json
+  s_c2e28cb33412a1::t_4f178de93eedb2 2,4-9,14,18-20
+packages/sdk/src/index.ts
+  s_c2e28cb33412a1::t_33f84acbc92e79 1-20,22,24-33,35,37-43,47-49,51-54,68,73-93,96-102,105-114,116-354
+packages/sdk/tsconfig.json
+  s_c2e28cb33412a1::t_445ac4675615c5 3-6,9,11-12,14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "01aa69f0ec138ef76b8a1ed44376ab6e31f03c44",
+  "prompts": {},
+  "sessions": {
+    "s_c2e28cb33412a1": {
+      "agent_id": {
+        "tool": "devin",
+        "id": "s_c2e28cb33412a1",
+        "model": "unknown"
+      },
+      "human_author": "Hamza <hshaebi.11@gmail.com>"
+    }
+  }
+}
