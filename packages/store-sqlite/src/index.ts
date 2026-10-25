@@ -1,5 +1,11 @@
-import { DatabaseSync } from "node:sqlite";
-import { createId, slugify, type Store } from "@community-os/core";
+import { createRequire } from "node:module";
+
+// node:sqlite via createRequire — bundlers that predate the builtin
+// (esbuild <0.26) rewrite `from "node:sqlite"` to bare "sqlite" and break
+// the published dist. createRequire is in every builtin table, so the
+// specifier reaches the runtime untouched.
+const { DatabaseSync } = createRequire(import.meta.url)("node:sqlite") as typeof import("node:sqlite");
+type DatabaseSync = InstanceType<typeof DatabaseSync>;
 import type {
   Application,
   AutopilotArtifact,
@@ -14,11 +20,30 @@ import type {
   Proposal,
   Source,
   Sponsor,
+  Store,
   TimelineEvent,
   Venue,
   WebhookSubscription,
   Workspace,
-} from "@community-os/core";
+} from "@community-os/sdk";
+
+// Self-contained helpers (same implementations as @community-os/core/ids.ts —
+// inlined so this package publishes dependency-free against the sdk contract).
+function createId(): string {
+  return crypto.randomUUID();
+}
+
+function slugify(value: string): string {
+  const slug = value
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[^\w\s-]/g, "")
+    .trim()
+    .replace(/[\s_]+/g, "-")
+    .replace(/-+/g, "-")
+    .slice(0, 48);
+  return slug || "community";
+}
 
 const LEAD_LOCKABLE_FIELDS: Set<string> = new Set(["do", "want", "offer", "notes", "displayName"]);
 const EDITABLE_MEMBER_FIELDS: Set<string> = new Set([...LEAD_LOCKABLE_FIELDS, "publicOptIn", "publicSlug"]);

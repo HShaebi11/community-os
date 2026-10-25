@@ -14,7 +14,8 @@
   "scripts": {
     "start": "node --experimental-strip-types src/index.ts",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "coverage": "vitest run --coverage --coverage.reporter=text --coverage.reporter=lcov"
   },
   "dependencies": {
     "@cfworker/json-schema": "^4.1.1",

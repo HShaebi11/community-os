@@ -1,5 +1,13 @@
 import { strFromU8, unzipSync } from "fflate";
-import { parseWhatsAppTranscript, type ParsedWhatsAppMessage } from "@community-os/core";
+import { parseWhatsAppTranscript } from "@community-os/core";
+
+export type ParsedWhatsAppMessage = {
+  sourceMessageId: string;
+  authorRaw: string;
+  body: string;
+  sentAt: string;
+  attachedNames: string[];
+};
 
 export type ExportFile = {
   name: string;

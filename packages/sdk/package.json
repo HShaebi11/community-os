@@ -1,7 +1,7 @@
 {
   "name": "@community-os/sdk",
   "version": "0.1.0",
-  "description": "Community OS as a library \u2014 typed client for the /v1 API plus an in-process embedded mode",
+  "description": "Community OS as a library — typed client for the /v1 API plus an in-process embedded mode",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
@@ -21,7 +21,8 @@
   "scripts": {
     "build": "tsup",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "coverage": "vitest run --coverage --coverage.reporter=text --coverage.reporter=lcov"
   },
   "devDependencies": {
     "@community-os/core": "0.1.0",

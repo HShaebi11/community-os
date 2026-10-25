@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createId } from "@community-os/core";
+const createId = () => crypto.randomUUID();
 import { SqliteStore } from "./index.ts";
 
 // Contract-level checks — the semantics every Store implementation shares

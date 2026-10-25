@@ -70,6 +70,9 @@ export async function ingestMessages(
   const memberIds = new Set<string>();
   const messages: Message[] = [];
   for (const msg of incoming) {
+    // Public ingest surface — drop malformed entries rather than corrupting
+    // the store (untrusted webhooks/adapters can send anything).
+    if (typeof msg.id !== "string" || !msg.id || typeof msg.author !== "string" || !msg.author.trim() || typeof msg.body !== "string") continue;
     const member = await store.upsertMember(communityId, msg.author, msg.sentAt);
     memberIds.add(member.id);
     messages.push({

@@ -1,0 +1,35 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write # npm provenance attestation
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          registry-url: https://registry.npmjs.org
+      - run: npm ci
+      - run: npm run validate
+      - name: Build publishable packages
+        run: |
+          npm run build -w @community-os/sdk
+          npm run build -w @community-os/whatsapp-import
+          npm run build -w @community-os/store-sqlite
+          npm run build -w @community-os/channel-discord
+          npm run build -w @community-os/channel-slack
+          npm run build -w @community-os/channel-whatsapp
+      - name: Publish versions not yet on npm
+        run: node scripts/publish-if-needed.mjs
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

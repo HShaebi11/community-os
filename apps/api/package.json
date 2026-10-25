@@ -8,7 +8,8 @@
     "deploy": "cf deploy",
     "start:node": "tsx src/node.ts",
     "test": "vitest run",
-    "typecheck": "cf workers types && tsc --noEmit"
+    "typecheck": "cf workers types && tsc --noEmit",
+    "coverage": "vitest run --coverage --coverage.reporter=text --coverage.reporter=lcov"
   },
   "dependencies": {
     "@community-os/core": "0.1.0",

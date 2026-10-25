@@ -1,25 +1,39 @@
 {
   "name": "@community-os/channel-slack",
   "version": "0.1.0",
-  "private": true,
+  "description": "Slack channel adapter for Community OS — Socket Mode listener + Events API webhook receiver, zero deps",
+  "license": "MIT",
   "type": "module",
-  "types": "./src/index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./src/index.ts",
-      "default": "./src/index.ts"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
     }
   },
-  "scripts": {
-    "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=20"
   },
-  "dependencies": {
-    "@community-os/sdk": "0.1.0"
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "coverage": "vitest run --coverage --coverage.reporter=text --coverage.reporter=lcov"
+  },
+  "peerDependencies": {
+    "@community-os/sdk": "^0.1.0"
   },
   "devDependencies": {
+    "@community-os/sdk": "0.1.0",
+    "tsup": "^8.5.0",
     "typescript": "^5.9.3",
     "vitest": "^3.2.4"
   },
-  "publishConfig": { "access": "public" }
+  "publishConfig": {
+    "access": "public"
+  }
 }

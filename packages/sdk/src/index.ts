@@ -885,5 +885,9 @@ export async function verifyWebhookSignature(
   );
   const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(body));
   const computed = [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, "0")).join("");
-  return computed === match[1]!.toLowerCase();
+  const expected = match[1]!.toLowerCase();
+  if (computed.length !== expected.length) return false;
+  let diff = 0;
+  for (let i = 0; i < computed.length; i++) diff |= computed.charCodeAt(i) ^ expected.charCodeAt(i);
+  return diff === 0;
 }
