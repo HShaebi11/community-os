@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { afterAll, describe, expect, it } from "vitest";
-import { testStoreContract, testStoreModelConformance } from "@community-os/testkit";
+import { proposal, testStoreContract, testStoreModelConformance, timelineEvent } from "@community-os/testkit";
 import { SqliteStore } from "./index.ts";
 
 testStoreContract("SqliteStore", () => new SqliteStore(), (s) => s.close());
@@ -53,6 +53,35 @@ describe("SqliteStore — adapter specifics", () => {
     ]);
     expect(res).toEqual({ inserted: 2, skipped: 0 });
     expect(await store.listMessages(w.id)).toHaveLength(2);
+    store.close();
+  });
+
+  it("falls back to 'community' when the workspace name slugifies to nothing", async () => {
+    const store = new SqliteStore();
+    const w = await store.createWorkspace({ name: "!!!", createdBy: "lead" });
+    expect(w.slug).toBe("community");
+    store.close();
+  });
+
+  it("stringifies missing JSON columns as their container defaults", async () => {
+    const store = new SqliteStore();
+    const w = await store.createWorkspace({ name: "W", createdBy: "lead" });
+    await store.addTimeline(timelineEvent({ communityId: w.id, payload: undefined as never }));
+    const [row] = await store.listTimeline(w.id);
+    expect(row.payload).toEqual({});
+    // speakerIds undefined exercises the array fallback on the update path.
+    const p = await store.createProposal(proposal({ communityId: w.id }));
+    const updated = await store.updateProposal(p.id, { speakerIds: undefined });
+    expect(updated.speakerIds).toEqual(p.speakerIds);
+    store.close();
+  });
+
+  it("treats an empty patch as a no-op", async () => {
+    const store = new SqliteStore();
+    const w = await store.createWorkspace({ name: "W", createdBy: "lead" });
+    const p = await store.createProposal(proposal({ communityId: w.id }));
+    const same = await store.updateProposal(p.id, {});
+    expect(same.title).toBe(p.title);
     store.close();
   });
 });

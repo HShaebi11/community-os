@@ -8,7 +8,7 @@ export default defineConfig({
       // Excluded: package config files, worker/node process entries (they bind
       // ports/runtimes). src/app.ts (the Hono wiring) stays measured.
       exclude: ["**/dist/**", "**/*.config.*", "**/.cloudflare/**", "src/index.ts", "src/node.ts"],
-      thresholds: { lines: 90, branches: 90, functions: 90, statements: 90 },
+      thresholds: { lines: 100, branches: 100, functions: 100, statements: 100 },
     },
   },
 });

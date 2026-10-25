@@ -27,10 +27,10 @@ export async function handleMcpRequest(request: Request, opts: RemoteMcpOptions)
   }
 
   const workspaceId = url.searchParams.get("workspace") ?? request.headers.get("x-cos-workspace") ?? "";
-  const api: Api = async (path, init) => {
+  const api: Api = async (path, init = {}) => {
     const res = await opts.apiFetch(path, {
       ...init,
-      headers: { "content-type": "application/json", ...(init?.headers ?? {}) },
+      headers: { "content-type": "application/json", ...init.headers },
     });
     const text = await res.text();
     if (!res.ok) throw new Error(text);
@@ -40,6 +40,7 @@ export async function handleMcpRequest(request: Request, opts: RemoteMcpOptions)
 
   let server = createCosMcpServer(ctx);
   if (url.pathname === CODE_PATH) {
+    /* v8 ignore next -- the LOADER path needs a real Workers binding (cloudflare: scheme doesn't load under Node) */
     const executor = opts.executor ?? (opts.loader ? await workerExecutor(opts.loader) : null);
     if (!executor) {
       return Response.json({ error: "code mode unavailable: LOADER binding missing" }, { status: 503 });
@@ -56,8 +57,9 @@ export async function handleMcpRequest(request: Request, opts: RemoteMcpOptions)
   return transport.handleRequest(request);
 }
 
-/* v8 ignore next 3 -- Workers runtime only: @cloudflare/codemode can't load under vitest */
+/* v8 ignore start -- Workers runtime only: @cloudflare/codemode can't load under vitest */
 async function workerExecutor(loader: unknown): Promise<Executor> {
   const { DynamicWorkerExecutor } = await import("@cloudflare/codemode");
   return new DynamicWorkerExecutor({ loader: loader as never });
 }
+/* v8 ignore stop */

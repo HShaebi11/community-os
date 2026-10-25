@@ -6,7 +6,7 @@ export default defineConfig({
     coverage: {
       exclude: ["**/dist/**", "**/*.config.*", "src/*.test.ts", "drizzle/", "src/index.ts"],
 
-      thresholds: { lines: 97, branches: 86, functions: 75, statements: 97 },
+      thresholds: { lines: 100, branches: 100, functions: 78, statements: 100 },
     },
   },
 });

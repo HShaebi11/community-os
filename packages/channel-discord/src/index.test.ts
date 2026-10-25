@@ -32,4 +32,9 @@ describe("normalizeDiscordMessage", () => {
     expect(normalizeDiscordMessage(msg(), { channelIds: ["c1"] })).not.toBeNull();
     expect(normalizeDiscordMessage(msg(), { guildIds: ["g2"] })).toBeNull();
   });
+  it("falls back to 'unknown' author and the current time", () => {
+    const m = normalizeDiscordMessage({ id: "7", content: "hi", author: {} });
+    expect(m?.author).toBe("unknown");
+    expect(m?.sentAt).toMatch(/^\d{4}-/);
+  });
 });

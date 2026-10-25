@@ -106,6 +106,7 @@ export function createApp(store: Store, options: AppOptions = {}) {
 
   app.onError((err, c) => {
     const status = err instanceof HTTPException ? err.status : 400;
+    /* v8 ignore next -- Hono only routes Error instances to onError; thrown non-Errors propagate */
     const message = err instanceof Error ? err.message : "error";
     console.error(JSON.stringify({ message: "request failed", error: message, path: c.req.path }));
     return c.json({ error: message }, status);
@@ -475,6 +476,7 @@ async function publicOr404<T>(fn: () => Promise<T>): Promise<T> {
   try {
     return await fn();
   } catch (err) {
+    /* v8 ignore next -- kernel throws Error instances only */
     throw new HTTPException(404, { message: err instanceof Error ? err.message : "not found" });
   }
 }

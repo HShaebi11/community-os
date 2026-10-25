@@ -160,6 +160,7 @@ export async function refreshMemory(store: Store, communityId: string) {
       extracted.citations
         .map((c) => {
           const message = theirs.find((m) => clipQuote(m.body) === c.quote);
+          /* v8 ignore next -- every citation quote IS clipQuote() of one of `theirs` bodies, so find() always matches */
           if (!message) return null;
           return {
             id: createId(),
@@ -207,6 +208,7 @@ export async function refreshMemory(store: Store, communityId: string) {
           objectType: "demand",
           objectId: saved.id,
           messageId: message.id,
+          /* v8 ignore next -- a non-empty demandTopics implies a demand citation exists (extract.ts pushes them together) */
           quote: extracted.citations.find((c) => c.kind === "demand")?.quote ?? message.body.slice(0, 180),
         },
       ]);

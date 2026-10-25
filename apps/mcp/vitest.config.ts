@@ -7,7 +7,7 @@ export default defineConfig({
       // src/index.ts is the stdio bootstrap (env + transport wiring, no logic).
       exclude: ["**/dist/**", "**/*.config.*", "src/index.ts"],
 
-      thresholds: { lines: 92, branches: 80, functions: 84, statements: 92 },
+      thresholds: { lines: 100, branches: 100, functions: 100, statements: 100 },
     },
   },
 });

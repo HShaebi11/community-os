@@ -61,6 +61,7 @@ export function normalizeWhatsAppMessage(m: WaMessage, include: "groups" | "all"
 }
 
 // Baileys expects a pino-style logger; we ship a silent one to avoid the dep.
+/* v8 ignore start -- only reachable inside the real Baileys runtime */
 const silentLogger = {
   level: "silent",
   child() {
@@ -74,6 +75,7 @@ const silentLogger = {
   fatal() {},
   silent() {},
 };
+/* v8 ignore stop */
 
 /** Live WhatsApp ingestion via Baileys. `npm i @whiskeysockets/baileys` then:
  *  await cos.listen(whatsappChannel({ onQr: qr => showQr(qr) }), { workspaceId }) */

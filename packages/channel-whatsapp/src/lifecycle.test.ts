@@ -92,6 +92,16 @@ describe("whatsappChannel — baileys lifecycle", () => {
     await adapter.stop();
   });
 
+  it("uses the default session dir and logs QR to the console", async () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    const adapter = whatsappChannel();
+    await adapter.start({ emit: async () => {} });
+    handlers[0]["connection.update"]!({ qr: "default-qr" });
+    expect(log).toHaveBeenCalledWith("WhatsApp QR: default-qr");
+    await adapter.stop();
+    log.mockRestore();
+  });
+
   it("stop() ends the socket and prevents reconnect", async () => {
     const adapter = whatsappChannel({ sessionDir: "/tmp/cos-wa-test" });
     await adapter.start({ emit: async () => {} });

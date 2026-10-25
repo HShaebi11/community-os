@@ -35,6 +35,30 @@ function rpc(path: string, message: JsonRpc) {
 }
 
 describe("request routing", () => {
+  it("surfaces api errors as JSON-RPC errors", async () => {
+    const res = await rpc(`/mcp?workspace=${workspaceId}`, {
+      jsonrpc: "2.0",
+      id: 9,
+      method: "tools/call",
+      params: { name: "get_member", arguments: { memberId: "ghost-member" } },
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { result?: { isError?: boolean; content?: Array<{ text: string }> }; error?: unknown };
+    expect(JSON.stringify(body)).toContain("member");
+  });
+
+  it("treats an empty api body as an empty object", async () => {
+    const res = await handleMcpRequest(
+      new Request("http://test.local/mcp?workspace=" + workspaceId, {
+        method: "POST",
+        headers: MCP_HEADERS,
+        body: JSON.stringify({ jsonrpc: "2.0", id: 10, method: "tools/call", params: { name: "search_memory", arguments: { q: "x" } } }),
+      }),
+      { apiFetch: async () => new Response("") },
+    );
+    expect(res.status).toBe(200);
+  });
+
   it("404s any path that is not /mcp or /mcp/code", async () => {
     const res = await handleMcpRequest(
       new Request("http://test.local/elsewhere", { method: "POST", headers: MCP_HEADERS, body: "{}" }),

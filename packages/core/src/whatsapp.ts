@@ -62,6 +62,7 @@ function parseWhatsAppDate(date: string, time: string): string {
   const clock = time.replace(/\s*(AM|PM)/i, "");
   const [h, m, s] = clock.split(":").map((n) => Number(n));
   hours = h;
+  /* v8 ignore next -- the LINE regex requires `hh:mm`, so `m` is always defined */
   minutes = m ?? 0;
   seconds = s ?? 0;
   if (ampm) {

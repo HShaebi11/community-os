@@ -112,6 +112,7 @@ export function createDrizzleStore(db: Database): Store {
       displayName = displayName.trim();
       const rows = await db.select().from(members).where(eq(members.communityId, communityId));
       const existing = rows.find((m) =>
+        /* v8 ignore next -- aliases is notNull with default [] */
         (m.aliases ?? []).some((a) => a.trim().toLowerCase() === displayName.toLowerCase()),
       );
       if (existing) {
@@ -221,7 +222,9 @@ export function createDrizzleStore(db: Database): Store {
         .where(and(eq(demands.communityId, demand.communityId), eq(demands.topic, demand.topic)))
         .limit(1);
       if (existing[0]) {
+        /* v8 ignore next -- member_ids is notNull with default [] */
         const memberIds = [...new Set([...(existing[0].memberIds ?? []), ...demand.memberIds])];
+        /* v8 ignore next -- message_ids is notNull with default [] */
         const messageIds = [...new Set([...(existing[0].messageIds ?? []), ...demand.messageIds])];
         await db
           .update(demands)
@@ -393,7 +396,7 @@ export function createDrizzleStore(db: Database): Store {
         .select()
         .from(webhookSubscriptions)
         .where(eq(webhookSubscriptions.communityId, communityId));
-      return rows.map((row) => ({ ...row, kinds: row.kinds ?? [], createdAt: row.createdAt.toISOString() }));
+      return rows.map((row) => ({ ...row, kinds: /* v8 ignore next -- kinds is notNull with default [] */ row.kinds ?? [], createdAt: row.createdAt.toISOString() }));
     },
     async deleteWebhookSubscription(id) {
       const rows = await db
@@ -441,6 +444,7 @@ function mapMember(row: {
     id: row.id,
     communityId: row.communityId,
     displayName: row.displayName,
+    /* v8 ignore next -- aliases is notNull with default [] */
     aliases: row.aliases ?? [],
     do: row.do,
     want: row.want,
@@ -449,6 +453,7 @@ function mapMember(row: {
     publicOptIn: row.publicOptIn,
     publicSlug: row.publicSlug,
     lastActive: row.lastActive?.toISOString() ?? null,
+    /* v8 ignore next -- lead_locked_fields is notNull with default [] */
     leadLockedFields: (row.leadLockedFields ?? []) as Array<"do" | "want" | "offer" | "notes" | "displayName">,
   };
 }
@@ -460,7 +465,9 @@ function mapDemand(row: typeof demands.$inferSelect) {
     topic: row.topic,
     title: row.title,
     oneLiner: row.oneLiner,
+    /* v8 ignore next -- member_ids is notNull with default [] */
     memberIds: row.memberIds ?? [],
+    /* v8 ignore next -- message_ids is notNull with default [] */
     messageIds: row.messageIds ?? [],
     updatedAt: row.updatedAt.toISOString(),
   };

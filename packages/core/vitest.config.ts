@@ -8,7 +8,7 @@ export default defineConfig({
       // index.ts is a re-export barrel; store.ts/types.ts are type-only — no runtime code.
       exclude: ["**/dist/**", "**/*.config.*", "src/index.ts", "src/store.ts", "src/types.ts"],
 
-      thresholds: { lines: 96, branches: 90, functions: 98, statements: 96 },
+      thresholds: { lines: 100, branches: 100, functions: 100, statements: 100 },
     },
   },
 });

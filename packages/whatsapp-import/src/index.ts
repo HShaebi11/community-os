@@ -30,6 +30,7 @@ export function parseWhatsAppExport(bytes: Uint8Array, filename = "export.zip"):
   let transcript = "";
   const files: ExportFile[] = [];
   for (const [name, data] of Object.entries(unzipped)) {
+    /* v8 ignore next -- split() always yields >=1 element, so at(-1) is never undefined */
     const base = name.split("/").at(-1) ?? name;
     if (base.endsWith(".txt") && (base.includes("chat") || base.startsWith("_chat") || !transcript)) {
       transcript = strFromU8(data);

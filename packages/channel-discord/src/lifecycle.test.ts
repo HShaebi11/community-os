@@ -98,4 +98,31 @@ describe("discordChannel — gateway lifecycle", () => {
     await vi.advanceTimersByTimeAsync(5000);
     expect(FakeWebSocket.instances).toHaveLength(1);
   });
+
+  it("handles RESUMED, heartbeat-ack, reconnect and unknown opcodes", async () => {
+    const adapter = discordChannel({ token: "t" });
+    await adapter.start({ emit: async () => {} });
+    const ws = FakeWebSocket.latest;
+    await ws.onmessage?.({ data: JSON.stringify(hello()) });
+    await ws.onmessage?.({ data: JSON.stringify(dispatch("READY", { session_id: "s1" })) });
+    await ws.onmessage?.({ data: JSON.stringify(dispatch("RESUMED", {})) });
+    await ws.onmessage?.({ data: JSON.stringify({ op: 11, d: null, s: null, t: null }) });
+    await ws.onmessage?.({ data: JSON.stringify({ op: 99, d: null, s: null, t: null }) });
+    await ws.onmessage?.({ data: JSON.stringify({ op: 7, d: null, s: null, t: null }) });
+    expect(ws.closed).toBe(true);
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(FakeWebSocket.instances).toHaveLength(2);
+    expect(FakeWebSocket.latest.url).toContain("resume=1");
+  });
+
+  it("clears the heartbeat timer on stop()", async () => {
+    const adapter = discordChannel({ token: "t" });
+    await adapter.start({ emit: async () => {} });
+    const ws = FakeWebSocket.latest;
+    await ws.onmessage?.({ data: JSON.stringify(hello(60000)) });
+    await adapter.stop();
+    const sent = ws.sent.length;
+    await vi.advanceTimersByTimeAsync(120000);
+    expect(ws.sent.length).toBe(sent);
+  });
 });
