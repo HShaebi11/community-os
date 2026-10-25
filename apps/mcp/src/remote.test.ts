@@ -34,6 +34,17 @@ function rpc(path: string, message: JsonRpc) {
   );
 }
 
+describe("request routing", () => {
+  it("404s any path that is not /mcp or /mcp/code", async () => {
+    const res = await handleMcpRequest(
+      new Request("http://test.local/elsewhere", { method: "POST", headers: MCP_HEADERS, body: "{}" }),
+      { apiFetch: (p, i) => app.request(p, i) as Promise<Response> },
+    );
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({ error: "not found" });
+  });
+});
+
 beforeAll(async () => {
   app = createApp(new MemoryStore());
   const headers = { "content-type": "application/json" };

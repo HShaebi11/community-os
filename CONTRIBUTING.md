@@ -49,10 +49,33 @@ Layers, bottom-up — put a test in the layer it exercises:
   never a real socket.
 - **e2e**: `apps/api/src/e2e.test.ts` — the full product loop over real HTTP
   and a real SQLite file.
+- **Model-based conformance**: `packages/testkit/src/store-model.ts` +
+  `model-commands.ts` drive randomized `fast-check` command sequences against
+  every store adapter and diff observable state against a naive reference
+  model. Failures shrink to minimal counterexamples — this is the highest
+  bug-finding density in the suite; it caught the cross-source dedupe and
+  event-slug collisions.
+- **Determinism**: `kernel.determinism.test.ts` freezes the clock, permutes
+  batches, and races concurrent ingests. CI also runs suites under
+  `--sequence.shuffle`; everything must pass under any timezone (`TZ` leg).
+- **Spec drift**: `packages/server/src/spec-drift.test.ts` fails if a route
+  exists without an `openapi.yaml` entry, or vice versa — plus a never-500
+  matrix over every documented route.
+- **Dist smoke**: `npm run test:dist` builds the publishable packages and runs
+  the golden path against **built artifacts** — source-level tests can't see
+  bundling mistakes (e.g. a `node:` prefix being rewritten).
+- **Golden snapshots**: `golden.test.ts` pins generated product text
+  (proposals, outreach, run sheets, newsletters) and the QR SVG — byte-level
+  regression detection for anything user-facing.
+- **Mutation**: `npm run test:mutation` (Stryker, gated at 80% score) verifies
+  the suite actually *asserts* — survivors mean missing assertions, not just
+  uncovered lines. Runs weekly + on-demand in CI, not on the PR path.
 
 Coverage thresholds are enforced per workspace (`vitest.config.ts`) — seeded
 at current levels and meant to ratchet upward, never down. If a change makes
 you lower a threshold, that's a conversation to have in the PR, not a fix.
+Type-only files (barrels, `types.ts`, compile-time drift guards) are excluded
+per-package with a comment explaining why — do not exclude business logic.
 
 - With a `DATABASE_URL`, `npm run db:push` syncs the Drizzle schema.
 - Match the existing style: compact, typed, no speculative abstractions.

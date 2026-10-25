@@ -4,8 +4,10 @@ export default defineConfig({
   test: {
     environment: "node",
     coverage: {
-      // Seeded at measured actuals minus ~5%; ratchet upward as suites grow.
-      thresholds: { lines: 75, branches: 76, functions: 78, statements: 75 },
+      // src/index.ts is the stdio bootstrap (env + transport wiring, no logic).
+      exclude: ["**/dist/**", "**/*.config.*", "src/index.ts"],
+
+      thresholds: { lines: 92, branches: 80, functions: 84, statements: 92 },
     },
   },
 });

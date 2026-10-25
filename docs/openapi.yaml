@@ -135,6 +135,53 @@ paths:
         "400": { $ref: "#/components/responses/BadRequest" }
         "404": { $ref: "#/components/responses/NotFound" }
 
+  /v1/ingest:
+    post:
+      tags: [evidence]
+      summary: Ingest a normalized message batch
+      description: |
+        The portable ingest primitive — what channel adapters and the SDK push.
+        Dedupes on `(communityId, sourceId, sourceMessageId)`; re-posting a batch
+        is a safe no-op (`skipped`). Members are resolved/created by author name.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [communityId, messages]
+              properties:
+                communityId: { type: string }
+                source:
+                  type: object
+                  properties:
+                    kind: { type: string }
+                    name: { type: string }
+                messages:
+                  type: array
+                  items:
+                    type: object
+                    required: [id, author, body, sentAt]
+                    properties:
+                      id: { type: string }
+                      author: { type: string }
+                      authorId: { type: string }
+                      body: { type: string }
+                      sentAt: { type: string, format: date-time }
+      responses:
+        "200":
+          description: Ingest result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  inserted: { type: integer }
+                  skipped: { type: integer }
+                  members: { type: array, items: { $ref: "#/components/schemas/Member" } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
   /v1/ingest/discord:
     post:
       tags: [evidence]

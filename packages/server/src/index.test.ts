@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { verifyWebhookSignature } from "@community-os/sdk";
 import { MemoryStore } from "@community-os/core";
-import { normalizedMessage } from "@community-os/testkit";
+import { makeWhatsAppZip, normalizedMessage } from "@community-os/testkit";
 import { createApp, type WebhookDelivery } from "./index.ts";
 
 const json = (body: unknown, headers: Record<string, string> = {}) => ({
@@ -369,5 +369,238 @@ describe("http-layer adversarial inputs", () => {
     const overflow = await app.request(`/v1/public/events/${event.slug}/rsvp`, json({ name: "Eleven", email: "e11@x.com" }));
     expect(overflow.status).toBe(400);
     expect(await overflow.json()).toMatchObject({ error: expect.stringContaining("capacity") });
+  });
+});
+
+describe("previously-uncovered routes", () => {
+  const seedPipeline = async (app: ReturnType<typeof createApp>, wsId: string) => {
+    await app.request("/v1/ingest", json({
+      communityId: wsId,
+      source: { kind: "whatsapp", name: "t" },
+      messages: [{ id: "1", author: "Ada", body: "i want a bread workshop", sentAt: "2025-01-01T00:00:00Z" }],
+    }));
+    await app.request(`/v1/workspaces/${wsId}/memory`, { method: "POST" });
+    const demands = (await (await app.request(`/v1/workspaces/${wsId}/demands`)).json()) as Array<{ id: string; topic: string }>;
+    const pack = (await (await app.request(`/v1/workspaces/${wsId}/proposals`, json({ demandId: demands[0].id }))).json()) as { id: string };
+    await app.request(`/v1/proposals/${pack.id}/approve`, json({}));
+    const event = (await (await app.request(`/v1/proposals/${pack.id}/go-live`, json({}))).json()) as { id: string; slug: string };
+    return { demand: demands[0], pack, event };
+  };
+
+  it("GET /v1/workspaces lists every workspace", async () => {
+    const { app, createWorkspace } = make();
+    await createWorkspace("One");
+    await createWorkspace("Two");
+    const list = (await (await app.request("/v1/workspaces")).json()) as Array<{ slug: string }>;
+    expect(list.map((w) => w.slug)).toEqual(["one", "two"]);
+  });
+
+  it("POST /v1/workspaces/:id/imports parses a real WhatsApp zip", async () => {
+    const { app, store, createWorkspace, deliveries } = make();
+    const w = await createWorkspace();
+    const zip = makeWhatsAppZip(
+      "01/01/2025, 10:00 - Ada: i want a meetup\n01/01/2025, 10:01 - Lin: me too\n",
+      { "poster.jpg": "jpeg-bytes" },
+    );
+    await app.request(`/v1/workspaces/${w.id}/webhooks`, json({ url: "https://hook.test/x" }));
+    const res = await app.request(`/v1/workspaces/${w.id}/imports?filename=chat.zip`, {
+      method: "POST",
+      headers: { "content-type": "application/octet-stream" },
+      body: zip,
+    });
+    expect(res.status).toBe(200);
+    const result = (await res.json()) as { inserted: number; members: unknown[] };
+    expect(result.inserted).toBe(2);
+    expect((await store.listMessages(w.id)).length).toBe(2);
+    expect(deliveries.some((d) => d.headers["x-communityos-event"] === "import")).toBe(true);
+  });
+
+  it("GET /v1/workspaces/:id/export sets content-disposition and strips message bodies", async () => {
+    const { app, createWorkspace } = make();
+    const w = await createWorkspace("Bread Town");
+    await app.request("/v1/ingest", json({
+      communityId: w.id,
+      source: { kind: "native", name: "t" },
+      messages: [{ id: "1", author: "Ada", body: "secret body", sentAt: "2025-01-01T00:00:00Z" }],
+    }));
+    const res = await app.request(`/v1/workspaces/${w.id}/export`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-disposition")).toContain("bread-town-export.json");
+    const dump = (await res.json()) as { messages: Array<Record<string, unknown>> };
+    expect(dump.messages.every((m) => !("body" in m))).toBe(true);
+  });
+
+  it("GET /v1/demands/:demandId resolves the demand card or 404s", async () => {
+    const { app, createWorkspace } = make();
+    const w = await createWorkspace();
+    const { demand } = await seedPipeline(app, w.id);
+    const res = await app.request(`/v1/demands/${demand.id}`);
+    expect(res.status).toBe(200);
+    expect((await res.json()).topic).toBeTruthy();
+    expect((await app.request("/v1/demands/nope")).status).toBe(404);
+  });
+
+  it("GET /v1/proposals/:id + POST outreach return the proposal pack", async () => {
+    const { app, createWorkspace } = make();
+    const w = await createWorkspace();
+    const { pack } = await seedPipeline(app, w.id);
+    const got = await app.request(`/v1/proposals/${pack.id}`);
+    expect(got.status).toBe(200);
+    const out = await app.request(`/v1/proposals/${pack.id}/outreach`, json({}));
+    expect(out.status).toBe(200);
+    expect((await out.json()).outreachDraft).toBeTruthy();
+  });
+
+  it("GET /v1/events/:id/guests + POST autopilot", async () => {
+    const { app, createWorkspace } = make();
+    const w = await createWorkspace();
+    const { event } = await seedPipeline(app, w.id);
+    await app.request(`/v1/public/events/${event.slug}/rsvp`, json({ name: "Grace", email: "g@x.com" }));
+    const guests = await app.request(`/v1/events/${event.id}/guests`);
+    expect(guests.status).toBe(200);
+    expect(((await guests.json()) as unknown[]).length).toBe(1);
+    const auto = await app.request(`/v1/events/${event.id}/autopilot`, json({}));
+    expect(auto.status).toBe(200);
+    expect(((await auto.json()) as unknown[]).length).toBe(3);
+  });
+
+  it("GET /v1/workspaces/:id/applications lists applications", async () => {
+    const { app, store, createWorkspace } = make();
+    const w = await createWorkspace();
+    await store.createApplication({ id: "a1", communityId: w.id, applicant: "Kai", answers: "x".repeat(60), decision: "pending", score: 0, reason: "" });
+    const res = await app.request(`/v1/workspaces/${w.id}/applications`);
+    expect(res.status).toBe(200);
+    expect(((await res.json()) as Array<{ id: string }>).map((a) => a.id)).toEqual(["a1"]);
+  });
+
+  it("GET /v1/search hits members and demands across workspaces", async () => {
+    const { app, createWorkspace } = make();
+    const w = await createWorkspace();
+    const { demand } = await seedPipeline(app, w.id);
+    const res = await app.request("/v1/search?q=ada");
+    const hits = (await res.json()) as Array<{ type: string; demand?: { id: string } }>;
+    expect(hits.some((h) => h.type === "member")).toBe(true);
+    const res2 = await app.request(`/v1/search?q=${encodeURIComponent(demand.topic)}`);
+    const hits2 = (await res2.json()) as Array<{ type: string; demand?: { id: string } }>;
+    expect(hits2.some((h) => h.type === "demand" && h.demand?.id === demand.id)).toBe(true);
+  });
+
+  it("a throwing webhook sink never breaks the mutation response", async () => {
+    const store = new MemoryStore();
+    const app = createApp(store, {
+      deliverWebhook: () => { throw new Error("sink exploded"); },
+    });
+    const w = (await (await app.request("/v1/workspaces", json({ name: "W" }))).json()) as { id: string };
+    await app.request(`/v1/workspaces/${w.id}/webhooks`, json({ url: "https://hook.test/x", secret: "s" }));
+    const res = await app.request("/v1/ingest", json({
+      communityId: w.id,
+      source: { kind: "native", name: "t" },
+      messages: [{ id: "1", author: "Ada", body: "hi", sentAt: "2025-01-01T00:00:00Z" }],
+    }));
+    // Emit failure is swallowed — the API response is unaffected.
+    expect(res.status).toBe(200);
+  });
+
+  it("default deliverWebhook POSTs the signed body via global fetch", async () => {
+    const calls: Array<{ url: string; headers: Record<string, string>; body: string }> = [];
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = ((url: string, init: RequestInit) => {
+      calls.push({ url: String(url), headers: init.headers as Record<string, string>, body: String(init.body) });
+      return Promise.resolve(new Response(null, { status: 200 }));
+    }) as typeof fetch;
+    try {
+      const store = new MemoryStore();
+      const app = createApp(store); // no deliverWebhook — default impl
+      const w = (await (await app.request("/v1/workspaces", json({ name: "W" }))).json()) as { id: string };
+      const subRes = await app.request(`/v1/workspaces/${w.id}/webhooks`, json({ url: "https://hook.test/endpoint" }));
+      const { secret } = (await subRes.json()) as { secret: string };
+      await app.request("/v1/ingest", json({
+        communityId: w.id,
+        source: { kind: "native", name: "t" },
+        messages: [{ id: "1", author: "Ada", body: "hi", sentAt: "2025-01-01T00:00:00Z" }],
+      }));
+      // delivery floats off the response path — let the microtask land
+      await new Promise((r) => setTimeout(r, 25));
+      expect(calls).toHaveLength(1);
+      expect(calls[0].url).toBe("https://hook.test/endpoint");
+      expect(calls[0].headers["x-communityos-signature"]).toMatch(/^sha256=[0-9a-f]{64}$/);
+      expect(await verifyWebhookSignature(calls[0].body, calls[0].headers["x-communityos-signature"], secret)).toBe(true);
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+
+  it("GET /v1/members/:memberId resolves the card or 404s", async () => {
+    const { app, store, createWorkspace } = make();
+    const w = await createWorkspace();
+    const m = await store.upsertMember(w.id, "Ada", null);
+    expect((await app.request(`/v1/members/${m.id}`)).status).toBe(200);
+    expect((await app.request("/v1/members/nope")).status).toBe(404);
+  });
+
+  it("default deliverWebhook logs non-ok responses and swallows fetch rejects", async () => {
+    const calls: string[] = [];
+    const realFetch = globalThis.fetch;
+    const realErr = console.error;
+    const errs: unknown[] = [];
+    console.error = (...a: unknown[]) => { errs.push(a); };
+    globalThis.fetch = ((url: string) => {
+      calls.push(String(url));
+      return calls.length === 1
+        ? Promise.resolve(new Response(null, { status: 500 }))
+        : Promise.reject(new Error("net down"));
+    }) as typeof fetch;
+    try {
+      const store = new MemoryStore();
+      const app = createApp(store);
+      const w = (await (await app.request("/v1/workspaces", json({ name: "W" }))).json()) as { id: string };
+      await app.request(`/v1/workspaces/${w.id}/webhooks`, json({ url: "https://hook.test/x" }));
+      for (let i = 0; i < 2; i++) {
+        await app.request("/v1/ingest", json({
+          communityId: w.id,
+          source: { kind: "native", name: "t" },
+          messages: [{ id: `m${i}`, author: "Ada", body: "hi there friend", sentAt: "2025-01-01T00:00:00Z" }],
+        }));
+      }
+      await new Promise((r) => setTimeout(r, 25));
+      expect(calls).toHaveLength(2);
+      expect(errs.length).toBeGreaterThanOrEqual(2); // one !ok log + one reject log
+    } finally {
+      globalThis.fetch = realFetch;
+      console.error = realErr;
+    }
+  });
+});
+
+describe("mcp mount", () => {
+  it("/mcp answers a JSON-RPC initialize through the mounted handler", async () => {
+    const { app } = make();
+    const res = await app.request("/mcp", {
+      method: "POST",
+      headers: { "content-type": "application/json", accept: "application/json, text/event-stream" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-03-26", capabilities: {}, clientInfo: { name: "t", version: "0" } } }),
+    });
+    // The mounted handler delegates to the mcp package; whatever the transport
+    // answers, the route itself is exercised and must not 404/crash.
+    expect([200, 400, 406, 415]).toContain(res.status);
+    const body = await res.text();
+    expect(body.length).toBeGreaterThan(0);
+  });
+
+  it("/mcp/code reports 503 when no LOADER binding is present", async () => {
+    const { app } = make();
+    const res = await app.request("/mcp/code", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: {} }),
+    });
+    expect(res.status).toBe(503);
+    expect(await res.json()).toMatchObject({ error: expect.stringContaining("LOADER") });
+  });
+
+  it("unknown /mcp/* subpaths 404 inside the remote handler", async () => {
+    const { app } = make();
+    const res = await app.request("/mcp/unknown", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
+    expect(res.status).toBe(404);
   });
 });

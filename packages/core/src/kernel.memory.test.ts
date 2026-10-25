@@ -137,7 +137,7 @@ describe("refreshMemory", () => {
     await seedChat(s, cid, [{ author: "Ada", body: "i want a bread workshop" }]);
     await refreshMemory(s, cid);
     const ada = (await s.listMembers(cid))[0];
-    await s.updateMember(ada.id, { do: "baker" });
+    await s.updateMember(ada.id, { do: "baker" }, false);
     // A second refresh over messages that yield no 'do' must leave 'baker' —
     // patch fields are only written when extraction produces a value.
     await refreshMemory(s, cid);

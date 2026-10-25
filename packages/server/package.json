@@ -22,9 +22,10 @@
     "hono": "^4.11.3"
   },
   "devDependencies": {
-    "typescript": "^5.9.3",
     "@community-os/sdk": "0.1.0",
     "@community-os/testkit": "0.1.0",
-    "vitest": "^3.2.4"
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4",
+    "yaml": "^2.6.1"
   }
 }

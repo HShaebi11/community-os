@@ -56,6 +56,7 @@ export async function handleMcpRequest(request: Request, opts: RemoteMcpOptions)
   return transport.handleRequest(request);
 }
 
+/* v8 ignore next 3 -- Workers runtime only: @cloudflare/codemode can't load under vitest */
 async function workerExecutor(loader: unknown): Promise<Executor> {
   const { DynamicWorkerExecutor } = await import("@cloudflare/codemode");
   return new DynamicWorkerExecutor({ loader: loader as never });

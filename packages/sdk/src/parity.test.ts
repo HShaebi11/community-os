@@ -232,4 +232,88 @@ describe.each(transports)("parity over $name transport", ({ cos }) => {
     const updated = await c.rsvp(event.slug, { name: "G0 Renamed", email: "g0@x.com" });
     expect(updated.name).toBe("G0 Renamed");
   });
+
+  it("secondary read surfaces: files, timeline, resources, proposals", async () => {
+    const c = cos();
+    const w = await c.createWorkspace({ name: "Reads" });
+    await c.ingest(w.id, { source: { kind: "whatsapp", name: "t" }, messages: [
+      normalizedMessage({ id: "1", author: "Ada", body: "i want a bread workshop — notes at https://notes.example.com/x" }),
+    ] });
+    await c.refreshMemory(w.id);
+    const [demand] = await c.listDemands(w.id);
+    const pack = await c.createProposal(w.id, demand.id);
+    expect(await c.listFiles(w.id)).toEqual([]);
+    expect((await c.listTimeline(w.id)).length).toBeGreaterThanOrEqual(1);
+    expect((await c.listResources(w.id)).map((r) => r.url)).toContain("https://notes.example.com/x");
+    expect((await c.listProposals(w.id)).map((p) => p.id)).toEqual([pack.id]);
+    expect((await c.getProposal(pack.id)).id).toBe(pack.id);
+    await c.approveProposal(pack.id);
+    expect((await c.listGuests((await c.goLive(pack.id)).id).catch(() => [])).length).toBe(0);
+  });
+
+  it("search hits members and demands identically in every mode", async () => {
+    const c = cos();
+    const w = await c.createWorkspace({ name: "Searchy" });
+    await c.ingest(w.id, { source: { kind: "whatsapp", name: "t" }, messages: [
+      normalizedMessage({ id: "1", author: "Ada", body: "i want a bread workshop" }),
+    ] });
+    await c.refreshMemory(w.id);
+    const hits = await c.search("ada");
+    expect(hits.some((h) => h.type === "member")).toBe(true);
+    const demandHits = await c.search("workshop");
+    expect(demandHits.some((h) => h.type === "demand")).toBe(true);
+  });
+
+  it("ingestDiscord lands a single normalized message", async () => {
+    const c = cos();
+    const w = await c.createWorkspace({ name: "Cord" });
+    const res = await c.ingestDiscord({
+      id: "d1",
+      communityId: w.id,
+      timestamp: "2025-01-01T00:00:00Z",
+      author: { id: "u1", username: "ada" },
+      content: "i want a hack night",
+    });
+    expect(res.inserted + res.skipped).toBe(1);
+    const msgs = await c.listMessages(w.id);
+    expect(msgs.length).toBe(1);
+    expect(msgs[0].authorRaw).toBe("ada");
+  });
+
+  it("importChat accepts string, bytes and ArrayBuffer transcripts; corrupt zips 400", async () => {
+    const c = cos();
+    const w = await c.createWorkspace({ name: "Imports" });
+    const txt = "01/01/2025, 10:00 - Ada: i want a meetup\n";
+    const r1 = await c.importChat(w.id, txt, "chat.txt");
+    expect(r1.inserted).toBe(1);
+    const r2 = await c.importChat(w.id, new TextEncoder().encode(txt.replace("meetup", "second meetup")), "chat.txt");
+    expect(r2.inserted).toBe(1);
+    const r3 = await c.importChat(w.id, new TextEncoder().encode(txt.replace("meetup", "third")).buffer as ArrayBuffer, "chat.txt");
+    expect(r3.inserted).toBe(1);
+    await expect(c.importChat(w.id, new Uint8Array([1, 2, 3]), "broken.zip")).rejects.toMatchObject({ status: 400 });
+  });
+
+  it("event handlers fire on mutations; off() removes them", async () => {
+    const c = cos();
+    const w = await c.createWorkspace({ name: "Hooks" });
+    const seen: string[] = [];
+    // Remote mode delivers via a poll timer — short interval, then wait a cycle.
+    const off = c.on("*", (ev) => { seen.push(ev.kind); }, { pollMs: 10 });
+    const settle = () => new Promise((r) => setTimeout(r, 80));
+    await c.ingest(w.id, { source: { kind: "native", name: "t" }, messages: [normalizedMessage({ id: "1", author: "Ada", body: "i want bread" })] });
+    await c.refreshMemory(w.id); // timeline-writing op → dispatches a "memory" event
+    await settle();
+    expect(seen.length).toBeGreaterThanOrEqual(1);
+    off();
+    const before = seen.length;
+    await c.refreshMemory(w.id);
+    await settle();
+    expect(seen.length).toBe(before);
+    // a throwing handler must not break the mutation path
+    const offBad = c.on("*", () => { throw new Error("handler blew up"); }, { pollMs: 10 });
+    await c.refreshMemory(w.id);
+    await settle();
+    offBad();
+    expect(await c.listMessages(w.id)).toHaveLength(1);
+  });
 });

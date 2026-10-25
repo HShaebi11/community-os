@@ -4,8 +4,9 @@ export default defineConfig({
   test: {
     environment: "node",
     coverage: {
-      // Seeded at measured actuals minus ~5%; ratchet upward as suites grow.
-      thresholds: { lines: 89, branches: 75, functions: 95, statements: 89 },
+      exclude: ["**/dist/**", "**/*.config.*"],
+
+      thresholds: { lines: 91, branches: 76, functions: 96, statements: 91 },
     },
   },
 });
