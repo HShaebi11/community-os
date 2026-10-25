@@ -1,0 +1,91 @@
+.github/workflows/ci.yml
+  s_dc3a0371a415e6::t_4f5544f9d62264 22-29
+.github/workflows/release.yml
+  s_dc3a0371a415e6::t_6ac479ca1b5867 1-35
+.gitignore
+  s_dc3a0371a415e6::t_aa00c300057106 15-16
+apps/api/package.json
+  s_dc3a0371a415e6::t_c22c7eee627c53 11-12
+apps/mcp/package.json
+  s_dc3a0371a415e6::t_26f477126cda44 17-18
+package-lock.json
+  s_dc3a0371a415e6::t_86ed8307220f90 14,96-114,116-117,120-124,126-127,130-134,137-140,143,146-150,153-167,1361,1906-1976,2252-2256,2258-2261,4811,4837-4870,5076-5080,5083-5085,5088-5093,5095-5099,5102,5161-5173,5443-5447,5450,5453,5456-5462,5633,6288-6294,6604,6640-6645,6647-6648,6651,6653-6654,6780-6834,6854-6858,6861,6864-6867,6897-6902,6964-6973,6986-7068,7437-7443,7469-7473,7475-7478,7481-7485,7487-7489,7491,7494-7503,7561-7586,7792-7798,7817-7833,7871,7873-7877,8389,8453,8612-8622,8712-8757,8774-8797,8901-8915,9686,10455-10534,10545,10661,10663-10664,10667-10672,10678,10680-10681,10684-10689,10695,10697-10698,10702-10704,10706,10708-10712,10784,10786,10788,10791-10796,10802,10804-10806,10808-10810
+package.json
+  s_dc3a0371a415e6::t_a3218206d7e30e 16-17,20
+packages/channel-discord/LICENSE
+  s_dc3a0371a415e6::t_03d9ac68e3e19f 1-21
+packages/channel-discord/README.md
+  s_dc3a0371a415e6::t_2d228e3b2a3c44 1-6
+packages/channel-discord/package.json
+  s_dc3a0371a415e6::t_d282adbc9c1982 4-5,7-8,11-12,15-20,22,24-25,27-28,31-32,36-38
+packages/channel-discord/tsup.config.ts
+  s_dc3a0371a415e6::t_21e3b7b889fe03 1-12
+packages/channel-slack/LICENSE
+  s_dc3a0371a415e6::t_a81f22b0638ee1 1-21
+packages/channel-slack/README.md
+  s_dc3a0371a415e6::t_9fafd4eaddc392 1-6
+packages/channel-slack/package.json
+  s_dc3a0371a415e6::t_0c31362e2456b3 4-5,7-8,11-12,15-20,22,24-25,27-28,31-32,36-38
+packages/channel-slack/tsup.config.ts
+  s_dc3a0371a415e6::t_b6babfb20f64d6 1-12
+packages/channel-whatsapp/LICENSE
+  s_dc3a0371a415e6::t_1dd4a8124e0fbc 1-21
+packages/channel-whatsapp/README.md
+  s_dc3a0371a415e6::t_e0dc49e3bfc7a3 1-6
+packages/channel-whatsapp/package.json
+  s_dc3a0371a415e6::t_c2c83c4f85af51 4-5,7-8,11-12,15-20,22,24-25,28,31-35,37-38,42-44
+packages/channel-whatsapp/src/baileys.d.ts
+  s_dc3a0371a415e6::t_e0b399646a1d2f 1-4
+packages/channel-whatsapp/tsup.config.ts
+  s_dc3a0371a415e6::t_642e290660615f 1-13
+packages/core/package.json
+  s_dc3a0371a415e6::t_4bcba554808522 14-15
+packages/core/src/kernel.ts
+  s_dc3a0371a415e6::t_8945404d4458c4 73-75
+packages/sdk/LICENSE
+  s_dc3a0371a415e6::t_d16416f16865e1 1-21
+packages/sdk/package.json
+  s_dc3a0371a415e6::t_ebbd3242b7cbe0 4,24-25
+packages/sdk/src/index.ts
+  s_dc3a0371a415e6::t_1387933b93bc4a 888-892
+packages/store-sqlite/LICENSE
+  s_dc3a0371a415e6::t_48f63524a5d0b8 1-21
+packages/store-sqlite/README.md
+  s_dc3a0371a415e6::t_4226c7d052fee4 1-10
+packages/store-sqlite/package.json
+  s_dc3a0371a415e6::t_3d2d6a8d0afe24 4-5,7-8,11-12,15-20,22,24-25,27-28,31,33,36-38
+packages/store-sqlite/src/index.test.ts
+  s_dc3a0371a415e6::t_55c1c26634d06e 2
+packages/store-sqlite/src/index.ts
+  s_dc3a0371a415e6::t_ca4c7458f002b3 1-8,23,28-46
+packages/store-sqlite/tsup.config.ts
+  s_dc3a0371a415e6::t_516c6894fb81bf 1-12
+packages/whatsapp-import/LICENSE
+  s_dc3a0371a415e6::t_f7fc0b1194b9b1 1-21
+packages/whatsapp-import/README.md
+  s_dc3a0371a415e6::t_2b1f3b4ce13717 1-6
+packages/whatsapp-import/package.json
+  s_dc3a0371a415e6::t_820e7a9dff01ae 4-5,7-8,11-12,15-20,22,26-28,31-33
+packages/whatsapp-import/src/index.ts
+  s_dc3a0371a415e6::t_d30fc69f8a0ba1 2-10
+packages/whatsapp-import/tsup.config.ts
+  s_dc3a0371a415e6::t_dd5e8ce21a894c 1-12
+scripts/publish-if-needed.mjs
+  s_dc3a0371a415e6::t_cfc8b8eb95cf46 1-42
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7560e8caf7d5995a66e3260a4aa365d733246ab9",
+  "prompts": {},
+  "sessions": {
+    "s_dc3a0371a415e6": {
+      "agent_id": {
+        "tool": "devin",
+        "id": "s_dc3a0371a415e6",
+        "model": "unknown"
+      },
+      "human_author": "Hamza <hshaebi.11@gmail.com>"
+    }
+  }
+}
