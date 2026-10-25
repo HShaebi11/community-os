@@ -1,0 +1,19 @@
+packages/sdk/.gitignore
+  s_7e49eba2bba76b::t_9d0d05e32840ec 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "960b6ebb7636f3a361b0f081e4a821800cbab8bd",
+  "prompts": {},
+  "sessions": {
+    "s_7e49eba2bba76b": {
+      "agent_id": {
+        "tool": "devin",
+        "id": "s_7e49eba2bba76b",
+        "model": "unknown"
+      },
+      "human_author": "Hamza <hshaebi.11@gmail.com>"
+    }
+  }
+}
