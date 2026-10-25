@@ -1,0 +1,35 @@
+packages/core/src/kernel.edge.test.ts
+  s_2453a667d9bffd::t_1e51cf970d67f1 1-164
+packages/core/src/kernel.invariants.test.ts
+  s_2453a667d9bffd::t_db40489fde27e0 1-97
+packages/core/src/kernel.ts
+  s_2453a667d9bffd::t_73d1aef7fcc045 375-376,380-384,491-497
+packages/core/src/memory-store.ts
+  s_2453a667d9bffd::t_57bc5cb4175672 96-99,130,132
+packages/sdk/src/parity.test.ts
+  s_2453a667d9bffd::t_2750a142753914 201-234
+packages/server/src/index.test.ts
+  s_2453a667d9bffd::t_514359f4a2f9cb 147-167,305-373
+packages/store-sqlite/src/index.test.ts
+  s_2453a667d9bffd::t_ce2f6712f76567 4,32-55
+packages/store-sqlite/src/index.ts
+  s_2453a667d9bffd::t_bbbd47b80da177 58-59,221-227,254,257
+packages/testkit/src/store-contract.ts
+  s_2453a667d9bffd::t_a4168dc961ac81 104,112-166,220-229
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "af5ffa96d83cdd78d322f92b8c24fb20d91ecb39",
+  "prompts": {},
+  "sessions": {
+    "s_2453a667d9bffd": {
+      "agent_id": {
+        "tool": "devin",
+        "id": "s_2453a667d9bffd",
+        "model": "unknown"
+      },
+      "human_author": "Hamza <hshaebi.11@gmail.com>"
+    }
+  }
+}
