@@ -1,0 +1,34 @@
+package-lock.json
+  h_c628d8a6509c22 453-459,10752-10754,10756-10757
+package.json
+  h_c628d8a6509c22 11,17
+packages/db/drizzle/0000_small_mordo.sql
+  h_c628d8a6509c22 1-195
+packages/db/drizzle/meta/0000_snapshot.json
+  h_c628d8a6509c22 1-1290
+packages/db/drizzle/meta/_journal.json
+  h_c628d8a6509c22 1-13
+packages/db/package.json
+  h_c628d8a6509c22 12-13,24-26,28-29
+packages/db/src/drizzle-store.test.ts
+  h_c628d8a6509c22 1-57
+packages/db/src/drizzle-store.ts
+  h_c628d8a6509c22 85-91,112,114-116
+packages/db/src/schema.ts
+  h_c628d8a6509c22 57
+packages/db/vitest.config.ts
+  h_c628d8a6509c22 1-11
+packages/testkit/src/store-contract.ts
+  h_c628d8a6509c22 25-28,47-55,105,107,110,117-118,125-126,130-131,134,139,141-143,149-150,155,160,170,172,181-182,184-185,192-194,196,204-206,213-214,218,223-225,227-230,235,238-239,241,246-247,249,257-258,269-270,280,282-284,286-288,293-294,298,305-306,308,313-314,319-323,330-331,340-341,343,350-353,362-363,366-367,373-374,378,383-385,396-400,408-409,411-412,418-423,430-432,439-440,443-444,446
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "33c5e28582a73a98cfbbbf83708e7e0431611d00",
+  "prompts": {},
+  "humans": {
+    "h_c628d8a6509c22": {
+      "author": "Hamza <hshaebi.11@gmail.com>"
+    }
+  }
+}
