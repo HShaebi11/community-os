@@ -1,0 +1,42 @@
+package-lock.json
+  h_c628d8a6509c22 6575-6597,8051-8067,10872
+packages/core/src/ids.ts
+  h_c628d8a6509c22 13-14
+packages/core/src/kernel.invariants.test.ts
+  h_c628d8a6509c22 2,8-22,25-42,46-59,62-76,80-114
+packages/core/src/kernel.ts
+  h_c628d8a6509c22 74-81
+packages/core/src/memory-store.ts
+  h_c628d8a6509c22 284-285
+packages/core/src/store-contract.test.ts
+  h_c628d8a6509c22 1,5
+packages/db/src/drizzle-store.test.ts
+  h_c628d8a6509c22 5,38-39,53
+packages/db/src/drizzle-store.ts
+  h_c628d8a6509c22 299,303-306
+packages/store-sqlite/src/index.test.ts
+  h_c628d8a6509c22 6,10-11
+packages/store-sqlite/src/index.ts
+  h_c628d8a6509c22 426-427
+packages/testkit/package.json
+  h_c628d8a6509c22 17
+packages/testkit/src/index.ts
+  h_c628d8a6509c22 6-7
+packages/testkit/src/model-commands.ts
+  h_c628d8a6509c22 1-759
+packages/testkit/src/store-contract.ts
+  h_c628d8a6509c22 52,110,126,182,381-393
+packages/testkit/src/store-model.ts
+  h_c628d8a6509c22 1-240
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "37b048f54f2be0efccc58b51a5414eaaf3198fb4",
+  "prompts": {},
+  "humans": {
+    "h_c628d8a6509c22": {
+      "author": "Hamza <hshaebi.11@gmail.com>"
+    }
+  }
+}
