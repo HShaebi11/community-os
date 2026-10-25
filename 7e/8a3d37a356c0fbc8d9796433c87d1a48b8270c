@@ -1,0 +1,19 @@
+package.json
+  s_6dcbb113a16f37::t_5b0ecd299614bf 20-21
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7e8a3d37a356c0fbc8d9796433c87d1a48b8270c",
+  "prompts": {},
+  "sessions": {
+    "s_6dcbb113a16f37": {
+      "agent_id": {
+        "tool": "devin",
+        "id": "s_6dcbb113a16f37",
+        "model": "unknown"
+      },
+      "human_author": "Hamza <hshaebi.11@gmail.com>"
+    }
+  }
+}
