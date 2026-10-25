@@ -8,11 +8,20 @@ on:
 jobs:
   validate:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [22, 24]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: ${{ matrix.node-version }}
           cache: npm
       - run: npm ci
-      - run: npm run validate
+      - name: Tests (all workspaces)
+        run: npm test
+      - name: Typecheck (all workspaces, incl. SDK drift guard)
+        run: npm run typecheck
+      - name: Build SDK dist
+        run: npm run build -w @community-os/sdk
