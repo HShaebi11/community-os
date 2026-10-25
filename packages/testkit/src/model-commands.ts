@@ -25,6 +25,7 @@ import {
   eventRecord,
   fileRecord,
   guest,
+  makeId,
   message,
   proposal,
   resource,
@@ -504,9 +505,14 @@ class CreateGuest implements fc.AsyncCommand<M, R> {
     const evts = eventsOf(m, wsRef(m, this.wsIdx).id);
     if (!evts.length) return;
     const e = evts[this.evtIdx % evts.length];
-    const rec = guest({ eventId: m.realFor.get(e.id)!, communityId: m.realFor.get(e.communityId)!, name: this.name });
+    // Unique email per command — guests dedupe on (eventId, email) now, so
+    // reusing the fixture default would collapse rows instead of adding.
+    const rec = guest({ eventId: m.realFor.get(e.id)!, communityId: m.realFor.get(e.communityId)!, name: this.name, email: `${this.name}-${m.guests.length}-${makeId()}@x.test` });
     const real = await r.createGuest(rec);
     m.guests.push({ ...rec, eventId: e.id, communityId: e.communityId, id: m.bind("gst", real.id) });
+    // createGuest bumps the event's seat counter — mirror it so a later
+    // listEvents comparison sees the same rsvpCount.
+    e.rsvpCount += 1;
     expectSame(await r.listGuests(m.realFor.get(e.id)!), guestsOfEvt(m, e.id), m, false);
   }
   toString() {

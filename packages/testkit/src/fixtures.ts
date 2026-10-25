@@ -133,6 +133,7 @@ export function eventRecord(over: Partial<EventRecord> = {}): EventRecord {
     startsAt: null,
     qrSvg: "<svg/>",
     publishedAt: "2025-01-01T00:00:00.000Z",
+    rsvpCount: 0,
     ...over,
   };
 }

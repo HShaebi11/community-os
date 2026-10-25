@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { afterAll, describe, expect, it } from "vitest";
-import { proposal, testStoreContract, testStoreModelConformance, timelineEvent } from "@community-os/testkit";
+import { eventRecord, guest, proposal, testStoreContract, testStoreModelConformance, timelineEvent } from "@community-os/testkit";
 import { SqliteStore } from "./index.ts";
 
 testStoreContract("SqliteStore", () => new SqliteStore(), (s) => s.close());
@@ -54,6 +54,80 @@ describe("SqliteStore — adapter specifics", () => {
     expect(res).toEqual({ inserted: 2, skipped: 0 });
     expect(await store.listMessages(w.id)).toHaveLength(2);
     store.close();
+  });
+
+  it("upgrades a database carrying pre-constraint duplicates", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "cos-sqlite-"));
+    dirs.push(dir);
+    const path = join(dir, "community.db");
+
+    const seed = new SqliteStore(path);
+    const w = await seed.createWorkspace({ name: "W", createdBy: "lead" });
+    const e = await seed.createEvent(eventRecord({ communityId: w.id, slug: "evt" }));
+    seed.close();
+
+    // Simulate the pre-constraint past: drop the unique indexes and write
+    // the duplicates older versions allowed — same public slug, same
+    // normalized display name, same (event, email) guest.
+    const raw = new DatabaseSync(path);
+    raw.exec(`DROP INDEX IF EXISTS idx_members_public_slug;
+      DROP INDEX IF EXISTS idx_members_name_norm;
+      DROP INDEX IF EXISTS idx_guests_event_email;
+      ALTER TABLE events DROP COLUMN rsvpCount;`);
+    const insMember = raw.prepare(
+      `INSERT INTO members (id, communityId, displayName, aliases, "do", want, offer, notes, publicOptIn, publicSlug, lastActive, leadLockedFields)
+       VALUES (?, ?, ?, ?, NULL, NULL, NULL, NULL, ?, ?, NULL, '[]')`,
+    );
+    insMember.run("m1", w.id, "Ada", '["Ada"]', 1, "ada");
+    insMember.run("m2", w.id, " Ada ", '[" Ada "]', 0, "ada");
+    raw
+      .prepare(
+        `INSERT INTO guests (id, eventId, communityId, memberId, name, email, source)
+         VALUES ('g1', ?, ?, NULL, 'A', 'a@x', 'native'), ('g2', ?, ?, NULL, 'A2', 'a@x', 'native')`,
+      )
+      .run(e.id, w.id, e.id, w.id);
+    raw.close();
+
+    // Reopen: migrate() reconciles before the unique indexes are created.
+    const store = new SqliteStore(path);
+    const members = await store.listMembers(w.id);
+    expect(members).toHaveLength(2);
+    // The first claim (m1) keeps the slug and name; m2 keeps its row and
+    // every reference under deterministic suffixes.
+    const ada = members.find((m) => m.publicSlug === "ada");
+    expect(ada?.id).toBe("m1");
+    const renamed = members.find((m) => m.id === "m2")!;
+    expect(renamed.publicSlug).not.toBe("ada");
+    expect(renamed.displayName).not.toBe(" Ada ");
+    // Duplicate guest dropped; the backfilled counter counts survivors.
+    expect(await store.listGuests(e.id)).toHaveLength(1);
+    expect((await store.getEvent(e.id))?.rsvpCount).toBe(1);
+    // Constraints are live — a second claim on the slug now fails.
+    await expect(store.updateMember("m2", { publicSlug: "ada" }, true)).rejects.toThrow();
+    store.close();
+  });
+
+  it("two stores on one file can't oversell a capped event", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "cos-sqlite-"));
+    dirs.push(dir);
+    const path = join(dir, "community.db");
+    const a = new SqliteStore(path);
+    const b = new SqliteStore(path);
+    const w = await a.createWorkspace({ name: "W", createdBy: "lead" });
+    const e = await a.createEvent(eventRecord({ communityId: w.id, slug: "evt" }));
+
+    // 8 racers for 3 seats, split across two connections to the same file —
+    // BEGIN IMMEDIATE serializes each reservation end to end.
+    const results = await Promise.allSettled(
+      Array.from({ length: 8 }, (_, i) =>
+        (i % 2 ? b : a).rsvpGuest(guest({ eventId: e.id, communityId: w.id, email: `r${i}@x` }), 3),
+      ),
+    );
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(3);
+    expect(await a.listGuests(e.id)).toHaveLength(3);
+    expect((await a.getEvent(e.id))?.rsvpCount).toBe(3);
+    a.close();
+    b.close();
   });
 
   it("falls back to 'community' when the workspace name slugifies to nothing", async () => {

@@ -352,6 +352,7 @@ export async function goLive(store: Store, proposalId: string, origin: string) {
     startsAt: null,
     qrSvg: "",
     publishedAt: new Date().toISOString(),
+    rsvpCount: 0,
   };
   event.qrSvg = qrSvg(`${origin}/e/${event.slug}`);
   const saved = await store.createEvent(event);
@@ -365,10 +366,11 @@ export async function goLive(store: Store, proposalId: string, origin: string) {
   return saved;
 }
 
-// RSVP writes are serialized per event slug: capacity is a check-then-act
-// decision (listGuests → createGuest), so concurrent calls must not interleave
-// or the venue oversells. Each entry is dropped once its tail settles, so the
-// map can't grow without bound.
+// RSVP writes are serialized per event slug: the store's rsvpGuest owns the
+// atomic capacity decision (a conditional counter update on shared stores),
+// and this queue orders the member-lookup + reservation within a process.
+// Each entry is dropped once its tail settles, so the map can't grow without
+// bound.
 const rsvpQueues = new Map<string, Promise<unknown>>();
 
 function serializeRsvp<T>(slug: string, fn: () => Promise<T>): Promise<T> {
@@ -405,32 +407,29 @@ async function rsvpSeat(
     members.find((m) => m.displayName.toLowerCase() === name.toLowerCase()) ??
     members.find((m) => (m.notes ?? "").toLowerCase().includes(email)) ??
     null;
-  const guests = await store.listGuests(event.id);
-  const existing = guests.find((g) => g.email === email);
-  if (existing) {
-    return store.updateGuest(existing.id, { name, memberId: member?.id ?? existing.memberId });
-  }
   const proposal = await store.getProposal(event.proposalId);
   const venue = proposal?.venueId ? await store.getVenue(proposal.venueId) : null;
-  if (venue?.capacity != null && guests.length >= venue.capacity) {
-    throw new Error(`event at capacity (${venue.capacity})`);
+  const { guest, created } = await store.rsvpGuest(
+    {
+      id: createId(),
+      eventId: event.id,
+      communityId: event.communityId,
+      memberId: member?.id ?? null,
+      name,
+      email,
+      source: "native",
+    },
+    venue?.capacity ?? null,
+  );
+  if (created) {
+    await store.addTimeline({
+      id: createId(),
+      communityId: event.communityId,
+      kind: "rsvp",
+      payload: { eventId: event.id, guestId: guest.id, memberId: guest.memberId },
+      createdAt: new Date().toISOString(),
+    });
   }
-  const guest = await store.createGuest({
-    id: createId(),
-    eventId: event.id,
-    communityId: event.communityId,
-    memberId: member?.id ?? null,
-    name,
-    email,
-    source: "native",
-  });
-  await store.addTimeline({
-    id: createId(),
-    communityId: event.communityId,
-    kind: "rsvp",
-    payload: { eventId: event.id, guestId: guest.id, memberId: guest.memberId },
-    createdAt: new Date().toISOString(),
-  });
   return guest;
 }
 

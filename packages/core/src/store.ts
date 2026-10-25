@@ -76,6 +76,16 @@ export type Store = {
   createGuest(guest: Guest): Promise<Guest>;
   updateGuest(id: string, patch: Partial<Pick<Guest, "name" | "memberId">>): Promise<Guest>;
   listGuests(eventId: string): Promise<Guest[]>;
+  /** Atomic seat reservation for the RSVP path — the check-then-act of
+   *  "same email already registered → update it; event at capacity → reject;
+   *  otherwise claim a seat and insert" is executed as one unit, so the
+   *  answer can't race a concurrent RSVP on another instance sharing the
+   *  database. `capacity` is the venue limit (null = uncapped). Returns the
+   *  guest plus `created`, which tells the caller whether a new seat was
+   *  consumed (timeline/webhook side-effects only make sense then). The
+   *  input guest's id is used for the insert; on the update path the
+   *  existing row's id is returned instead. */
+  rsvpGuest(guest: Guest, capacity: number | null): Promise<{ guest: Guest; created: boolean }>;
 
   addTimeline(event: TimelineEvent): Promise<void>;
   listTimeline(communityId: string): Promise<TimelineEvent[]>;

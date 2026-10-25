@@ -321,7 +321,27 @@ export class MemoryStore implements Store {
 
   async createGuest(guest: Guest) {
     this.guests.set(guest.id, guest);
+    const event = this.events.get(guest.eventId);
+    if (event) event.rsvpCount += 1;
     return guest;
+  }
+
+  async rsvpGuest(guest: Guest, capacity: number | null) {
+    const existing = [...this.guests.values()].find(
+      (g) => g.eventId === guest.eventId && g.email === guest.email,
+    );
+    if (existing) {
+      existing.name = guest.name;
+      existing.memberId = guest.memberId ?? existing.memberId;
+      return { guest: existing, created: false };
+    }
+    const event = this.events.get(guest.eventId);
+    if (capacity != null && (event?.rsvpCount ?? Number.POSITIVE_INFINITY) >= capacity) {
+      throw new Error(`event at capacity (${capacity})`);
+    }
+    this.guests.set(guest.id, guest);
+    if (event) event.rsvpCount += 1;
+    return { guest, created: true };
   }
 
   async updateGuest(id: string, patch: Partial<Pick<Guest, "name" | "memberId">>) {

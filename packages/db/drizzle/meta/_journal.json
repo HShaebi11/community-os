@@ -15,6 +15,13 @@
       "when": 1792959736956,
       "tag": "0001_nice_the_fallen",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792962859494,
+      "tag": "0002_large_whirlwind",
+      "breakpoints": true
     }
   ]
 }

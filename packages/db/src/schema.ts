@@ -156,6 +156,10 @@ export const events = cos.table("events", {
   startsAt: timestamp("starts_at", { withTimezone: true }),
   qrSvg: text("qr_svg").notNull().default(""),
   publishedAt: timestamp("published_at", { withTimezone: true }).notNull(),
+  // Seats claimed — incremented atomically by every guest insert path so a
+  // conditional UPDATE on this column is a race-safe capacity check (the
+  // neon-http driver has no transactions, so a check-then-act can't be).
+  rsvpCount: integer("rsvp_count").notNull().default(0),
 });
 
 export const guests = cos.table("guests", {
@@ -168,7 +172,13 @@ export const guests = cos.table("guests", {
   name: text("name").notNull(),
   email: text("email").notNull(),
   source: text("source").notNull().default("native"),
-});
+  },
+  (t) => [
+    // One row per (event, email) — a repeated RSVP is an update, and this
+    // index makes that dedupe atomic across server instances.
+    uniqueIndex("guests_event_email").on(t.eventId, t.email),
+  ],
+);
 
 export const timeline = cos.table("timeline", {
   id: text("id").primaryKey(),

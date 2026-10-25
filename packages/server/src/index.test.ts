@@ -675,7 +675,7 @@ describe("coverage completion — residual branches", () => {
     const { app, store } = make();
     await store.createEvent({
       id: "e1", communityId: "c", proposalId: "p", slug: "pub-ev", title: "T",
-      startsAt: null, publishedAt: "2025-01-01T00:00:00.000Z", qrSvg: "<svg/>",
+      startsAt: null, publishedAt: "2025-01-01T00:00:00.000Z", qrSvg: "<svg/>", rsvpCount: 0,
     });
     const w = await store.createWorkspace({ name: "Pub", createdBy: "t" });
     const h = { headers: { "x-public-origin": "https://custom.origin" } };

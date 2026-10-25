@@ -124,6 +124,7 @@ export type EventRecord = {
   startsAt: string | null;
   qrSvg: string;
   publishedAt: string;
+  rsvpCount: number;
 };
 
 export type Guest = {
@@ -243,6 +244,7 @@ export type Store = {
   createGuest(guest: Guest): Promise<Guest>;
   updateGuest(id: string, patch: Partial<Pick<Guest, "name" | "memberId">>): Promise<Guest>;
   listGuests(eventId: string): Promise<Guest[]>;
+  rsvpGuest(guest: Guest, capacity: number | null): Promise<{ guest: Guest; created: boolean }>;
 
   addTimeline(event: TimelineEvent): Promise<void>;
   listTimeline(communityId: string): Promise<TimelineEvent[]>;

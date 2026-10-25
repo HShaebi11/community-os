@@ -584,13 +584,20 @@ describe("coverage completion", () => {
     expect(h.product).toBe("community-os");
   });
 
-  it("serve() uses the default port when none is given", async () => {
+  it("serve() uses the default port when none is given", async (ctx) => {
     const cos = CommunityOS.memory();
-    const { port, close } = await cos.serve({ hostname: "127.0.0.1" });
     try {
-      expect(port).toBe(5173);
-    } finally {
-      close();
+      const { port, close } = await cos.serve({ hostname: "127.0.0.1" });
+      try {
+        expect(port).toBe(5173);
+      } finally {
+        close();
+      }
+    } catch (error) {
+      // The default is the dev API's port — a server already running there
+      // says nothing about the code under test.
+      if ((error as { code?: string }).code === "EADDRINUSE") ctx.skip();
+      throw error;
     }
   });
 
