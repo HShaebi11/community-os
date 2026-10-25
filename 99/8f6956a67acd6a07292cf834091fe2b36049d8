@@ -1,0 +1,119 @@
+.github/PULL_REQUEST_TEMPLATE.md
+  s_c2c57d681946a0::t_a7da1a230228de 8
+CONTRIBUTING.md
+  s_c2c57d681946a0::t_30f0fff3b70a9a 28,32-56
+apps/api/package.json
+  s_c2c57d681946a0::t_57bdff0a46fc5f 31-35
+apps/api/src/e2e.test.ts
+  s_c2c57d681946a0::t_18f006cabfc8bd 1-154
+apps/api/vitest.config.ts
+  s_c2c57d681946a0::t_1e1d3cf0bcb7ff 6-13
+apps/mcp/vitest.config.ts
+  s_c2c57d681946a0::t_7d43708c26d981 6-9
+codecov.yml
+  s_c2c57d681946a0::t_0dcaab8f101bcd 1-34
+package-lock.json
+  s_c2c57d681946a0::t_0c5efec8ce0b6b 32-35,414-417,4819,9694,10553,10672,10690,10708,10730,10758,10791-10794,10803,10816-10825,10832,10835-10836
+package.json
+  s_c2c57d681946a0::t_5b17ae5f2b9eda 11-12,17
+packages/channel-discord/package.json
+  s_c2c57d681946a0::t_c337e092e3ba41 34-35
+packages/channel-discord/src/lifecycle.test.ts
+  s_c2c57d681946a0::t_1742a915566b05 1-101
+packages/channel-discord/vitest.config.ts
+  s_c2c57d681946a0::t_9e2824549f3c92 1-11
+packages/channel-slack/package.json
+  s_c2c57d681946a0::t_15b84a238d05ed 34-35
+packages/channel-slack/src/lifecycle.test.ts
+  s_c2c57d681946a0::t_80425da21bff74 1-94
+packages/channel-slack/vitest.config.ts
+  s_c2c57d681946a0::t_b0fb2c3fe4b71e 1-11
+packages/channel-whatsapp/package.json
+  s_c2c57d681946a0::t_5fc26f83cfbc1b 40-41
+packages/channel-whatsapp/src/lifecycle.test.ts
+  s_c2c57d681946a0::t_abea5f10aa239b 1-104
+packages/channel-whatsapp/vitest.config.ts
+  s_c2c57d681946a0::t_e64828ff640aaf 1-11
+packages/core/package.json
+  s_c2c57d681946a0::t_71438d1bec33c8 19-20
+packages/core/src/extract.test.ts
+  s_c2c57d681946a0::t_5a7df63693b685 1-84
+packages/core/src/kernel.gatekeeper.test.ts
+  s_c2c57d681946a0::t_6eabbed9e44485 1-203
+packages/core/src/kernel.import.test.ts
+  s_c2c57d681946a0::t_55121e59178c54 1-99
+packages/core/src/kernel.ingest.test.ts
+  s_c2c57d681946a0::t_a31f680ba9f6f4 1-107
+packages/core/src/kernel.memory.test.ts
+  s_c2c57d681946a0::t_ecdd1d8f5e24ce 1-141
+packages/core/src/kernel.pipeline.test.ts
+  s_c2c57d681946a0::t_81beb17b019fae 1-169
+packages/core/src/match.test.ts
+  s_c2c57d681946a0::t_32a77445cf34e1 1-114
+packages/core/src/noise.test.ts
+  s_c2c57d681946a0::t_f5071db1628b3d 1-41
+packages/core/src/qr.test.ts
+  s_c2c57d681946a0::t_5c878e52aca382 1-15
+packages/core/src/store-contract.test.ts
+  s_c2c57d681946a0::t_33392b259e9a9a 1-4
+packages/core/vitest.config.ts
+  s_c2c57d681946a0::t_95dcd72c2b6bee 1-11
+packages/sdk/package.json
+  s_c2c57d681946a0::t_8bc526bfe420aa 36-37
+packages/sdk/src/index.ts
+  s_c2c57d681946a0::t_2125cfa894eddb 701
+packages/sdk/src/parity.test.ts
+  s_c2c57d681946a0::t_3ae69431d0f526 1-201
+packages/sdk/vitest.config.ts
+  s_c2c57d681946a0::t_d3fee04871e2d1 1-11
+packages/server/package.json
+  s_c2c57d681946a0::t_51d0501c43f15d 14-16,25-28
+packages/server/src/index.test.ts
+  s_c2c57d681946a0::t_14425fb041c674 1-283
+packages/server/vitest.config.ts
+  s_c2c57d681946a0::t_2a84b6bdca9b0e 1-11
+packages/store-sqlite/package.json
+  s_c2c57d681946a0::t_fdab6adba26c8e 35-36
+packages/store-sqlite/src/index.test.ts
+  s_c2c57d681946a0::t_26053becd6ffe0 1-5,8,10-13,16-19,21-24,26-29
+packages/store-sqlite/vitest.config.ts
+  s_c2c57d681946a0::t_effb5ffe932c71 1-11
+packages/testkit/package.json
+  s_c2c57d681946a0::t_f968936a1ea360 1-21
+packages/testkit/src/fake-ws.ts
+  s_c2c57d681946a0::t_ae2329e94c88f9 1-60
+packages/testkit/src/fixtures.ts
+  s_c2c57d681946a0::t_afb19ada40cee4 1-236
+packages/testkit/src/index.ts
+  s_c2c57d681946a0::t_8b27473c8f2255 1-5
+packages/testkit/src/sign.ts
+  s_c2c57d681946a0::t_b3d1432720c190 1-19
+packages/testkit/src/store-contract.ts
+  s_c2c57d681946a0::t_fd182903d443ac 1-354
+packages/testkit/src/zip.ts
+  s_c2c57d681946a0::t_153f9464616fb6 1-11
+packages/testkit/tsconfig.json
+  s_c2c57d681946a0::t_953f1c6391a40f 1-16
+packages/whatsapp-import/package.json
+  s_c2c57d681946a0::t_cf40efd68141cc 23-25,31-33
+packages/whatsapp-import/src/index.test.ts
+  s_c2c57d681946a0::t_fc677ecbcba0ab 1-62
+packages/whatsapp-import/vitest.config.ts
+  s_c2c57d681946a0::t_51befa7b4f43b2 1-11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "998f6956a67acd6a07292cf834091fe2b36049d8",
+  "prompts": {},
+  "sessions": {
+    "s_c2c57d681946a0": {
+      "agent_id": {
+        "tool": "devin",
+        "id": "s_c2c57d681946a0",
+        "model": "unknown"
+      },
+      "human_author": "Hamza <hshaebi.11@gmail.com>"
+    }
+  }
+}
