@@ -1,0 +1,56 @@
+apps/app/package.json
+  h_c628d8a6509c22 9-11,32-33
+apps/app/src/lib/api.ts
+  h_c628d8a6509c22 25-31
+apps/app/src/lib/lib.test.ts
+  h_c628d8a6509c22 1-118
+apps/app/vitest.config.ts
+  h_c628d8a6509c22 1-13
+package.json
+  h_c628d8a6509c22 11,29
+packages/core/src/kernel.coverage.test.ts
+  h_c628d8a6509c22 24,148
+packages/core/src/kernel.edge.test.ts
+  h_c628d8a6509c22 88-119
+packages/core/src/kernel.ts
+  h_c628d8a6509c22 368-384,389-396,530-539
+packages/core/src/memory-store.ts
+  h_c628d8a6509c22 132-135,178-194
+packages/db/drizzle/0001_nice_the_fallen.sql
+  h_c628d8a6509c22 1-2
+packages/db/drizzle/meta/0001_snapshot.json
+  h_c628d8a6509c22 1-1327
+packages/db/drizzle/meta/_journal.json
+  h_c628d8a6509c22 11-17
+packages/db/src/drizzle-store.test.ts
+  h_c628d8a6509c22 95-104
+packages/db/src/drizzle-store.ts
+  h_c628d8a6509c22 114-115,117-118,140-149
+packages/db/src/schema.ts
+  h_c628d8a6509c22 1,39-48
+packages/sdk/src/index.test.ts
+  h_c628d8a6509c22 385,501-502,529
+packages/server/src/index.test.ts
+  h_c628d8a6509c22 622,655
+packages/store-sqlite/src/index.test.ts
+  h_c628d8a6509c22 84
+packages/store-sqlite/src/index.ts
+  h_c628d8a6509c22 64-65,259-260
+packages/testkit/src/model-commands.ts
+  h_c628d8a6509c22 247-268
+packages/testkit/src/store-contract.ts
+  h_c628d8a6509c22 255-290
+packages/testkit/src/store-model.ts
+  h_c628d8a6509c22 78-81,110-122
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9727053848fe4a0570646fc5684fab661b0aa0da",
+  "prompts": {},
+  "humans": {
+    "h_c628d8a6509c22": {
+      "author": "Hamza <hshaebi.11@gmail.com>"
+    }
+  }
+}
