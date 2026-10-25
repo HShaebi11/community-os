@@ -154,7 +154,7 @@ Funnel events: message → demand → proposal → published → rsvp → page v
 
 ### 6.12 API, desk client, and MCP
 
-**API (the product):** versioned HTTP JSON, one workspace per key/session. Resources match the data model (`/communities`, `/messages`, `/imports`, `/members`, `/demands`, `/proposals`, `/events`, `/guests`, `/resources`). Writes go through the same permission checks whether the caller is a browser or an agent.
+**API (the product):** versioned HTTP JSON, open core — one deployment, one trusted operator. Resources match the data model (`/communities`, `/messages`, `/imports`, `/members`, `/demands`, `/proposals`, `/events`, `/guests`, `/resources`). The same routes serve the browser, curl, and agents.
 
 **Desk (human client):** Next.js (or similar) talks only to this API. Recreated/iterated freely; it must not own import, matching, or publishing logic.
 

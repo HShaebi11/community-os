@@ -1,6 +1,5 @@
-import { createId, slugify, type LeadRole, type Store, type User } from "@community-os/core";
+import { createId, slugify, type Store } from "@community-os/core";
 import {
-  apiTokens,
   applications,
   artifacts,
   blocklist,
@@ -9,18 +8,15 @@ import {
   events,
   files,
   guests,
-  member,
   members,
   messages,
-  organization,
   proposals,
   resources,
-  session,
   sources,
   sponsors,
   timeline,
-  user,
   venues,
+  webhookSubscriptions,
   workspaces,
   type Database,
 } from "@community-os/db";
@@ -28,100 +24,23 @@ import { and, eq } from "drizzle-orm";
 
 export function createDrizzleStore(db: Database): Store {
   return {
-    async upsertUser(email) {
-      const existing = await db.select().from(user).where(eq(user.email, email.toLowerCase())).limit(1);
-      if (existing[0]) return { id: existing[0].id, email: existing[0].email };
-      const row = { id: createId(), name: email, email: email.toLowerCase(), emailVerified: false };
-      await db.insert(user).values(row);
-      return { id: row.id, email: row.email };
-    },
-    async createSession(u: User) {
-      const token = createId();
-      const createdAt = new Date();
-      await db.insert(session).values({
-        id: createId(),
-        token,
-        userId: u.id,
-        expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 30),
-        createdAt,
-        updatedAt: createdAt,
-      });
-      return { token, userId: u.id, email: u.email, createdAt: createdAt.toISOString() };
-    },
-    async getSession(token) {
-      const rows = await db.select().from(session).where(eq(session.token, token)).limit(1);
-      const s = rows[0];
-      if (!s || s.expiresAt < new Date()) return null;
-      const u = await db.select().from(user).where(eq(user.id, s.userId)).limit(1);
-      if (!u[0]) return null;
-      return { token: s.token, userId: s.userId, email: u[0].email, name: u[0].name, createdAt: s.createdAt.toISOString() };
-    },
-    async getSessionByApiTokenHash(tokenHash) {
-      const rows = await db.select().from(apiTokens).where(eq(apiTokens.tokenHash, tokenHash)).limit(1);
-      const t = rows[0];
-      if (!t || t.revokedAt) return null;
-      const u = await db.select().from(user).where(eq(user.id, t.userId)).limit(1);
-      if (!u[0]) return null;
-      await db.update(apiTokens).set({ lastUsedAt: new Date() }).where(eq(apiTokens.id, t.id));
-      return { token: t.id, userId: t.userId, email: u[0].email, name: u[0].name, createdAt: t.createdAt.toISOString() };
-    },
-    async createApiToken(input) {
-      const row = { id: createId(), ...input, createdAt: new Date() };
-      await db.insert(apiTokens).values(row);
-      return { ...row, createdAt: row.createdAt.toISOString(), lastUsedAt: null, revokedAt: null };
-    },
-    async listApiTokens(userId) {
-      const rows = await db.select().from(apiTokens).where(eq(apiTokens.userId, userId));
-      return rows
-        .filter((t) => !t.revokedAt)
-        .map((t) => ({
-          id: t.id,
-          userId: t.userId,
-          name: t.name,
-          prefix: t.prefix,
-          createdAt: t.createdAt.toISOString(),
-          lastUsedAt: t.lastUsedAt?.toISOString() ?? null,
-          revokedAt: t.revokedAt?.toISOString() ?? null,
-        }));
-    },
-    async revokeApiToken(id, userId) {
-      const rows = await db
-        .select()
-        .from(apiTokens)
-        .where(and(eq(apiTokens.id, id), eq(apiTokens.userId, userId)))
-        .limit(1);
-      if (!rows[0] || rows[0].revokedAt) return false;
-      await db.update(apiTokens).set({ revokedAt: new Date() }).where(eq(apiTokens.id, id));
-      return true;
-    },
     async createWorkspace(input) {
       let slug = slugify(input.name);
       const id = createId();
       const createdAt = new Date();
       const slugTaken = async (s: string) => {
         const ws = await db.select({ id: workspaces.id }).from(workspaces).where(eq(workspaces.slug, s)).limit(1);
-        const org = await db.select({ id: organization.id }).from(organization).where(eq(organization.slug, s)).limit(1);
-        return Boolean(ws[0] || org[0]);
+        return Boolean(ws[0]);
       };
       if (await slugTaken(slug)) slug = `${slug}-${id.slice(0, 6)}`;
-      await db.batch([
-        db.insert(organization).values({ id, name: input.name, slug, createdAt }),
-        db.insert(workspaces).values({
-          id,
-          name: input.name,
-          slug,
-          joinUrl: input.joinUrl ?? null,
-          createdBy: input.createdBy,
-          createdAt,
-        }),
-        db.insert(member).values({
-          id: createId(),
-          organizationId: id,
-          userId: input.createdBy,
-          role: "owner",
-          createdAt,
-        }),
-      ]);
+      await db.insert(workspaces).values({
+        id,
+        name: input.name,
+        slug,
+        joinUrl: input.joinUrl ?? null,
+        createdBy: input.createdBy,
+        createdAt,
+      });
       return { id, name: input.name, slug, joinUrl: input.joinUrl ?? null, createdBy: input.createdBy, createdAt: createdAt.toISOString() };
     },
     async getWorkspace(id) {
@@ -139,26 +58,11 @@ export function createDrizzleStore(db: Database): Store {
       if (patch.name !== undefined) set.name = patch.name;
       if (patch.joinUrl !== undefined) set.joinUrl = patch.joinUrl;
       if (Object.keys(set).length) await db.update(workspaces).set(set).where(eq(workspaces.id, id));
-      if (patch.name !== undefined) {
-        await db.update(organization).set({ name: patch.name }).where(eq(organization.id, id));
-      }
       return { ...mapWorkspace(rows[0]), ...set };
     },
-    async listWorkspacesForUser(userId) {
-      const rows = await db
-        .select({ workspace: workspaces, role: member.role })
-        .from(member)
-        .innerJoin(workspaces, eq(member.organizationId, workspaces.id))
-        .where(eq(member.userId, userId));
-      return rows.map((r) => ({ ...mapWorkspace(r.workspace), role: r.role as LeadRole }));
-    },
-    async isLead(workspaceId, userId) {
-      const rows = await db
-        .select()
-        .from(member)
-        .where(and(eq(member.organizationId, workspaceId), eq(member.userId, userId)))
-        .limit(1);
-      return Boolean(rows[0]);
+    async listWorkspaces() {
+      const rows = await db.select().from(workspaces);
+      return rows.map((r) => ({ ...mapWorkspace(r), role: "owner" as const }));
     },
     async createSource(input) {
       const id = createId();
@@ -467,6 +371,25 @@ export function createDrizzleStore(db: Database): Store {
     },
     async listArtifacts(eventId) {
       return db.select().from(artifacts).where(eq(artifacts.eventId, eventId));
+    },
+    async createWebhookSubscription(input) {
+      const sub = { id: createId(), createdAt: new Date(), ...input };
+      await db.insert(webhookSubscriptions).values(sub);
+      return { ...sub, createdAt: sub.createdAt.toISOString() };
+    },
+    async listWebhookSubscriptions(communityId) {
+      const rows = await db
+        .select()
+        .from(webhookSubscriptions)
+        .where(eq(webhookSubscriptions.communityId, communityId));
+      return rows.map((row) => ({ ...row, kinds: row.kinds ?? [], createdAt: row.createdAt.toISOString() }));
+    },
+    async deleteWebhookSubscription(id) {
+      const rows = await db
+        .delete(webhookSubscriptions)
+        .where(eq(webhookSubscriptions.id, id))
+        .returning({ id: webhookSubscriptions.id });
+      return rows.length > 0;
     },
   } as Store;
 }

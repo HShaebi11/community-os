@@ -1,0 +1,885 @@
+openapi: 3.1.0
+info:
+  title: Community OS API
+  version: "0.1.0"
+  description: |
+    The Community OS `/v1` API — the product itself. Fully open: no accounts,
+    tokens, or sessions. Every route is open to anyone who can reach the
+    deployment; run it on a trusted network or behind an access layer.
+
+    Source of truth: `apps/api/src/app.ts`. Human-readable reference:
+    `docs/API.md`. Both win over this spec if they disagree.
+  license:
+    name: MIT
+servers:
+  - url: http://localhost:5173
+    description: Local dev (worker or node server)
+tags:
+  - name: workspaces
+  - name: evidence
+  - name: memory
+  - name: venues-sponsors
+  - name: proposals-events
+  - name: public
+  - name: gatekeeper
+  - name: webhooks
+
+paths:
+  /v1/health:
+    get:
+      summary: Liveness check
+      responses:
+        "200":
+          description: API is up
+          content:
+            application/json:
+              schema:
+                type: object
+                properties: { ok: { type: boolean }, product: { type: string } }
+
+  /v1/workspaces:
+    post:
+      tags: [workspaces]
+      summary: Create a workspace (one per community)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string }
+                joinUrl: { type: string, description: Public join link shown on the community page }
+      responses:
+        "201": { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/Workspace" } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+    get:
+      tags: [workspaces]
+      summary: List all workspaces on the deployment
+      responses:
+        "200":
+          description: Workspaces (role is always "owner" — forward-compatible shape)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  allOf:
+                    - $ref: "#/components/schemas/Workspace"
+                    - type: object
+                      properties: { role: { type: string, enum: [owner] } }
+
+  /v1/workspaces/by-slug/{slug}:
+    get:
+      tags: [workspaces]
+      summary: Resolve a workspace by slug
+      parameters: [{ $ref: "#/components/parameters/slug" }]
+      responses:
+        "200": { description: Found, content: { application/json: { schema: { $ref: "#/components/schemas/Workspace" } } } }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/workspaces/{id}:
+    get:
+      tags: [workspaces]
+      parameters: [{ $ref: "#/components/parameters/workspaceId" }]
+      responses:
+        "200": { description: Workspace, content: { application/json: { schema: { $ref: "#/components/schemas/Workspace" } } } }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [workspaces]
+      summary: Update name / joinUrl
+      parameters: [{ $ref: "#/components/parameters/workspaceId" }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                joinUrl: { type: string, nullable: true }
+      responses:
+        "200": { description: Updated, content: { application/json: { schema: { $ref: "#/components/schemas/Workspace" } } } }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/workspaces/{id}/imports:
+    post:
+      tags: [evidence]
+      summary: Import a WhatsApp export (raw .txt or .zip)
+      description: |
+        Body is **raw bytes**, not JSON. Filename decides parsing: `.txt` (or
+        text-looking bytes) = transcript; anything else = zip with transcript +
+        media. Deduplicated by `sourceMessageId`; re-posting returns `skipped`.
+      parameters:
+        - { $ref: "#/components/parameters/workspaceId" }
+        - name: filename
+          in: query
+          schema: { type: string, default: export.zip }
+          description: e.g. `_chat.txt` or `export.zip`
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema: { type: string, format: binary }
+      responses:
+        "200":
+          description: Import result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  inserted: { type: integer }
+                  skipped: { type: integer }
+                  members: { type: array, items: { $ref: "#/components/schemas/Member" } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/ingest/discord:
+    post:
+      tags: [evidence]
+      summary: Ingest one Discord message
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [communityId, id, content, timestamp, author]
+              properties:
+                communityId: { type: string }
+                id: { type: string }
+                content: { type: string }
+                timestamp: { type: string, format: date-time }
+                author:
+                  type: object
+                  required: [id, username]
+                  properties:
+                    id: { type: string }
+                    username: { type: string }
+      responses:
+        "200":
+          description: Ingest result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  inserted: { type: integer }
+                  skipped: { type: integer }
+                  member: { anyOf: [{ $ref: "#/components/schemas/Member" }, { type: "null" }] }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/workspaces/{id}/messages:
+    get:
+      tags: [evidence]
+      parameters: [{ $ref: "#/components/parameters/workspaceId" }]
+      responses:
+        "200": { description: Append-only messages, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Message" } } } } }
+
+  /v1/workspaces/{id}/files:
+    get:
+      tags: [evidence]
+      parameters: [{ $ref: "#/components/parameters/workspaceId" }]
+      responses:
+        "200": { description: Imported media records, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/FileRecord" } } } } }
+
+  /v1/workspaces/{id}/timeline:
+    get:
+      tags: [evidence]
+      parameters: [{ $ref: "#/components/parameters/workspaceId" }]
+      responses:
+        "200": { description: Timeline events, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/TimelineEvent" } } } } }
+
+  /v1/workspaces/{id}/export:
+    get:
+      tags: [evidence]
+      summary: Full workspace archive (attachment download)
+      description: Message bodies are excluded — export carries message metadata; quoted text lives in `citations`.
+      parameters: [{ $ref: "#/components/parameters/workspaceId" }]
+      responses:
+        "200":
+          description: The archive
+          headers:
+            content-disposition: { schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WorkspaceExport" }
+
+  /v1/workspaces/{id}/memory:
+    post:
+      tags: [memory]
+      summary: Rebuild member cards, citations, demands, resources from all messages
+      description: Safe to re-run — citations dedupe and lead-locked fields are never overwritten.
+      parameters: [{ $ref: "#/components/parameters/workspaceId" }]
+      responses:
+        "200":
+          description: Full current state
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  members: { type: array, items: { $ref: "#/components/schemas/Member" } }
+                  demands: { type: array, items: { $ref: "#/components/schemas/Demand" } }
+                  resources: { type: array, items: { $ref: "#/components/schemas/Resource" } }
+
+  /v1/workspaces/{id}/members:
+    get:
+      tags: [memory]
+      parameters: [{ $ref: "#/components/parameters/workspaceId" }]
+      responses:
+        "200": { description: Members, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Member" } } } } }
+
+  /v1/members/{memberId}:
+    get:
+      tags: [memory]
+      summary: Cited member card
+      parameters: [{ $ref: "#/components/parameters/memberId" }]
+      responses:
+        "200": { description: Member + citations, content: { application/json: { schema: { $ref: "#/components/schemas/MemberCard" } } } }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [memory]
+      summary: Lead edit — sets leadLockedFields so memory refresh won't overwrite
+      parameters: [{ $ref: "#/components/parameters/memberId" }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                do: { type: string, nullable: true }
+                want: { type: string, nullable: true }
+                offer: { type: string, nullable: true }
+                notes: { type: string, nullable: true }
+                displayName: { type: string }
+                publicOptIn: { type: boolean, description: "true assigns a publicSlug" }
+                publicSlug: { type: string, nullable: true }
+      responses:
+        "200": { description: Updated member, content: { application/json: { schema: { $ref: "#/components/schemas/Member" } } } }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/workspaces/{id}/briefing:
+    get:
+      tags: [memory]
+      parameters: [{ $ref: "#/components/parameters/workspaceId" }]
+      responses:
+        "200":
+          description: Operator briefing
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  people: { type: integer }
+                  messages: { type: integer }
+                  topDemands: { type: array, items: { $ref: "#/components/schemas/Demand" } }
+                  resources: { type: array, items: { $ref: "#/components/schemas/Resource" } }
+                  nextEvents: { type: array, items: { $ref: "#/components/schemas/EventRecord" } }
+
+  /v1/workspaces/{id}/demands:
+    get:
+      tags: [memory]
+      parameters: [{ $ref: "#/components/parameters/workspaceId" }]
+      responses:
+        "200": { description: Demands (title/oneLiner null until opened), content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Demand" } } } } }
+
+  /v1/demands/{demandId}:
+    get:
+      tags: [memory]
+      summary: Open a demand — generates and persists title + oneLiner
+      parameters: [{ $ref: "#/components/parameters/demandId" }]
+      responses:
+        "200": { description: Demand + citations, content: { application/json: { schema: { $ref: "#/components/schemas/DemandCard" } } } }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/workspaces/{id}/resources:
+    get:
+      tags: [memory]
+      parameters: [{ $ref: "#/components/parameters/workspaceId" }]
+      responses:
+        "200": { description: URLs found in chat, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Resource" } } } } }
+
+  /v1/search:
+    get:
+      tags: [memory]
+      summary: Substring search over member cards and demand topics
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Hits
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  oneOf:
+                    - type: object
+                      properties:
+                        type: { type: string, enum: [member] }
+                        workspaceId: { type: string }
+                        member: { $ref: "#/components/schemas/Member" }
+                    - type: object
+                      properties:
+                        type: { type: string, enum: [demand] }
+                        workspaceId: { type: string }
+                        demand: { $ref: "#/components/schemas/Demand" }
+
+  /v1/workspaces/{id}/venues:
+    post:
+      tags: [venues-sponsors]
+      parameters: [{ $ref: "#/components/parameters/workspaceId" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string }
+                area: { type: string }
+                capacity: { type: integer }
+                contact: { type: string }
+      responses:
+        "201": { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/Venue" } } } }
+    get:
+      tags: [venues-sponsors]
+      parameters: [{ $ref: "#/components/parameters/workspaceId" }]
+      responses:
+        "200": { description: Venues, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Venue" } } } } }
+
+  /v1/workspaces/{id}/sponsors:
+    post:
+      tags: [venues-sponsors]
+      parameters: [{ $ref: "#/components/parameters/workspaceId" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string }
+                notes: { type: string }
+      responses:
+        "201": { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/Sponsor" } } } }
+    get:
+      tags: [venues-sponsors]
+      parameters: [{ $ref: "#/components/parameters/workspaceId" }]
+      responses:
+        "200": { description: Sponsors, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Sponsor" } } } } }
+
+  /v1/workspaces/{id}/proposals:
+    post:
+      tags: [proposals-events]
+      summary: Demand → proposal pack (speakers, venue, cited explanation)
+      parameters: [{ $ref: "#/components/parameters/workspaceId" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [demandId]
+              properties: { demandId: { type: string } }
+      responses:
+        "201": { description: Proposal pack, content: { application/json: { schema: { $ref: "#/components/schemas/ProposalPack" } } } }
+        "404": { $ref: "#/components/responses/NotFound" }
+    get:
+      tags: [proposals-events]
+      parameters: [{ $ref: "#/components/parameters/workspaceId" }]
+      responses:
+        "200": { description: Bare proposals (no pack), content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Proposal" } } } } }
+
+  /v1/proposals/{proposalId}:
+    get:
+      tags: [proposals-events]
+      parameters: [{ $ref: "#/components/parameters/proposalId" }]
+      responses:
+        "200": { description: Proposal pack, content: { application/json: { schema: { $ref: "#/components/schemas/ProposalPack" } } } }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/proposals/{proposalId}/approve:
+    post:
+      tags: [proposals-events]
+      description: "400 unless status is `draft`. Status only moves forward."
+      parameters: [{ $ref: "#/components/parameters/proposalId" }]
+      responses:
+        "200": { description: Approved pack, content: { application/json: { schema: { $ref: "#/components/schemas/ProposalPack" } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+
+  /v1/proposals/{proposalId}/outreach:
+    post:
+      tags: [proposals-events]
+      summary: Idempotent outreach draft — drafts only, nothing is sent
+      parameters: [{ $ref: "#/components/parameters/proposalId" }]
+      responses:
+        "200": { description: Pack with outreachDraft, content: { application/json: { schema: { $ref: "#/components/schemas/ProposalPack" } } } }
+
+  /v1/proposals/{proposalId}/go-live:
+    post:
+      tags: [proposals-events]
+      summary: Mints the public event slug + QR. "400 unless `approved`."
+      parameters: [{ $ref: "#/components/parameters/proposalId" }]
+      responses:
+        "200": { description: Live event, content: { application/json: { schema: { $ref: "#/components/schemas/EventRecord" } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+
+  /v1/workspaces/{id}/events:
+    get:
+      tags: [proposals-events]
+      parameters: [{ $ref: "#/components/parameters/workspaceId" }]
+      responses:
+        "200": { description: Events, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/EventRecord" } } } } }
+
+  /v1/events/{eventId}/chain:
+    get:
+      tags: [proposals-events]
+      summary: Provenance chain — event → proposal → demand → raw chat messages
+      parameters: [{ $ref: "#/components/parameters/eventId" }]
+      responses:
+        "200":
+          description: Chain
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  event: { $ref: "#/components/schemas/EventRecord" }
+                  proposal: { anyOf: [{ $ref: "#/components/schemas/Proposal" }, { type: "null" }] }
+                  demand: { anyOf: [{ $ref: "#/components/schemas/Demand" }, { type: "null" }] }
+                  messages: { type: array, items: { $ref: "#/components/schemas/Message" } }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/events/{eventId}/guests:
+    get:
+      tags: [proposals-events]
+      parameters: [{ $ref: "#/components/parameters/eventId" }]
+      responses:
+        "200": { description: Guest list, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Guest" } } } } }
+
+  /v1/events/{eventId}/autopilot:
+    post:
+      tags: [proposals-events]
+      summary: Generate run_sheet + post + newsletter drafts (regenerates each call)
+      parameters: [{ $ref: "#/components/parameters/eventId" }]
+      responses:
+        "200": { description: Artifacts, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/AutopilotArtifact" } } } } }
+
+  /v1/public/communities/{slug}:
+    get:
+      tags: [public]
+      summary: Public community page data — opted-in surface only
+      parameters: [{ $ref: "#/components/parameters/slug" }]
+      responses:
+        "200": { description: Community, content: { application/json: { schema: { $ref: "#/components/schemas/PublicCommunity" } } } }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/public/events/{slug}:
+    get:
+      tags: [public]
+      summary: Public event page data; records a page_view timeline event
+      parameters: [{ $ref: "#/components/parameters/slug" }]
+      responses:
+        "200": { description: Event, content: { application/json: { schema: { $ref: "#/components/schemas/PublicEvent" } } } }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/public/events/{slug}/rsvp:
+    post:
+      tags: [public]
+      summary: RSVP — upserts by email, links guest to a member when matched
+      parameters: [{ $ref: "#/components/parameters/slug" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email]
+              properties:
+                name: { type: string }
+                email: { type: string, format: email }
+      responses:
+        "201": { description: Guest, content: { application/json: { schema: { $ref: "#/components/schemas/Guest" } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+
+  /v1/public/members/{slug}:
+    get:
+      tags: [public]
+      summary: Public member card — only opted-in members resolve
+      parameters: [{ $ref: "#/components/parameters/slug" }]
+      responses:
+        "200": { description: Member, content: { application/json: { schema: { $ref: "#/components/schemas/PublicMember" } } } }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/workspaces/{id}/applications:
+    post:
+      tags: [gatekeeper]
+      summary: Submit + score an application (decision fixed at submit)
+      parameters: [{ $ref: "#/components/parameters/workspaceId" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [applicant, answers]
+              properties:
+                applicant: { type: string }
+                answers: { type: string }
+      responses:
+        "200": { description: Scored application, content: { application/json: { schema: { $ref: "#/components/schemas/Application" } } } }
+    get:
+      tags: [gatekeeper]
+      parameters: [{ $ref: "#/components/parameters/workspaceId" }]
+      responses:
+        "200": { description: Applications, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Application" } } } } }
+
+  /v1/workspaces/{id}/blocklist:
+    post:
+      tags: [gatekeeper]
+      summary: Add blocklist entry — stores sha256 of lowercased applicant only
+      parameters: [{ $ref: "#/components/parameters/workspaceId" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [applicant, evidence]
+              properties:
+                applicant: { type: string, description: hashed before storage }
+                evidence: { type: string }
+                confirmed: { type: boolean }
+      responses:
+        "200": { description: Entry, content: { application/json: { schema: { $ref: "#/components/schemas/BlocklistEntry" } } } }
+
+  /v1/workspaces/{id}/webhooks:
+    post:
+      tags: [webhooks]
+      summary: Subscribe to workspace events — secret returned once
+      description: |
+        Events: `import` (WhatsApp + Discord), `memory`, `proposal` (create,
+        approve, outreach), `published`, `rsvp`, `application`. Empty `kinds`
+        = all. Delivery: `POST` JSON `{id, kind, workspaceId, occurredAt, data}`
+        with `X-CommunityOS-Event` and `X-CommunityOS-Signature:
+        sha256=<hmac-sha256(secret, body)>` headers. Best-effort — no retries.
+      parameters: [{ $ref: "#/components/parameters/workspaceId" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url]
+              properties:
+                url: { type: string, format: uri }
+                kinds:
+                  type: array
+                  items: { type: string, enum: [import, memory, proposal, published, rsvp, application] }
+      responses:
+        "201": { description: Subscription with secret, content: { application/json: { schema: { $ref: "#/components/schemas/WebhookSubscription" } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+    get:
+      tags: [webhooks]
+      parameters: [{ $ref: "#/components/parameters/workspaceId" }]
+      responses:
+        "200":
+          description: Subscriptions (secrets omitted)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id: { type: string }
+                    communityId: { type: string }
+                    url: { type: string }
+                    kinds: { type: array, items: { type: string } }
+                    createdAt: { type: string, format: date-time }
+
+  /v1/webhooks/{id}:
+    delete:
+      tags: [webhooks]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        "200": { description: Deleted, content: { application/json: { schema: { type: object, properties: { ok: { type: boolean } } } } } }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /mcp:
+    post:
+      tags: [workspaces]
+      summary: Streamable HTTP MCP endpoint
+      description: Six tools over the same `/v1` routes. Pass `?workspace=<workspaceId>`.
+      parameters:
+        - name: workspace
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: MCP protocol response }
+
+components:
+  parameters:
+    workspaceId: { name: id, in: path, required: true, schema: { type: string }, description: Workspace id }
+    memberId: { name: memberId, in: path, required: true, schema: { type: string } }
+    demandId: { name: demandId, in: path, required: true, schema: { type: string } }
+    proposalId: { name: proposalId, in: path, required: true, schema: { type: string } }
+    eventId: { name: eventId, in: path, required: true, schema: { type: string } }
+    slug: { name: slug, in: path, required: true, schema: { type: string } }
+  responses:
+    BadRequest:
+      description: Domain/validation error
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+  schemas:
+    Error:
+      type: object
+      properties: { error: { type: string } }
+    Workspace:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        slug: { type: string }
+        joinUrl: { type: string, nullable: true }
+        createdBy: { type: string }
+        createdAt: { type: string, format: date-time }
+    Message:
+      type: object
+      properties:
+        id: { type: string }
+        communityId: { type: string }
+        sourceId: { type: string }
+        sourceMessageId: { type: string }
+        authorRaw: { type: string }
+        memberId: { type: string, nullable: true }
+        body: { type: string }
+        sentAt: { type: string, format: date-time }
+        isNoise: { type: boolean }
+    FileRecord:
+      type: object
+      properties:
+        id: { type: string }
+        communityId: { type: string }
+        messageId: { type: string, nullable: true }
+        name: { type: string }
+        storagePath: { type: string }
+        mime: { type: string }
+    Member:
+      type: object
+      properties:
+        id: { type: string }
+        communityId: { type: string }
+        displayName: { type: string }
+        aliases: { type: array, items: { type: string } }
+        do: { type: string, nullable: true }
+        want: { type: string, nullable: true }
+        offer: { type: string, nullable: true }
+        notes: { type: string, nullable: true }
+        publicOptIn: { type: boolean }
+        publicSlug: { type: string, nullable: true }
+        lastActive: { type: string, format: date-time, nullable: true }
+        leadLockedFields: { type: array, items: { type: string, enum: [do, want, offer, notes, displayName] } }
+    MemberCard:
+      allOf:
+        - $ref: "#/components/schemas/Member"
+        - type: object
+          properties: { citations: { type: array, items: { $ref: "#/components/schemas/Citation" } } }
+    Citation:
+      type: object
+      properties:
+        id: { type: string }
+        communityId: { type: string }
+        objectType: { type: string }
+        objectId: { type: string }
+        messageId: { type: string }
+        quote: { type: string }
+    Resource:
+      type: object
+      properties:
+        id: { type: string }
+        communityId: { type: string }
+        url: { type: string }
+        title: { type: string }
+        messageId: { type: string, nullable: true }
+    Demand:
+      type: object
+      properties:
+        id: { type: string }
+        communityId: { type: string }
+        topic: { type: string }
+        title: { type: string, nullable: true }
+        oneLiner: { type: string, nullable: true }
+        memberIds: { type: array, items: { type: string } }
+        messageIds: { type: array, items: { type: string } }
+        updatedAt: { type: string, format: date-time }
+    DemandCard:
+      allOf:
+        - $ref: "#/components/schemas/Demand"
+        - type: object
+          properties: { citations: { type: array, items: { $ref: "#/components/schemas/Citation" } } }
+    Venue:
+      type: object
+      properties:
+        id: { type: string }
+        communityId: { type: string }
+        name: { type: string }
+        area: { type: string, nullable: true }
+        capacity: { type: integer, nullable: true }
+        contact: { type: string, nullable: true }
+    Sponsor:
+      type: object
+      properties:
+        id: { type: string }
+        communityId: { type: string }
+        name: { type: string }
+        notes: { type: string, nullable: true }
+    Proposal:
+      type: object
+      properties:
+        id: { type: string }
+        communityId: { type: string }
+        demandId: { type: string }
+        venueId: { type: string, nullable: true }
+        speakerIds: { type: array, items: { type: string } }
+        status: { type: string, enum: [draft, approved, live] }
+        explanation: { type: string, nullable: true }
+        outreachDraft: { type: string, nullable: true }
+    ProposalPack:
+      allOf:
+        - $ref: "#/components/schemas/Proposal"
+        - type: object
+          properties:
+            speakers: { type: array, items: { $ref: "#/components/schemas/Member" } }
+            venue: { anyOf: [{ $ref: "#/components/schemas/Venue" }, { type: "null" }] }
+            citations: { type: array, items: { $ref: "#/components/schemas/Citation" } }
+    EventRecord:
+      type: object
+      properties:
+        id: { type: string }
+        communityId: { type: string }
+        proposalId: { type: string }
+        slug: { type: string }
+        title: { type: string }
+        startsAt: { type: string, format: date-time, nullable: true }
+        qrSvg: { type: string }
+        publishedAt: { type: string, format: date-time }
+    Guest:
+      type: object
+      properties:
+        id: { type: string }
+        eventId: { type: string }
+        communityId: { type: string }
+        memberId: { type: string, nullable: true }
+        name: { type: string }
+        email: { type: string, format: email }
+        source: { type: string, enum: [native] }
+    TimelineEvent:
+      type: object
+      properties:
+        id: { type: string }
+        communityId: { type: string }
+        kind: { type: string, enum: [import, memory, proposal, published, rsvp, page_view] }
+        payload: { type: object }
+        createdAt: { type: string, format: date-time }
+    Application:
+      type: object
+      properties:
+        id: { type: string }
+        communityId: { type: string }
+        applicant: { type: string }
+        answers: { type: string }
+        score: { type: integer }
+        decision: { type: string, enum: [pending, accept, ask, decline] }
+        reason: { type: string }
+    BlocklistEntry:
+      type: object
+      properties:
+        id: { type: string }
+        communityId: { type: string }
+        hash: { type: string, description: sha256 of lowercased applicant }
+        evidence: { type: string }
+        reporter: { type: string }
+        confirmed: { type: boolean }
+    AutopilotArtifact:
+      type: object
+      properties:
+        id: { type: string }
+        eventId: { type: string }
+        communityId: { type: string }
+        kind: { type: string, enum: [run_sheet, post, newsletter] }
+        body: { type: string }
+    WebhookSubscription:
+      type: object
+      properties:
+        id: { type: string }
+        communityId: { type: string }
+        url: { type: string, format: uri }
+        secret: { type: string, description: "whsec_… — returned once at creation" }
+        kinds: { type: array, items: { type: string } }
+        createdAt: { type: string, format: date-time }
+    PublicCommunity:
+      type: object
+      properties:
+        name: { type: string }
+        slug: { type: string }
+        joinUrl: { type: string, nullable: true }
+        qrSvg: { type: string }
+        events: { type: array, items: { type: object, properties: { slug: { type: string }, title: { type: string } } } }
+    PublicEvent:
+      type: object
+      properties:
+        slug: { type: string }
+        title: { type: string }
+        explanation: { type: string, nullable: true }
+        qrSvg: { type: string }
+        startsAt: { type: string, format: date-time, nullable: true }
+        publishedAt: { type: string, format: date-time }
+        community: { type: object, properties: { name: { type: string }, slug: { type: string } } }
+        venue: { anyOf: [{ type: object, properties: { name: { type: string }, area: { type: string, nullable: true } } }, { type: "null" }] }
+        speakers: { type: array, items: { type: object, properties: { name: { type: string }, slug: { type: string, nullable: true } } } }
+    PublicMember:
+      type: object
+      properties:
+        name: { type: string }
+        slug: { type: string }
+        do: { type: string, nullable: true }
+        offer: { type: string, nullable: true }
+    WorkspaceExport:
+      type: object
+      description: Full archive — `messages` carries metadata only, no bodies.
+      properties:
+        version: { type: integer }
+        exportedAt: { type: string, format: date-time }
+        workspace: { $ref: "#/components/schemas/Workspace" }
+        sources: { type: array, items: { type: object } }
+        members: { type: array, items: { $ref: "#/components/schemas/Member" } }
+        demands: { type: array, items: { $ref: "#/components/schemas/Demand" } }
+        proposals: { type: array, items: { $ref: "#/components/schemas/Proposal" } }
+        venues: { type: array, items: { $ref: "#/components/schemas/Venue" } }
+        sponsors: { type: array, items: { $ref: "#/components/schemas/Sponsor" } }
+        resources: { type: array, items: { $ref: "#/components/schemas/Resource" } }
+        files: { type: array, items: { $ref: "#/components/schemas/FileRecord" } }
+        events: { type: array, items: { $ref: "#/components/schemas/EventRecord" } }
+        guests: { type: array, items: { $ref: "#/components/schemas/Guest" } }
+        citations: { type: array, items: { $ref: "#/components/schemas/Citation" } }
+        timeline: { type: array, items: { $ref: "#/components/schemas/TimelineEvent" } }
+        applications: { type: array, items: { $ref: "#/components/schemas/Application" } }
+        blocklist: { type: array, items: { $ref: "#/components/schemas/BlocklistEntry" } }
+        artifacts: { type: array, items: { $ref: "#/components/schemas/AutopilotArtifact" } }
+        messages: { type: array, items: { type: object, description: metadata only — no bodies } }

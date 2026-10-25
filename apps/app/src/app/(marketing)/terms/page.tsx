@@ -5,8 +5,8 @@ export const metadata: Metadata = { title: "Terms" };
 
 const POINTS = [
   {
-    title: "Beta software",
-    body: "The hosted instance is a beta provided as-is, without warranties or SLAs. The software itself is MIT licensed — your best guarantee is the source.",
+    title: "Open source, as-is",
+    body: "Community OS is MIT licensed software provided as-is, without warranties or SLAs. Your best guarantee is the source — read it, run it, fork it.",
   },
   {
     title: "Your content",
@@ -14,7 +14,7 @@ const POINTS = [
   },
   {
     title: "Acceptable use",
-    body: "Don't use the product to spam, scrape, or build profiles of people without a legitimate community purpose. API tokens act as you — keep them secret and revoke them if exposed.",
+    body: "Don't use the product to spam, scrape, or build profiles of people without a legitimate community purpose. The API has no access control — run it where you trust the network.",
   },
   {
     title: "No liability for generated drafts",
@@ -22,7 +22,7 @@ const POINTS = [
   },
   {
     title: "Changes",
-    body: "The product and these terms may change while in beta. Continued use after changes means acceptance.",
+    body: "The product may change between releases. Pin a version or follow the changelog if you need stability.",
   },
 ];
 

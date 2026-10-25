@@ -35,19 +35,19 @@ const FAQ = [
   },
   {
     q: "Who sees my community's data?",
-    a: "Only members of your workspace. Public pages (/c, /e, /m) show only what's published and opted-in.",
+    a: "Whoever can reach your deployment — there are no accounts, so run it on a machine or network you trust. Public pages (/c, /e, /m) show only what's published and opted-in.",
   },
   {
     q: "Can my agents use it?",
-    a: "Yes — the product is the HTTP API, plus an MCP adapter. Mint a cos_ token in Settings → Agent access and point any client at /v1.",
+    a: "Yes — the product is the HTTP API, plus an MCP adapter. Point any client at /v1 or /mcp; there's nothing to mint or sign.",
   },
   {
     q: "Is it open source?",
-    a: "Yes — MIT licensed. Self-host the API and the app, or use the hosted beta.",
+    a: "Yes — MIT licensed, head to toe. Self-host the API and the app; a hosted edition is a separate layer.",
   },
   {
     q: "What does it cost?",
-    a: "Self-hosting is free forever. The hosted beta is free; a paid tier is planned for larger workspaces. No billing today.",
+    a: "Nothing. It's open source — you pay for your own Postgres (Neon's free tier works).",
   },
 ];
 
@@ -65,8 +65,8 @@ export default function HomePage() {
         </p>
         <div className="mb-10 flex flex-wrap gap-3">
           <Button size="lg" asChild>
-            <Link href="/sign-up" className="text-primary-foreground no-underline">
-              Get started <ArrowRight className="size-4" />
+            <Link href="/desk" className="text-primary-foreground no-underline">
+              Open the desk <ArrowRight className="size-4" />
             </Link>
           </Button>
           <Button size="lg" variant="outline" asChild>
@@ -111,8 +111,8 @@ export default function HomePage() {
         <Kicker>built for agents</Kicker>
         <h2 className="mb-2 text-xl font-semibold tracking-tight">Humans and agents, same routes.</h2>
         <p className="text-muted-foreground mb-5 max-w-xl text-sm">
-          The product is the HTTP API. This app and the MCP adapter are just clients — a{" "}
-          <code className="font-mono text-xs">cos_</code> token acts as you over <code className="font-mono text-xs">/v1</code>.
+          The product is the HTTP API. This app and the MCP adapter are just clients — no tokens, no sign-up,
+          <code className="font-mono text-xs"> /v1</code> is open on your own deployment.
         </p>
         <Card className="gap-2 py-4">
           <CardContent className="space-y-3">
@@ -123,10 +123,9 @@ export default function HomePage() {
                 </code>
               ))}
             </div>
-            <pre className="bg-background text-muted-foreground overflow-x-auto rounded-md border p-3 font-mono text-xs">{`curl -H "authorization: Bearer cos_…" \\
-  http://localhost:5173/v1/search?q=speakers`}</pre>
+            <pre className="bg-background text-muted-foreground overflow-x-auto rounded-md border p-3 font-mono text-xs">{`curl http://localhost:5173/v1/search?q=speakers`}</pre>
             <p className="text-muted-foreground text-xs">
-              no send_message — agents draft, humans send. Mint tokens in Settings → Agent access.
+              no send_message — agents draft, humans send.
             </p>
           </CardContent>
         </Card>
@@ -181,7 +180,7 @@ export default function HomePage() {
       <section className="border-border border-t py-14 text-center">
         <h2 className="mb-4 text-2xl font-semibold tracking-tight">Run next week from the desk, not the scroll.</h2>
         <Button size="lg" asChild>
-          <Link href="/sign-up" className="text-primary-foreground no-underline">
+          <Link href="/desk" className="text-primary-foreground no-underline">
             start with your community <ArrowRight className="size-4" />
           </Link>
         </Button>

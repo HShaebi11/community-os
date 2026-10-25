@@ -3,14 +3,12 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { createCosMcpServer } from "./server.ts";
 
 const base = process.env.COMMUNITY_OS_API_URL ?? "http://localhost:5173";
-const token = process.env.COMMUNITY_OS_TOKEN ?? "";
 const workspaceId = process.env.COMMUNITY_OS_WORKSPACE_ID ?? "";
 
 async function api(path: string, init?: RequestInit) {
   const res = await fetch(`${base}${path}`, {
     ...init,
     headers: {
-      authorization: `Bearer ${token}`,
       "content-type": "application/json",
       ...(init?.headers ?? {}),
     },

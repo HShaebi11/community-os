@@ -1,26 +1,20 @@
+import { createHmac } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { MemoryStore } from "@community-os/core";
 import { describe, expect, it } from "vitest";
-import { createApp } from "./app.ts";
-import type { Auth } from "./auth.ts";
+import { createApp, type WebhookDelivery } from "./app.ts";
 
 const chat = readFileSync(
   join(dirname(fileURLToPath(import.meta.url)), "../../../fixtures/whatsapp-sample/_chat.txt"),
 );
 
+const headers = { "content-type": "application/json" };
+
 describe("kernel API", () => {
-  it("curl path: auth → workspace → import → members", async () => {
+  it("curl path: workspace → import → members", async () => {
     const app = createApp(new MemoryStore());
-    const auth = await app.request("/v1/auth/dev", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ email: "lead@example.com" }),
-    });
-    expect(auth.status).toBe(200);
-    const { token } = (await auth.json()) as { token: string };
-    const headers = { authorization: `Bearer ${token}`, "content-type": "application/json" };
 
     const ws = await app.request("/v1/workspaces", {
       method: "POST",
@@ -32,7 +26,7 @@ describe("kernel API", () => {
 
     const imported = await app.request(`/v1/workspaces/${workspace.id}/imports?filename=_chat.txt`, {
       method: "POST",
-      headers: { authorization: `Bearer ${token}`, "content-type": "text/plain" },
+      headers: { "content-type": "text/plain" },
       body: chat,
     });
     const result = (await imported.json()) as { inserted: number; members: unknown[] };
@@ -40,20 +34,13 @@ describe("kernel API", () => {
     expect(result.inserted).toBeGreaterThan(0);
     expect(result.members.length).toBeGreaterThan(2);
 
-    const members = await app.request(`/v1/workspaces/${workspace.id}/members`, { headers });
+    const members = await app.request(`/v1/workspaces/${workspace.id}/members`);
     const list = (await members.json()) as unknown[];
     expect(list.length).toBe(result.members.length);
   });
 
   it("curl path: import → memory → cited member and demand cards", async () => {
     const app = createApp(new MemoryStore());
-    const auth = await app.request("/v1/auth/dev", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ email: "lead@example.com" }),
-    });
-    const { token } = (await auth.json()) as { token: string };
-    const headers = { authorization: `Bearer ${token}`, "content-type": "application/json" };
 
     const ws = await app.request("/v1/workspaces", {
       method: "POST",
@@ -64,11 +51,11 @@ describe("kernel API", () => {
 
     await app.request(`/v1/workspaces/${workspace.id}/imports?filename=_chat.txt`, {
       method: "POST",
-      headers: { authorization: `Bearer ${token}`, "content-type": "text/plain" },
+      headers: { "content-type": "text/plain" },
       body: chat,
     });
 
-    const memoryRes = await app.request(`/v1/workspaces/${workspace.id}/memory`, { method: "POST", headers });
+    const memoryRes = await app.request(`/v1/workspaces/${workspace.id}/memory`, { method: "POST" });
     expect(memoryRes.status).toBe(200);
     const memory = (await memoryRes.json()) as {
       members: Array<{ id: string; do: string | null; want: string | null; offer: string | null }>;
@@ -79,12 +66,12 @@ describe("kernel API", () => {
     expect(memory.demands.length).toBeGreaterThan(0);
 
     const filled = memory.members.find((m) => m.do || m.want || m.offer)!;
-    const cardRes = await app.request(`/v1/members/${filled.id}`, { headers });
+    const cardRes = await app.request(`/v1/members/${filled.id}`);
     const card = (await cardRes.json()) as { citations: Array<{ quote: string }> };
     expect(cardRes.status).toBe(200);
     expect(card.citations.length).toBeGreaterThan(0);
 
-    const briefRes = await app.request(`/v1/workspaces/${workspace.id}/briefing`, { headers });
+    const briefRes = await app.request(`/v1/workspaces/${workspace.id}/briefing`);
     const brief = (await briefRes.json()) as {
       people: number;
       topDemands: unknown[];
@@ -94,26 +81,19 @@ describe("kernel API", () => {
     expect(brief.topDemands.length).toBeGreaterThan(0);
     expect(brief.resources.some((r) => r.url.includes("example.com/community-os-notes"))).toBe(true);
 
-    const demandRes = await app.request(`/v1/demands/${memory.demands[0].id}`, { headers });
+    const demandRes = await app.request(`/v1/demands/${memory.demands[0].id}`);
     const demand = (await demandRes.json()) as { title: string | null; citations: unknown[] };
     expect(demandRes.status).toBe(200);
     expect(demand.title).toBeTruthy();
     expect(demand.citations.length).toBeGreaterThan(0);
 
-    const resources = await app.request(`/v1/workspaces/${workspace.id}/resources`, { headers });
+    const resources = await app.request(`/v1/workspaces/${workspace.id}/resources`);
     const list = (await resources.json()) as Array<{ url: string }>;
     expect(list.some((r) => r.url === "https://example.com/community-os-notes")).toBe(true);
   });
 
   it("curl path: demand → proposal pack → approve → outreach", async () => {
     const app = createApp(new MemoryStore());
-    const auth = await app.request("/v1/auth/dev", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ email: "lead@example.com" }),
-    });
-    const { token } = (await auth.json()) as { token: string };
-    const headers = { authorization: `Bearer ${token}`, "content-type": "application/json" };
 
     const ws = await app.request("/v1/workspaces", {
       method: "POST",
@@ -124,11 +104,11 @@ describe("kernel API", () => {
 
     await app.request(`/v1/workspaces/${workspace.id}/imports?filename=_chat.txt`, {
       method: "POST",
-      headers: { authorization: `Bearer ${token}`, "content-type": "text/plain" },
+      headers: { "content-type": "text/plain" },
       body: chat,
     });
 
-    const memoryRes = await app.request(`/v1/workspaces/${workspace.id}/memory`, { method: "POST", headers });
+    const memoryRes = await app.request(`/v1/workspaces/${workspace.id}/memory`, { method: "POST" });
     const memory = (await memoryRes.json()) as { demands: Array<{ id: string }> };
     expect(memory.demands.length).toBeGreaterThan(0);
 
@@ -159,18 +139,18 @@ describe("kernel API", () => {
     expect(pack.explanation).toBeTruthy();
     expect(pack.citations.length).toBeGreaterThan(0);
 
-    const got = await app.request(`/v1/proposals/${pack.id}`, { headers });
+    const got = await app.request(`/v1/proposals/${pack.id}`);
     expect(got.status).toBe(200);
     const opened = (await got.json()) as { id: string; speakers: unknown[] };
     expect(opened.id).toBe(pack.id);
     expect(opened.speakers.length).toBe(pack.speakers.length);
 
-    const approved = await app.request(`/v1/proposals/${pack.id}/approve`, { method: "POST", headers });
+    const approved = await app.request(`/v1/proposals/${pack.id}/approve`, { method: "POST" });
     expect(approved.status).toBe(200);
     const approvedPack = (await approved.json()) as { status: string };
     expect(approvedPack.status).toBe("approved");
 
-    const outreach = await app.request(`/v1/proposals/${pack.id}/outreach`, { method: "POST", headers });
+    const outreach = await app.request(`/v1/proposals/${pack.id}/outreach`, { method: "POST" });
     expect(outreach.status).toBe(200);
     const drafted = (await outreach.json()) as { outreachDraft: string | null };
     expect(drafted.outreachDraft).toMatch(/Weird Stuff/);
@@ -178,13 +158,6 @@ describe("kernel API", () => {
 
   it("curl path: go-live → public pages → RSVP → guests", async () => {
     const app = createApp(new MemoryStore());
-    const auth = await app.request("/v1/auth/dev", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ email: "lead@example.com" }),
-    });
-    const { token } = (await auth.json()) as { token: string };
-    const headers = { authorization: `Bearer ${token}`, "content-type": "application/json" };
 
     const ws = await app.request("/v1/workspaces", {
       method: "POST",
@@ -195,10 +168,10 @@ describe("kernel API", () => {
 
     await app.request(`/v1/workspaces/${workspace.id}/imports?filename=_chat.txt`, {
       method: "POST",
-      headers: { authorization: `Bearer ${token}`, "content-type": "text/plain" },
+      headers: { "content-type": "text/plain" },
       body: chat,
     });
-    const memoryRes = await app.request(`/v1/workspaces/${workspace.id}/memory`, { method: "POST", headers });
+    const memoryRes = await app.request(`/v1/workspaces/${workspace.id}/memory`, { method: "POST" });
     const memory = (await memoryRes.json()) as { demands: Array<{ id: string }>; members: Array<{ id: string }> };
     await app.request(`/v1/workspaces/${workspace.id}/venues`, {
       method: "POST",
@@ -211,18 +184,18 @@ describe("kernel API", () => {
       body: JSON.stringify({ demandId: memory.demands[0].id }),
     });
     const pack = (await created.json()) as { id: string; speakers: Array<{ id: string }> };
-    await app.request(`/v1/proposals/${pack.id}/approve`, { method: "POST", headers });
-    const live = await app.request(`/v1/proposals/${pack.id}/go-live`, { method: "POST", headers });
+    await app.request(`/v1/proposals/${pack.id}/approve`, { method: "POST" });
+    const live = await app.request(`/v1/proposals/${pack.id}/go-live`, { method: "POST" });
     expect(live.status).toBe(200);
     const event = (await live.json()) as { id: string; slug: string; title: string };
 
     const rsvpRes = await app.request(`/v1/public/events/${event.slug}/rsvp`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers,
       body: JSON.stringify({ name: "Guest", email: "guest@example.com" }),
     });
     expect(rsvpRes.status).toBe(201);
-    const guests = await app.request(`/v1/events/${event.id}/guests`, { headers });
+    const guests = await app.request(`/v1/events/${event.id}/guests`);
     const list = (await guests.json()) as Array<{ email: string }>;
     expect(list.some((g) => g.email === "guest@example.com")).toBe(true);
 
@@ -261,7 +234,7 @@ describe("kernel API", () => {
     const publicBody = (await publicMember.json()) as Record<string, unknown>;
     expect(publicBody.want).toBeUndefined();
 
-    const chain = await app.request(`/v1/events/${event.id}/chain`, { headers });
+    const chain = await app.request(`/v1/events/${event.id}/chain`);
     expect(chain.status).toBe(200);
     const privateChain = (await chain.json()) as { messages: unknown[] };
     expect(privateChain.messages.length).toBeGreaterThan(0);
@@ -269,13 +242,6 @@ describe("kernel API", () => {
 
   it("desk and search are clients of the same /v1 memory", async () => {
     const app = createApp(new MemoryStore());
-    const auth = await app.request("/v1/auth/dev", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ email: "lead@example.com" }),
-    });
-    const { token } = (await auth.json()) as { token: string };
-    const headers = { authorization: `Bearer ${token}`, "content-type": "application/json" };
     const ws = await app.request("/v1/workspaces", {
       method: "POST",
       headers,
@@ -284,86 +250,40 @@ describe("kernel API", () => {
     const workspace = (await ws.json()) as { id: string };
     await app.request(`/v1/workspaces/${workspace.id}/imports?filename=_chat.txt`, {
       method: "POST",
-      headers: { authorization: `Bearer ${token}`, "content-type": "text/plain" },
+      headers: { "content-type": "text/plain" },
       body: chat,
     });
-    await app.request(`/v1/workspaces/${workspace.id}/memory`, { method: "POST", headers });
-    const search = await app.request("/v1/search?q=workshop", { headers });
+    await app.request(`/v1/workspaces/${workspace.id}/memory`, { method: "POST" });
+    const search = await app.request("/v1/search?q=workshop");
     expect(search.status).toBe(200);
     const hits = (await search.json()) as Array<{ type: string }>;
     expect(hits.some((h) => h.type === "member" || h.type === "demand")).toBe(true);
   });
 });
 
-describe("auth modes and workspace admin", () => {
-  async function devToken(app: ReturnType<typeof createApp>, email = "lead@example.com") {
-    const res = await app.request("/v1/auth/dev", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ email }),
-    });
-    const { token } = (await res.json()) as { token: string };
-    return { authorization: `Bearer ${token}`, "content-type": "application/json" };
-  }
-
-  it("hides dev auth when allowDevAuth is false", async () => {
-    const app = createApp(new MemoryStore(), undefined, { allowDevAuth: false });
-    const res = await app.request("/v1/auth/dev", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ email: "lead@example.com" }),
-    });
-    expect(res.status).toBe(404);
-    const providers = await app.request("/v1/auth/providers");
-    const body = (await providers.json()) as { devAuth: boolean };
-    expect(body.devAuth).toBe(false);
-  });
-
-  it("agent token lifecycle: mint, use, list, no mint from token, revoke", async () => {
+describe("open access", () => {
+  it("every route is reachable without credentials", async () => {
     const app = createApp(new MemoryStore());
-    const headers = await devToken(app);
-
-    const created = await app.request("/v1/tokens", {
+    const res = await app.request("/v1/workspaces", {
       method: "POST",
       headers,
-      body: JSON.stringify({ name: "mcp" }),
+      body: JSON.stringify({ name: "No Keys" }),
     });
-    expect(created.status).toBe(201);
-    const token = (await created.json()) as { id: string; token: string; prefix: string };
-    expect(token.token.startsWith("cos_")).toBe(true);
-    expect(token.prefix).toBe(token.token.slice(0, 8));
-
-    const cos = { authorization: `Bearer ${token.token}`, "content-type": "application/json" };
-    const workspaces = await app.request("/v1/workspaces", { headers: cos });
-    expect(workspaces.status).toBe(200);
-
-    const list = await app.request("/v1/tokens", { headers });
-    const tokens = (await list.json()) as Array<Record<string, unknown>>;
-    expect(tokens.length).toBe(1);
-    expect(tokens[0].token).toBeUndefined();
-    expect(tokens[0].tokenHash).toBeUndefined();
-
-    const minted = await app.request("/v1/tokens", { method: "POST", headers: cos, body: JSON.stringify({ name: "x" }) });
-    expect(minted.status).toBe(403);
-
-    const revoked = await app.request(`/v1/tokens/${token.id}`, { method: "DELETE", headers });
-    expect(revoked.status).toBe(200);
-    const after = await app.request("/v1/workspaces", { headers: cos });
-    expect(after.status).toBe(401);
+    expect(res.status).toBe(201);
+    const workspace = (await res.json()) as { id: string; createdBy: string };
+    expect(workspace.createdBy).toBe("local");
   });
 
-  it("workspaces list includes the caller role", async () => {
+  it("workspaces list marks every workspace as owner", async () => {
     const app = createApp(new MemoryStore());
-    const headers = await devToken(app);
     await app.request("/v1/workspaces", { method: "POST", headers, body: JSON.stringify({ name: "Weird Stuff" }) });
-    const res = await app.request("/v1/workspaces", { headers });
+    const res = await app.request("/v1/workspaces");
     const list = (await res.json()) as Array<{ role: string }>;
     expect(list[0].role).toBe("owner");
   });
 
-  it("by-slug resolves for a lead and 404s for another user", async () => {
+  it("by-slug resolves for anyone", async () => {
     const app = createApp(new MemoryStore());
-    const headers = await devToken(app);
     const created = await app.request("/v1/workspaces", {
       method: "POST",
       headers,
@@ -371,20 +291,15 @@ describe("auth modes and workspace admin", () => {
     });
     const workspace = (await created.json()) as { slug: string };
 
-    const res = await app.request(`/v1/workspaces/by-slug/${workspace.slug}`, { headers });
+    const res = await app.request(`/v1/workspaces/by-slug/${workspace.slug}`);
     expect(res.status).toBe(200);
     const body = (await res.json()) as { slug: string; role: string };
     expect(body.slug).toBe(workspace.slug);
     expect(body.role).toBe("owner");
-
-    const other = await devToken(app, "other@example.com");
-    const denied = await app.request(`/v1/workspaces/by-slug/${workspace.slug}`, { headers: other });
-    expect([403, 404]).toContain(denied.status);
   });
 
-  it("PATCH workspace updates the name and rejects non-leads", async () => {
+  it("PATCH workspace updates name and join url", async () => {
     const app = createApp(new MemoryStore());
-    const headers = await devToken(app);
     const created = await app.request("/v1/workspaces", {
       method: "POST",
       headers,
@@ -401,91 +316,104 @@ describe("auth modes and workspace admin", () => {
     const body = (await patched.json()) as { name: string; joinUrl: string };
     expect(body.name).toBe("Weirder Stuff");
     expect(body.joinUrl).toBe("https://chat.example.com/x");
-
-    const other = await devToken(app, "other@example.com");
-    const denied = await app.request(`/v1/workspaces/${workspace.id}`, {
-      method: "PATCH",
-      headers: other,
-      body: JSON.stringify({ name: "Hijack" }),
-    });
-    expect(denied.status).toBe(403);
   });
+});
 
-  it("cookie auth enforces the Origin check on writes", async () => {
-    const stubAuth = {
-      api: {
-        getSession: async () => ({
-          user: { id: "cookie-user", email: "cookie@example.com", name: "Cookie" },
-          session: { id: "s1" },
-        }),
+describe("webhooks", () => {
+  it("delivers signed events to matching subscriptions only", async () => {
+    const deliveries: WebhookDelivery[] = [];
+    const app = createApp(new MemoryStore(), {
+      deliverWebhook: (d) => {
+        deliveries.push(d);
       },
-    } as unknown as Auth;
-    const app = createApp(new MemoryStore(), stubAuth, {
-      allowDevAuth: true,
-      appOrigins: ["http://localhost:3002"],
     });
 
-    const evil = await app.request("/v1/workspaces", {
-      method: "POST",
-      headers: { "content-type": "application/json", origin: "https://evil.test" },
-      body: JSON.stringify({ name: "Nope" }),
-    });
-    expect(evil.status).toBe(403);
-
-    const trusted = await app.request("/v1/workspaces", {
-      method: "POST",
-      headers: { "content-type": "application/json", origin: "http://localhost:3002" },
-      body: JSON.stringify({ name: "From Cookie" }),
-    });
-    expect(trusted.status).toBe(201);
-
-    const me = await app.request("/v1/me");
-    expect(me.status).toBe(200);
-    const meBody = (await me.json()) as { authKind: string; userId: string };
-    expect(meBody.authKind).toBe("cookie");
-    expect(meBody.userId).toBe("cookie-user");
-
-    const headers = await devToken(app);
-    const bearer = await app.request("/v1/workspaces", {
+    const ws = await app.request("/v1/workspaces", {
       method: "POST",
       headers,
-      body: JSON.stringify({ name: "From Bearer" }),
+      body: JSON.stringify({ name: "Weird Stuff" }),
     });
-    expect(bearer.status).toBe(201);
+    const workspace = (await ws.json()) as { id: string };
+
+    const subRes = await app.request(`/v1/workspaces/${workspace.id}/webhooks`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ url: "https://hooks.example.com/imports", kinds: ["import"] }),
+    });
+    expect(subRes.status).toBe(201);
+    const sub = (await subRes.json()) as { id: string; secret: string; kinds: string[] };
+    expect(sub.secret).toMatch(/^whsec_/);
+    expect(sub.kinds).toEqual(["import"]);
+
+    const anyRes = await app.request(`/v1/workspaces/${workspace.id}/webhooks`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ url: "https://hooks.example.com/all" }),
+    });
+    expect(anyRes.status).toBe(201);
+
+    const listRes = await app.request(`/v1/workspaces/${workspace.id}/webhooks`);
+    const list = (await listRes.json()) as Array<{ id: string; secret?: string }>;
+    expect(list.length).toBe(2);
+    expect(list.every((s) => s.secret === undefined)).toBe(true);
+
+    const imported = await app.request(`/v1/workspaces/${workspace.id}/imports?filename=_chat.txt`, {
+      method: "POST",
+      headers: { "content-type": "text/plain" },
+      body: chat,
+    });
+    expect(imported.status).toBe(200);
+
+    expect(deliveries.length).toBe(2);
+    const targeted = deliveries.find((d) => d.url === "https://hooks.example.com/imports")!;
+    const payload = JSON.parse(targeted.body) as { kind: string; workspaceId: string; data: { inserted: number } };
+    expect(payload.kind).toBe("import");
+    expect(payload.workspaceId).toBe(workspace.id);
+    expect(payload.data.inserted).toBeGreaterThan(0);
+    expect(targeted.headers["x-communityos-event"]).toBe("import");
+
+    const expected = createHmac("sha256", sub.secret).update(targeted.body).digest("hex");
+    expect(targeted.headers["x-communityos-signature"]).toBe(`sha256=${expected}`);
   });
 
-  it("allowDevAuth trusts cookie writes from any loopback origin", async () => {
-    const stubAuth = {
-      api: {
-        getSession: async () => ({
-          user: { id: "cookie-user", email: "cookie@example.com", name: "Cookie" },
-          session: { id: "s1" },
-        }),
+  it("rejects non-http urls and removes subscriptions on delete", async () => {
+    const deliveries: WebhookDelivery[] = [];
+    const app = createApp(new MemoryStore(), {
+      deliverWebhook: (d) => {
+        deliveries.push(d);
       },
-    } as unknown as Auth;
-    const appOrigins = ["http://localhost:3002"];
-
-    const devApp = createApp(new MemoryStore(), stubAuth, { allowDevAuth: true, appOrigins });
-    const preview = await devApp.request("/v1/workspaces", {
-      method: "POST",
-      headers: { "content-type": "application/json", origin: "http://127.0.0.1:57919" },
-      body: JSON.stringify({ name: "Preview Community" }),
     });
-    expect(preview.status).toBe(201);
-
-    const prodApp = createApp(new MemoryStore(), stubAuth, { allowDevAuth: false, appOrigins });
-    const denied = await prodApp.request("/v1/workspaces", {
+    const ws = await app.request("/v1/workspaces", {
       method: "POST",
-      headers: { "content-type": "application/json", origin: "http://127.0.0.1:57919" },
-      body: JSON.stringify({ name: "Preview Community" }),
+      headers,
+      body: JSON.stringify({ name: "Weird Stuff" }),
     });
-    expect(denied.status).toBe(403);
+    const workspace = (await ws.json()) as { id: string };
 
-    const evil = await devApp.request("/v1/workspaces", {
+    const bad = await app.request(`/v1/workspaces/${workspace.id}/webhooks`, {
       method: "POST",
-      headers: { "content-type": "application/json", origin: "https://evil.test" },
-      body: JSON.stringify({ name: "Nope" }),
+      headers,
+      body: JSON.stringify({ url: "not-a-url" }),
     });
-    expect(evil.status).toBe(403);
+    expect(bad.status).toBe(400);
+
+    const subRes = await app.request(`/v1/workspaces/${workspace.id}/webhooks`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ url: "https://hooks.example.com/x" }),
+    });
+    const sub = (await subRes.json()) as { id: string };
+
+    const del = await app.request(`/v1/webhooks/${sub.id}`, { method: "DELETE" });
+    expect(del.status).toBe(200);
+    const again = await app.request(`/v1/webhooks/${sub.id}`, { method: "DELETE" });
+    expect(again.status).toBe(404);
+
+    await app.request(`/v1/workspaces/${workspace.id}/imports?filename=_chat.txt`, {
+      method: "POST",
+      headers: { "content-type": "text/plain" },
+      body: chat,
+    });
+    expect(deliveries.length).toBe(0);
   });
 });

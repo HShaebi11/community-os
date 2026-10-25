@@ -20,7 +20,7 @@ export default function DeskResolver() {
           router.replace(`/w/${target.slug}`);
         }
       } catch {
-        router.replace("/sign-in?next=/desk");
+        router.replace("/onboarding");
       }
     })();
   }, [router]);

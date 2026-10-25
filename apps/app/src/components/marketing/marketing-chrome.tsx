@@ -27,14 +27,9 @@ export function MarketingChrome({ children }: { children: React.ReactNode }) {
             ))}
           </nav>
           <div className="ml-auto flex items-center gap-2">
-            <Button variant="ghost" size="sm" asChild>
-              <Link href="/sign-in" className="no-underline">
-                Sign in
-              </Link>
-            </Button>
             <Button size="sm" asChild>
-              <Link href="/sign-up" className="text-primary-foreground no-underline">
-                Get started
+              <Link href="/desk" className="text-primary-foreground no-underline">
+                Open the desk
               </Link>
             </Button>
           </div>

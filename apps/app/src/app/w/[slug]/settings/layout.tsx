@@ -7,8 +7,7 @@ import { cn } from "@/lib/utils";
 
 const TABS = [
   { path: "", label: "General" },
-  { path: "/team", label: "Team" },
-  { path: "/agents", label: "Agent access" },
+  { path: "/agents", label: "Agents" },
 ];
 
 export default function SettingsLayout({

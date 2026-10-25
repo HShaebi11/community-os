@@ -5,8 +5,8 @@ export const metadata: Metadata = { title: "Privacy" };
 
 const POINTS = [
   {
-    title: "What we store",
-    body: "Your account (name, email, hashed password or OAuth identity), your workspaces, and the chat exports you import — stored in Postgres and used only to build your community's memory.",
+    title: "What it stores",
+    body: "Workspaces and the chat exports you import — stored in your Postgres and used only to build your community's memory. There are no accounts, passwords, or user records; self-hosted data never leaves your deployment.",
   },
   {
     title: "Chat stays private",
@@ -17,16 +17,12 @@ const POINTS = [
     body: "Public pages (/c, /e, /m) only display content a lead published and members opted into. Nothing is public by default.",
   },
   {
-    title: "Email delivery",
-    body: "Sign-in links, invitations and reset links are sent through the configured email provider (Resend). Without one, links appear in a dev outbox instead.",
-  },
-  {
-    title: "Beta status",
-    body: "This is a beta. We aim for the behavior described here but make no guarantees about availability or retention yet. Self-host if you need full control.",
+    title: "No tracking",
+    body: "The software ships with no analytics, telemetry, or email delivery. What you self-host is what it does — the source is the spec.",
   },
   {
     title: "Delete your data",
-    body: "Your workspaces live in one database you can export or drop at any time. Contact the maintainer of your hosted instance for account deletion.",
+    body: "Your workspaces live in one database you can export (GET /v1/workspaces/:id/export) or drop at any time. You hold the database; you hold the data.",
   },
 ];
 

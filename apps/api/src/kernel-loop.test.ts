@@ -9,18 +9,11 @@ const chat = readFileSync(
   join(dirname(fileURLToPath(import.meta.url)), "../../../fixtures/whatsapp-sample/_chat.txt"),
 );
 
+const headers = { "content-type": "application/json" };
+
 describe("kernel loop", () => {
   it("import → memory → members (citations) → proposal → go-live → RSVP → guests", async () => {
     const app = createApp(new MemoryStore());
-
-    const authRes = await app.request("/v1/auth/dev", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ email: "lead@example.com" }),
-    });
-    expect(authRes.status).toBe(200);
-    const { token } = (await authRes.json()) as { token: string };
-    const headers = { authorization: `Bearer ${token}`, "content-type": "application/json" };
 
     const wsRes = await app.request("/v1/workspaces", {
       method: "POST",
@@ -32,7 +25,7 @@ describe("kernel loop", () => {
 
     const importRes = await app.request(`/v1/workspaces/${workspace.id}/imports?filename=_chat.txt`, {
       method: "POST",
-      headers: { authorization: `Bearer ${token}`, "content-type": "text/plain" },
+      headers: { "content-type": "text/plain" },
       body: chat,
     });
     expect(importRes.status).toBe(200);

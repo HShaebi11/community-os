@@ -8,7 +8,7 @@ Start here: [Linear: Start here](https://linear.app/interfaces-co/document/start
 
 Give us one community habitat. We keep listening or syncing. We keep cited memory. Humans and agents use the same `/v1` functions. They own the event page and guest list. We never post in the chat.
 
-**Phase A is done when** a real lead (not the maintainer) can: sign up or self-host → import or connect Discord → see cited cards and demand → go live (event URL, QR, RSVP) → guests in the workspace → mint `cos_` and use Cursor (`search_memory` / `create_proposal` / `draft_message`, no send) → export and leave. They come back a week later; memory still matches the chat.
+**Phase A is done when** a real lead (not the maintainer) can: self-host → import or connect Discord → see cited cards and demand → go live (event URL, QR, RSVP) → guests in the workspace → point Cursor at `/mcp` (`search_memory` / `create_proposal` / `draft_message`, no send) → export and leave. They come back a week later; memory still matches the chat.
 
 Until that is true, do not add gatekeeper, venues, Cognee, city directories, or auto-post.
 

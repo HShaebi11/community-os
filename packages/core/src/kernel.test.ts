@@ -41,8 +41,7 @@ describe("whatsapp import", () => {
 describe("kernel loop", () => {
   it("imports, remembers, proposes, publishes, and RSVPs", async () => {
     const store = new MemoryStore();
-    const lead = await store.upsertUser("lead@example.com");
-    const workspace = await store.createWorkspace({ name: "Weird Stuff", createdBy: lead.id });
+    const workspace = await store.createWorkspace({ name: "Weird Stuff", createdBy: "local" });
     const imported = await importWhatsApp(store, workspace.id, fixture, []);
     expect(imported.inserted).toBeGreaterThan(0);
     expect(imported.members.length).toBeGreaterThan(2);
@@ -67,7 +66,6 @@ describe("kernel loop", () => {
       area: "Hammersmith",
       capacity: 80,
       contact: "hello@venue.test",
-      userId: null,
     });
 
     const demand = memory.demands[0];
@@ -124,8 +122,7 @@ describe("kernel loop", () => {
 
   it("does not overwrite lead edits", async () => {
     const store = new MemoryStore();
-    const lead = await store.upsertUser("lead@example.com");
-    const workspace = await store.createWorkspace({ name: "Lab", createdBy: lead.id });
+    const workspace = await store.createWorkspace({ name: "Lab", createdBy: "local" });
     const member = await store.upsertMember(workspace.id, "Ada", new Date().toISOString());
     await store.updateMember(member.id, { do: "Lead-set: hosts nights" }, true);
     await store.updateMember(member.id, { do: "Model-set: would overwrite" }, false);
@@ -141,8 +138,7 @@ describe("kernel loop", () => {
 describe("trusted memory", () => {
   it("member cards cite the chat lines behind do, want and offer", async () => {
     const store = new MemoryStore();
-    const lead = await store.upsertUser("lead@example.com");
-    const workspace = await store.createWorkspace({ name: "Weird Stuff", createdBy: lead.id });
+    const workspace = await store.createWorkspace({ name: "Weird Stuff", createdBy: "local" });
     await importWhatsApp(store, workspace.id, fixture, []);
     await refreshMemory(store, workspace.id);
 
@@ -162,8 +158,7 @@ describe("trusted memory", () => {
 
   it("cites a chat line that wraps onto a second line", async () => {
     const store = new MemoryStore();
-    const lead = await store.upsertUser("lead@example.com");
-    const workspace = await store.createWorkspace({ name: "Lab", createdBy: lead.id });
+    const workspace = await store.createWorkspace({ name: "Lab", createdBy: "local" });
     const transcript = "[22/10/2026, 10:00:00] Ada: I teach evening classes\nand can host the group";
     await importWhatsApp(store, workspace.id, transcript, []);
     await refreshMemory(store, workspace.id);
@@ -179,8 +174,7 @@ describe("trusted memory", () => {
 
   it("a lead edit survives a second memory refresh", async () => {
     const store = new MemoryStore();
-    const lead = await store.upsertUser("lead@example.com");
-    const workspace = await store.createWorkspace({ name: "Lab", createdBy: lead.id });
+    const workspace = await store.createWorkspace({ name: "Lab", createdBy: "local" });
     await importWhatsApp(store, workspace.id, fixture, []);
     const first = await refreshMemory(store, workspace.id);
     const maya = first.members.find((m) => m.displayName === "Maya")!;

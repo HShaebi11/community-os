@@ -16,19 +16,15 @@ const MCP_HEADERS = {
 type JsonRpc = { jsonrpc: string; id?: number; method: string; params?: unknown };
 type StubExecutor = { execute: (code: string) => Promise<{ result: unknown }> };
 
-let token: string;
 let workspaceId: string;
 let app: ReturnType<typeof createApp>;
 let stubExecutor: StubExecutor | undefined;
 
-function rpc(path: string, message: JsonRpc, init?: { auth?: string | false }) {
+function rpc(path: string, message: JsonRpc) {
   return handleMcpRequest(
     new Request(`http://test.local${path}`, {
       method: "POST",
-      headers: {
-        ...MCP_HEADERS,
-        ...(init?.auth === false ? {} : { authorization: `Bearer ${init?.auth ?? token}` }),
-      },
+      headers: MCP_HEADERS,
       body: JSON.stringify(message),
     }),
     {
@@ -40,13 +36,7 @@ function rpc(path: string, message: JsonRpc, init?: { auth?: string | false }) {
 
 beforeAll(async () => {
   app = createApp(new MemoryStore());
-  const auth = await app.request("/v1/auth/dev", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ email: "lead@example.com" }),
-  });
-  token = ((await auth.json()) as { token: string }).token;
-  const headers = { authorization: `Bearer ${token}`, "content-type": "application/json" };
+  const headers = { "content-type": "application/json" };
   const ws = await app.request("/v1/workspaces", {
     method: "POST",
     headers,
@@ -55,16 +45,16 @@ beforeAll(async () => {
   workspaceId = ((await ws.json()) as { id: string }).id;
   await app.request(`/v1/workspaces/${workspaceId}/imports?filename=_chat.txt`, {
     method: "POST",
-    headers: { authorization: `Bearer ${token}` },
+    headers: { "content-type": "text/plain" },
     body: chat,
   });
   await app.request(`/v1/workspaces/${workspaceId}/memory`, { method: "POST", headers });
 });
 
 describe("POST /mcp", () => {
-  it("rejects requests without a bearer token", async () => {
-    const res = await rpc("/mcp", { jsonrpc: "2.0", id: 1, method: "initialize" }, { auth: false });
-    expect(res.status).toBe(401);
+  it("accepts requests without credentials", async () => {
+    const res = await rpc("/mcp", { jsonrpc: "2.0", id: 1, method: "initialize" });
+    expect(res.status).toBe(200);
   });
 
   it("lists the six /v1 tools and no send_message", async () => {

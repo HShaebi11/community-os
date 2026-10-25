@@ -6,45 +6,14 @@ export const metadata: Metadata = { title: "API Docs" };
 
 const SECTIONS: Array<{ title: string; routes: string[] }> = [
   {
-    title: "authentication",
+    title: "workspaces",
     routes: [
-      "POST /api/auth/sign-up/email — cookie session",
-      "POST /api/auth/sign-in/email — cookie session",
-      "POST /api/auth/sign-in/magic-link { email, callbackURL }",
-      "GET /api/auth/magic-link/verify — from the emailed link",
-      "POST /api/auth/request-password-reset { email, redirectTo }",
-      "POST /api/auth/reset-password { newPassword, token }",
-      "POST /api/auth/sign-in/social — Google when configured",
-      "POST /v1/auth/dev — local-only sign-in (ALLOW_DEV_AUTH)",
-      "GET /v1/me — works for cookie, session token, or cos_ token",
-      "GET /v1/auth/providers — what this deployment supports",
-    ],
-  },
-  {
-    title: "workspaces & teams",
-    routes: [
-      "POST /v1/workspaces — creates workspace + organization + owner member",
-      "GET /v1/workspaces — with your role on each",
+      "POST /v1/workspaces { name, joinUrl? }",
+      "GET /v1/workspaces — every workspace on this deployment",
       "GET /v1/workspaces/:id",
       "GET /v1/workspaces/by-slug/:slug",
-      "PATCH /v1/workspaces/:id — name, joinUrl (owners and admins)",
+      "PATCH /v1/workspaces/:id — name, joinUrl",
       "GET /v1/workspaces/:id/export — full JSON archive, attachment download",
-      "POST /api/auth/organization/invite-member { email, role, organizationId }",
-      "GET /api/auth/organization/list-members?organizationId=",
-      "POST /api/auth/organization/accept-invitation { invitationId }",
-      "POST /api/auth/organization/reject-invitation { invitationId }",
-      "POST /api/auth/organization/cancel-invitation { invitationId }",
-      "POST /api/auth/organization/update-member-role { memberId, role }",
-      "POST /api/auth/organization/remove-member { memberIdOrEmail }",
-    ],
-  },
-  {
-    title: "agent tokens",
-    routes: [
-      "POST /v1/tokens { name } — plaintext shown once, cos_ prefix",
-      "GET /v1/tokens — name, prefix, created, last used",
-      "DELETE /v1/tokens/:id — revoke",
-      "then: Authorization: Bearer cos_… on any /v1 route (cannot mint/revoke tokens)",
     ],
   },
   {
@@ -83,7 +52,7 @@ const SECTIONS: Array<{ title: string; routes: string[] }> = [
       "POST /v1/proposals/:id/go-live",
       "GET /v1/workspaces/:id/events",
       "GET /v1/events/:id/guests",
-      "GET /v1/events/:id/chain — lead only",
+      "GET /v1/events/:id/chain",
       "POST /v1/events/:id/autopilot",
     ],
   },
@@ -104,6 +73,14 @@ const SECTIONS: Array<{ title: string; routes: string[] }> = [
       "POST /v1/workspaces/:id/blocklist",
     ],
   },
+  {
+    title: "agents",
+    routes: [
+      "POST /mcp?workspace=<id> — Streamable HTTP MCP, six tools",
+      "POST /mcp/code — same tools wrapped in Cloudflare Code Mode",
+      "GET /v1/health",
+    ],
+  },
 ];
 
 export default function DocsPage() {
@@ -112,9 +89,9 @@ export default function DocsPage() {
       <Kicker>contracts</Kicker>
       <h1 className="mb-2 text-3xl font-semibold tracking-tight">The product is the HTTP API.</h1>
       <p className="text-muted-foreground mb-8 max-w-xl text-sm">
-        The app, the public pages, and the MCP adapter are all clients of these routes — same auth, same
-        permissions. Cookie sessions for the browser; <code className="font-mono text-xs">cos_</code> tokens for
-        agents and curl.
+        The app, the public pages, and the MCP adapter are all clients of these routes. There are no accounts and
+        no tokens — anyone who can reach <code className="font-mono text-xs">/v1</code> can use it, so deploy where
+        you trust the network.
       </p>
       <div className="grid gap-5 md:grid-cols-2">
         {SECTIONS.map((s) => (

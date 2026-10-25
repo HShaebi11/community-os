@@ -7,6 +7,15 @@ type Release = { date: string; title: string; items: string[] };
 
 const RELEASES: Release[] = [
   {
+    date: "open source",
+    title: "Fully open, no accounts",
+    items: [
+      "Authentication removed across the API, app and MCP — everything works without login",
+      "One deployment = one trusted operator; run it where you trust the network",
+      "Self-host guide in the README; a hosted edition is a layer on top of this core",
+    ],
+  },
+  {
     date: "slice 5",
     title: "Accounts, teams and agent tokens",
     items: [

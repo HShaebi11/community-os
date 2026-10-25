@@ -25,16 +25,12 @@ export async function handleMcpRequest(request: Request, opts: RemoteMcpOptions)
   if (url.pathname !== "/mcp" && url.pathname !== CODE_PATH) {
     return Response.json({ error: "not found" }, { status: 404 });
   }
-  const authorization = request.headers.get("authorization") ?? "";
-  if (!authorization.startsWith("Bearer ")) {
-    return Response.json({ error: "Bearer token required" }, { status: 401 });
-  }
 
   const workspaceId = url.searchParams.get("workspace") ?? request.headers.get("x-cos-workspace") ?? "";
   const api: Api = async (path, init) => {
     const res = await opts.apiFetch(path, {
       ...init,
-      headers: { authorization, "content-type": "application/json", ...(init?.headers ?? {}) },
+      headers: { "content-type": "application/json", ...(init?.headers ?? {}) },
     });
     const text = await res.text();
     if (!res.ok) throw new Error(text);
