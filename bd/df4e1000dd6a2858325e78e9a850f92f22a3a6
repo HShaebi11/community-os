@@ -1,0 +1,67 @@
+README.md
+  s_454ce052859251::t_36f4432283ca6c 72-80
+apps/app/package.json
+  s_454ce052859251::t_e8fa90d6f4d837 11
+apps/app/vitest.config.ts
+  s_454ce052859251::t_b8f0c209f564a8 8-12,14
+docs/API.md
+  s_454ce052859251::t_58e0c57587019a 178,197
+docs/openapi.yaml
+  s_454ce052859251::t_5b9f38ca26e164 829
+package.json
+  s_454ce052859251::t_36412215e4668f 17
+packages/core/src/kernel.ts
+  s_454ce052859251::t_ebf43b89558b8b 355,369-373,412-431
+packages/core/src/memory-store.ts
+  s_454ce052859251::t_aad921f1aa72b1 324-325,329-346
+packages/core/src/store.ts
+  s_454ce052859251::t_362f9a94144ba6 79-88
+packages/core/src/types.ts
+  s_454ce052859251::t_e20084116c6c2c 122-127
+packages/db/drizzle/0001_nice_the_fallen.sql
+  s_454ce052859251::t_adabbb089818f7 1-19,21
+packages/db/drizzle/0002_large_whirlwind.sql
+  s_454ce052859251::t_e78d889654efea 1-16
+packages/db/drizzle/meta/0002_snapshot.json
+  s_454ce052859251::t_c70da6bf58abb3 1-1356
+packages/db/drizzle/meta/_journal.json
+  s_454ce052859251::t_bd400fd9eb3076 18-24
+packages/db/src/drizzle-store.test.ts
+  s_454ce052859251::t_933e1639eb817f 5,61-75,120-196
+packages/db/src/drizzle-store.ts
+  s_454ce052859251::t_4906aaafe7bedd 23,118-129,132,152-153,159,346-348,351-388,547
+packages/db/src/schema.ts
+  s_454ce052859251::t_f5c907b690df4d 159-162,175-181
+packages/sdk/src/index.test.ts
+  s_454ce052859251::t_d7072348d70a7c 587,590-600
+packages/sdk/src/types.ts
+  s_454ce052859251::t_7563b778726ec6 127,247
+packages/server/src/index.test.ts
+  s_454ce052859251::t_700faaa7008ca5 678
+packages/store-sqlite/src/index.test.ts
+  s_454ce052859251::t_da5a617c5b0f4f 6,59-132
+packages/store-sqlite/src/index.ts
+  s_454ce052859251::t_dd81b793c849df 51,74,90-101,148-172,479-483,487-513
+packages/testkit/src/fixtures.ts
+  s_454ce052859251::t_95c8d8863b7f62 136
+packages/testkit/src/model-commands.ts
+  s_454ce052859251::t_accd1f4fa9bf41 28,508-510,513-515
+packages/testkit/src/store-contract.ts
+  s_454ce052859251::t_4ead2c0f7bff79 440-516
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "bddf4e1000dd6a2858325e78e9a850f92f22a3a6",
+  "prompts": {},
+  "sessions": {
+    "s_454ce052859251": {
+      "agent_id": {
+        "tool": "devin",
+        "id": "s_454ce052859251",
+        "model": "unknown"
+      },
+      "human_author": "Hamza <hshaebi.11@gmail.com>"
+    }
+  }
+}
