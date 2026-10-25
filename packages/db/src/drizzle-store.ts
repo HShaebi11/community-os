@@ -326,8 +326,17 @@ export function createDrizzleStore(db: Database): Store {
       };
       // Upsert by id: re-saving the same event is an idempotent write, while
       // a different id reusing the slug fails on the unique slug index.
-      await db.insert(events).values(row).onConflictDoUpdate({ target: events.id, set: row });
-      return event;
+      // rsvpCount is store-owned — a resave of a stale record must not
+      // rewind the seat counter.
+      const rows = await db
+        .insert(events)
+        .values(row)
+        .onConflictDoUpdate({
+          target: events.id,
+          set: { ...row, rsvpCount: sql`${events.rsvpCount}` },
+        })
+        .returning();
+      return mapEvent(rows[0]!);
     },
     async getEventBySlug(slug) {
       const rows = await db.select().from(events).where(eq(events.slug, slug)).limit(1);
@@ -367,22 +376,26 @@ export function createDrizzleStore(db: Database): Store {
       const row = rows[0]!;
       const created = row.id === guest.id;
       if (!created) return { guest: row, created: false };
-      if (capacity != null) {
-        // The atomic seat claim — a conditional UPDATE takes the event row
-        // lock and re-checks the predicate on the latest committed row, so
-        // concurrent instances can't both pass the gate. Works on the
-        // neon-http driver, which has no interactive transactions.
-        const claimed = await db
-          .update(events)
-          .set({ rsvpCount: sql`${events.rsvpCount} + 1` })
-          .where(and(eq(events.id, guest.eventId), lt(events.rsvpCount, capacity)))
-          .returning({ id: events.id });
-        if (!claimed[0]) {
-          // No seat left — remove the row we just inserted so the guest
-          // count and the seat counter stay in lockstep.
-          await db.delete(guests).where(eq(guests.id, guest.id));
-          throw new Error(`event at capacity (${capacity})`);
-        }
+      // Every created guest counts a seat — capped claims add the
+      // rsvp_count < capacity predicate, which takes the event row lock and
+      // re-checks on the latest committed row so concurrent instances can't
+      // both pass the gate. Works on the neon-http driver, which has no
+      // interactive transactions. An uncapped bump on a missing event is a
+      // no-op, matching the other stores.
+      const claimed = await db
+        .update(events)
+        .set({ rsvpCount: sql`${events.rsvpCount} + 1` })
+        .where(
+          capacity != null
+            ? and(eq(events.id, guest.eventId), lt(events.rsvpCount, capacity))
+            : eq(events.id, guest.eventId),
+        )
+        .returning({ id: events.id });
+      if (!claimed[0] && capacity != null) {
+        // No seat left — remove the row we just inserted so the guest
+        // count and the seat counter stay in lockstep.
+        await db.delete(guests).where(eq(guests.id, guest.id));
+        throw new Error(`event at capacity (${capacity})`);
       }
       return { guest: row, created: true };
     },

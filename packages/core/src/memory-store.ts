@@ -303,8 +303,11 @@ export class MemoryStore implements Store {
   async createEvent(event: EventRecord) {
     const clash = [...this.events.values()].find((e) => e.slug === event.slug && e.id !== event.id);
     if (clash) throw new Error(`event slug "${event.slug}" is already in use`);
-    this.events.set(event.id, event);
-    return event;
+    // rsvpCount is store-owned — resaving a stale record must not rewind it.
+    const prev = this.events.get(event.id);
+    const next = prev ? { ...event, rsvpCount: prev.rsvpCount } : event;
+    this.events.set(event.id, next);
+    return next;
   }
 
   async getEventBySlug(slug: string) {

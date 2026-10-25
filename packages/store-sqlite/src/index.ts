@@ -458,8 +458,11 @@ export class SqliteStore implements Store {
   async createEvent(event: EventRecord) {
     const clash = this.one<EventRecord>("events", "slug = ? AND id != ?", [event.slug, event.id]);
     if (clash) throw new Error(`event slug "${event.slug}" is already in use`);
-    this.ins("events", { ...event });
-    return event;
+    // rsvpCount is store-owned — resaving a stale record must not rewind it.
+    const prev = this.one<EventRecord>("events", "id = ?", [event.id]);
+    const next = prev ? { ...event, rsvpCount: prev.rsvpCount } : event;
+    this.ins("events", { ...next });
+    return next;
   }
 
   async getEventBySlug(slug: string) {
@@ -496,12 +499,15 @@ export class SqliteStore implements Store {
         this.db.exec("COMMIT");
         return { guest: updated, created: false };
       }
-      if (capacity != null) {
-        const claimed = this.db
-          .prepare("UPDATE events SET rsvpCount = rsvpCount + 1 WHERE id = ? AND rsvpCount < ?")
-          .run(guest.eventId, capacity);
-        if (!claimed.changes) throw new Error(`event at capacity (${capacity})`);
-      }
+      // Every created guest counts a seat — the capacity predicate only
+      // applies to capped events, so uncapped reservations bump the counter
+      // unconditionally.
+      const claimed = capacity != null
+        ? this.db
+            .prepare("UPDATE events SET rsvpCount = rsvpCount + 1 WHERE id = ? AND rsvpCount < ?")
+            .run(guest.eventId, capacity)
+        : this.db.prepare("UPDATE events SET rsvpCount = rsvpCount + 1 WHERE id = ?").run(guest.eventId);
+      if (capacity != null && !claimed.changes) throw new Error(`event at capacity (${capacity})`);
       this.ins("guests", { ...guest });
       this.db.exec("COMMIT");
       return { guest, created: true };

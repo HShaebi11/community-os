@@ -497,6 +497,9 @@ export function testStoreContract<S extends Store>(
           await s.rsvpGuest(guest({ eventId: e.id, communityId: ws.id, email: `u${i}@x` }), null);
         }
         expect(await s.listGuests(e.id)).toHaveLength(5);
+        // Uncapped reservations still count — the counter always equals the
+        // event's guest count, so a later cap can't be re-opened by drift.
+        expect((await s.getEvent(e.id))?.rsvpCount).toBe(5);
         // Re-registering without a member link keeps the stored one.
         await s.rsvpGuest(guest({ eventId: e.id, communityId: ws.id, email: "keep@x", memberId: "m-1" }), null);
         const again = await s.rsvpGuest(
@@ -505,6 +508,19 @@ export function testStoreContract<S extends Store>(
         );
         expect(again.created).toBe(false);
         expect(again.guest.memberId).toBe("m-1");
+      });
+
+      it("resaving an event after RSVPs preserves the store-owned seat count", async () => {
+        const s = await fresh();
+        const { ws } = await seed(s);
+        const e = await s.createEvent(eventRecord({ communityId: ws.id }));
+        await s.rsvpGuest(guest({ eventId: e.id, communityId: ws.id }), null);
+        // A caller holding the original record resaves it — the stored
+        // counter wins over the stale one in the payload.
+        await s.createEvent({ ...e, title: "Renamed", rsvpCount: 999 });
+        const saved = await s.getEvent(e.id);
+        expect(saved?.title).toBe("Renamed");
+        expect(saved?.rsvpCount).toBe(1);
       });
 
       it("counts raw createGuest inserts toward the event's seat counter", async () => {
