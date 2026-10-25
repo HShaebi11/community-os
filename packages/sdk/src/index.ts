@@ -127,12 +127,21 @@ export type WorkspaceExport = {
   messages: Array<Omit<Message, "body" | "communityId">>;
 };
 
-/** Pluggable ingest for importChat in embedded mode. Matches the signature
- *  of @community-os/whatsapp-import's parseWhatsAppExport. */
+/** Pluggable one-shot ingest for importChat. Two output shapes, adapter's
+ *  choice:
+ *  - `transcript` + `files` — a WhatsApp-format transcript; the kernel parses
+ *    it (what @community-os/whatsapp-import produces — the default).
+ *  - `messages` — NormalizedMessage[] you mapped yourself; goes through the
+ *    same dedupe path as channels and webhooks. This is the portable shape —
+ *    Slack exports, Telegram dumps, a CSV, whatever.
+ *  `name`/`kind` label the source row (default: "native" + filename). */
 export type IngestAdapter = {
+  name?: string;
+  kind?: SourceKind;
   parse(data: Uint8Array, filename: string): {
-    transcript: string;
-    files: Array<{ name: string; mime: string; bytes: Uint8Array }>;
+    transcript?: string;
+    files?: Array<{ name: string; mime: string; bytes: Uint8Array }>;
+    messages?: NormalizedMessage[];
   };
 };
 
@@ -484,34 +493,68 @@ export class CommunityOS {
   // -- Evidence ------------------------------------------------------------
 
   /** Import a chat export — .txt transcript (string or bytes) or .zip with
-   *  media. Embedded mode accepts an `adapter` — any IngestAdapter (Slack,
-   *  Telegram, …); remote mode always parses server-side. */
+   *  media, parsed as WhatsApp format by default. Pass an `adapter` to
+   *  parse anything else — adapters that produce `messages` go through
+   *  ingest() (works remote too, parsed client-side); adapters that
+   *  produce `transcript` use the WhatsApp kernel path. */
   async importChat(
     workspaceId: string,
     data: string | Blob | ArrayBuffer | Uint8Array,
     filename = "_chat.txt",
     adapter?: IngestAdapter,
   ): Promise<ImportResult> {
+    if (!adapter && this.remote) {
+      const body = data instanceof Uint8Array ? (data.slice().buffer as ArrayBuffer) : data;
+      return this.call(`/v1/workspaces/${workspaceId}/imports?filename=${encodeURIComponent(filename)}`, {
+        method: "POST",
+        body,
+      });
+    }
+    const bytes =
+      typeof data === "string" ? new TextEncoder().encode(data)
+      : data instanceof Uint8Array ? data
+      : data instanceof ArrayBuffer ? new Uint8Array(data)
+      : new Uint8Array(await data.arrayBuffer());
+    const parsed = this.domainParse(bytes, filename, adapter);
+    const source = { kind: adapter?.kind ?? ("native" as SourceKind), name: adapter?.name ?? filename };
+    // Transcript wins when present — the WhatsApp parser emits internal
+    // message rows alongside it that aren't NormalizedMessage-shaped.
+    if (parsed.transcript) {
+      if (this.local) {
+        this.need(await this.store.getWorkspace(workspaceId), "workspace");
+        return this.domainCall(() => importWhatsApp(
+          this.store,
+          workspaceId,
+          parsed.transcript!,
+          (parsed.files ?? []).map((f) => ({ name: f.name, storagePath: `memory://${f.name}`, mime: f.mime })),
+        ));
+      }
+      // Remote + adapter produced a transcript — the server parses WhatsApp format.
+      return this.call(`/v1/workspaces/${workspaceId}/imports?filename=${encodeURIComponent(filename)}`, {
+        method: "POST",
+        body: parsed.transcript,
+      });
+    }
+    if (parsed.messages?.length) {
+      return this.ingest(workspaceId, { source, messages: parsed.messages as NormalizedMessage[] });
+    }
+    throw new ApiError(400, "adapter produced neither messages nor transcript");
+  }
+
+  /** The bare ingest primitive — no adapter needed. Map whatever you have
+   *  (a CSV, a database table, a scraped feed) to NormalizedMessage[] and
+   *  push. Same dedupe + member-resolution path as channels and webhooks,
+   *  on your store or over POST /v1/ingest remotely. */
+  async ingest(
+    workspaceId: string,
+    input: { source?: { kind?: SourceKind; name?: string }; messages: NormalizedMessage[] },
+  ): Promise<ImportResult> {
+    const source = { kind: input.source?.kind ?? ("native" as SourceKind), name: input.source?.name ?? "sdk" };
     if (this.local) {
       this.need(await this.store.getWorkspace(workspaceId), "workspace");
-      const bytes =
-        typeof data === "string" ? new TextEncoder().encode(data)
-        : data instanceof Uint8Array ? data
-        : data instanceof ArrayBuffer ? new Uint8Array(data)
-        : new Uint8Array(await data.arrayBuffer());
-      const parsed = this.domainParse(bytes, filename, adapter);
-      return this.domainCall(() => importWhatsApp(
-        this.store,
-        workspaceId,
-        parsed.transcript,
-        parsed.files.map((f) => ({ name: f.name, storagePath: `memory://${f.name}`, mime: f.mime })),
-      ));
+      return this.domainCall(() => ingestMessages(this.store, workspaceId, source, input.messages));
     }
-    const body = data instanceof Uint8Array ? (data.slice().buffer as ArrayBuffer) : data;
-    return this.call(`/v1/workspaces/${workspaceId}/imports?filename=${encodeURIComponent(filename)}`, {
-      method: "POST",
-      body,
-    });
+    return this.post("/v1/ingest", { communityId: workspaceId, source, messages: input.messages });
   }
   async ingestDiscord(message: {
     communityId: string;

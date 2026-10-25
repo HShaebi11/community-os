@@ -103,8 +103,11 @@ React to what arrives:
 const unsub = cos.on("rsvp", (event) => …); // embedded: instant; remote: polls timeline
 ```
 
-And for one-shot imports beyond WhatsApp, `importChat` takes an
-`IngestAdapter` — `parse(bytes, filename) → { transcript, files }`.
+And for one-shots, two levels of flexible: `cos.ingest(wsId, { messages })`
+pushes normalized batches directly (map a CSV, a table, anything), or
+`importChat` takes an `IngestAdapter` whose `parse` returns either
+`{ messages }` (your mapping) or `{ transcript, files }` (WhatsApp-format,
+kernel parses).
 
 ## Mount it anywhere — `cos.fetch()`
 

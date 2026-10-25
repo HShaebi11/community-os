@@ -2,9 +2,14 @@
 
 Community OS ingests platform data two ways:
 
-- **One-shot imports** — `importChat` parses an export file (WhatsApp `.txt`/`.zip` built in; any `IngestAdapter` for others).
+- **One-shot imports** — `cos.ingest()` for normalized batches you mapped yourself, or `importChat` for files: WhatsApp `.txt`/`.zip` built in, any `IngestAdapter` for other formats.
 - **Live channels** — `cos.listen(adapter, { workspaceId })` runs a continuous feed: new platform messages become deduped, member-resolved `Message` rows on whatever `Store` you chose.
 - **Webhooks** — `cos.receive(adapter, { workspaceId })` turns platforms that *push* (Slack Events API, WhatsApp Cloud API, or any service via `jsonWebhook`) into a fetch handler you mount anywhere.
+
+All three land on the same `NormalizedMessage` contract and the same
+`ingestMessages` kernel path — dedupe on platform message id, member
+resolution by display name, source rows per kind. The only difference is
+who moves the bytes.
 
 ```ts
 import { CommunityOS } from "@community-os/sdk";
@@ -40,6 +45,31 @@ type NormalizedMessage = {
 
 Your own adapter is ~30 lines: poll an API, tail a file, wrap another client
 library — normalize to `NormalizedMessage` and call `emit`.
+
+## One-shot ingest — `cos.ingest()` and `IngestAdapter`
+
+The bare primitive needs no adapter at all — map whatever you have (a CSV,
+a DB table, a scraped feed) and push:
+
+```ts
+await cos.ingest(ws.id, {
+  source: { kind: "slack", name: "Slack CSV export" },
+  messages: [{ id, author, body, sentAt }],
+});
+```
+
+For file-shaped imports, `importChat(wsId, bytes, filename, adapter)` takes
+an `IngestAdapter` — either output shape works:
+
+```ts
+{ parse: (bytes, filename) => ({ messages: NormalizedMessage[] }) }   // normalized — your mapping
+{ parse: (bytes, filename) => ({ transcript: string, files: [...] }) } // WhatsApp-format — kernel parses
+```
+
+Normalized `messages` work in both modes (remote parses client-side, then
+posts `/v1/ingest`); `transcript` always goes through the WhatsApp kernel
+parser. The built-in WhatsApp export parser is the default when no adapter
+is passed.
 
 ## Webhook receivers — `cos.receive()`
 

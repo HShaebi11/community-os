@@ -12,6 +12,7 @@ import {
   jsonWebhook,
   verifyWebhookSignature,
   type ChannelAdapter,
+  type IngestAdapter,
   type NormalizedMessage,
   type WebhookAdapter,
 } from "./index.ts";
@@ -203,6 +204,65 @@ describe("on() — react to kernel events", () => {
     await cos.importChat(ws.id, chat, "_chat.txt");
     await new Promise((r) => setTimeout(r, 250));
     expect(seen).toEqual(["import"]);
+  });
+});
+
+describe("ingest() — the bare primitive", () => {
+  const msgs: NormalizedMessage[] = [
+    { id: "n1", author: "Ada", body: "from a CSV", sentAt: "2025-01-01T00:00:00Z" },
+    { id: "n2", author: "Bob", body: "second row", sentAt: "2025-01-01T00:01:00Z" },
+  ];
+
+  it("ingests normalized messages on embedded and remote modes", async () => {
+    for (const cos of [CommunityOS.memory(), remoteCos()]) {
+      const ws = await cos.createWorkspace({ name: "T" });
+      const result = await cos.ingest(ws.id, {
+        source: { kind: "slack", name: "Slack CSV export" },
+        messages: msgs,
+      });
+      expect(result.inserted).toBe(2);
+      expect((await cos.listMessages(ws.id)).length).toBe(2);
+      expect((await cos.listMembers(ws.id)).map((m) => m.displayName).sort()).toEqual(["Ada", "Bob"]);
+    }
+  });
+
+  it("dedupes repeated pushes by platform message id", async () => {
+    const cos = CommunityOS.memory();
+    const ws = await cos.createWorkspace({ name: "T" });
+    await cos.ingest(ws.id, { messages: msgs });
+    const second = await cos.ingest(ws.id, { messages: [msgs[0]!] });
+    expect(second.inserted).toBe(0);
+    expect(second.skipped).toBe(1);
+  });
+});
+
+describe("importChat + messages-adapter — flexible one-shots", () => {
+  const csvAdapter: IngestAdapter = {
+    name: "csv-import",
+    kind: "slack",
+    parse: () => ({
+      messages: [
+        { id: "c1", author: "Ada", body: "mapped myself", sentAt: "2025-01-01T00:00:00Z" },
+      ],
+    }),
+  };
+
+  it("routes adapter messages through ingest — embedded and remote", async () => {
+    for (const cos of [CommunityOS.memory(), remoteCos()]) {
+      const ws = await cos.createWorkspace({ name: "T" });
+      const result = await cos.importChat(ws.id, "col1,col2\na,b", "export.csv", csvAdapter);
+      expect(result.inserted).toBe(1);
+      const messages = await cos.listMessages(ws.id);
+      expect(messages[0]?.body).toBe("mapped myself");
+    }
+  });
+
+  it("rejects adapters that produce nothing", async () => {
+    const cos = CommunityOS.memory();
+    const ws = await cos.createWorkspace({ name: "T" });
+    await expect(
+      cos.importChat(ws.id, "x", "f.txt", { parse: () => ({}) }),
+    ).rejects.toBeInstanceOf(ApiError);
   });
 });
 
