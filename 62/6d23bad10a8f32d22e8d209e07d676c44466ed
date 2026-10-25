@@ -1,0 +1,19 @@
+README.md
+  s_fe7c5bcc7c1ae8::t_5065973a1e695f 3-4
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "626d23bad10a8f32d22e8d209e07d676c44466ed",
+  "prompts": {},
+  "sessions": {
+    "s_fe7c5bcc7c1ae8": {
+      "agent_id": {
+        "tool": "devin",
+        "id": "s_fe7c5bcc7c1ae8",
+        "model": "unknown"
+      },
+      "human_author": "Hamza <hshaebi.11@gmail.com>"
+    }
+  }
+}
