@@ -1,0 +1,21 @@
+.github/workflows/ci.yml
+  s_f2cbf9cd9443a7::t_925f9bc213ff03 29,31-37
+RELEASING.md
+  s_f2cbf9cd9443a7::t_56af7422b670fd 1-45
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "71f89f3707fa0e6d70d48db339a11dcb88c5a3c8",
+  "prompts": {},
+  "sessions": {
+    "s_f2cbf9cd9443a7": {
+      "agent_id": {
+        "tool": "devin",
+        "id": "s_f2cbf9cd9443a7",
+        "model": "unknown"
+      },
+      "human_author": "Hamza <hshaebi.11@gmail.com>"
+    }
+  }
+}
