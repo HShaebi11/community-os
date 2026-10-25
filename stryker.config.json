@@ -1,0 +1,37 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "packageManager": "npm",
+  "reporters": [
+    "clear-text",
+    "progress",
+    "json"
+  ],
+  "testRunner": "vitest",
+  "vitest": {
+    "configFile": "packages/core/vitest.config.ts"
+  },
+  "mutate": [
+    "packages/core/src/kernel.ts",
+    "packages/core/src/memory-store.ts",
+    "packages/core/src/ids.ts",
+    "packages/core/src/extract.ts",
+    "packages/core/src/match.ts",
+    "packages/core/src/noise.ts",
+    "packages/core/src/qr.ts"
+  ],
+  "ignoreStatic": true,
+  "coverageAnalysis": "perTest",
+  "timeoutMS": 30000,
+  "concurrency": 4,
+  "thresholds": {
+    "high": 85,
+    "low": 65,
+    "break": 80
+  },
+  "disableTypeChecks": "src/**/*.ts",
+  "mutator": {
+    "excludedMutations": [
+      "BlockStatement"
+    ]
+  }
+}

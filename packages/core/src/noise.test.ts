@@ -39,3 +39,21 @@ describe("extractUrls", () => {
     expect(extractUrls("no links")).toEqual([]);
   });
 });
+
+describe("noise boundaries", () => {
+  it("treats exactly-3-char bodies as signal, shorter as noise", () => {
+    expect(isNoiseMessage("run", "Ada")).toBe(false);
+    expect(isNoiseMessage("hi", "Ada")).toBe(true);
+  });
+  it("flags noise even when padded with whitespace", () => {
+    expect(isNoiseMessage("  lol  ", "Ada")).toBe(true);
+  });
+  it("flags anything authored by the whatsapp system account, any case", () => {
+    expect(isNoiseMessage("a perfectly long real sentence", "WhatsApp")).toBe(true);
+    expect(isNoiseMessage("a perfectly long real sentence", "whatsapp")).toBe(true);
+  });
+  it("extractUrls strips runs of trailing punctuation", () => {
+    expect(extractUrls("see https://a.com/x...")).toEqual(["https://a.com/x"]);
+    expect(extractUrls("see https://a.com/y;,.")).toEqual(["https://a.com/y"]);
+  });
+});

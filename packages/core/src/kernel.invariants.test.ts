@@ -44,7 +44,7 @@ describe("invariants — properties that must hold for ANY input", () => {
 
   it("listMessages is always sentAt-sorted regardless of insertion order", async () => {
     const batchArb = fc
-      .array(fc.date({ min: new Date("2024-01-01"), max: new Date("2026-12-31") }), { minLength: 1, maxLength: 60 })
+      .array(fc.date({ min: new Date("2024-01-01"), max: new Date("2026-12-31"), noInvalidDate: true }), { minLength: 1, maxLength: 60 })
       .map((dates) => dates.map((d, i) => ({ id: `m${i}`, author: "a", body: `b${i}`, sentAt: d.toISOString() })));
     await fc.assert(
       fc.asyncProperty(batchArb, async (batch) => {
@@ -101,6 +101,14 @@ describe("invariants — properties that must hold for ANY input", () => {
       }),
       { numRuns: 15 },
     );
+  });
+
+  it("slugify edges: underscores, dash runs, and edge dashes normalize", () => {
+    expect(slugify("a__b")).toBe("a-b");
+    expect(slugify("a--b")).toBe("a-b");
+    expect(slugify("-a-")).toBe("a");
+    expect(slugify("-")).toBe("community");
+    expect(slugify("!!!")).toBe("community");
   });
 
   it("slugify: any string produces a URL-safe, length-capped, non-empty slug", () => {

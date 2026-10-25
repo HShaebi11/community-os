@@ -18,7 +18,9 @@
     "build:packages": "npm run build -w @community-os/whatsapp-import && npm run build -w @community-os/sdk && npm run build -w @community-os/store-sqlite && npm run build -w @community-os/channel-discord && npm run build -w @community-os/channel-slack && npm run build -w @community-os/channel-whatsapp",
     "pretest": "npm run build:packages",
     "predev": "npm run build:packages",
-    "precoverage": "npm run build:packages"
+    "precoverage": "npm run build:packages",
+    "test:dist": "npm run build:packages && node scripts/test-dist.mjs",
+    "test:mutation": "npm run build:packages && npx stryker run"
   },
   "devDependencies": {
     "@vitest/coverage-v8": "^3.2.7",

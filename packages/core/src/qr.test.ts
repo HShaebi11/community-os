@@ -12,4 +12,12 @@ describe("qrSvg", () => {
     expect(qrSvg("https://a")).toBe(qrSvg("https://a"));
     expect(qrSvg("https://a")).not.toBe(qrSvg("https://b"));
   });
+
+  it("escapes xml-special chars in the aria label", () => {
+    const svg = qrSvg('a&b"c<d');
+    expect(svg).toContain("&amp;");
+    expect(svg).toContain("&quot;");
+    expect(svg).toContain("&lt;");
+    expect(svg).not.toContain('aria-label="a&b');
+  });
 });

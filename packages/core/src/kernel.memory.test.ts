@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizedMessage } from "@community-os/testkit";
+import { message, normalizedMessage } from "@community-os/testkit";
 import { briefing, ingestMessages, memberCard, refreshMemory } from "./kernel.ts";
 import { MemoryStore } from "./memory-store.ts";
 
@@ -102,6 +102,46 @@ describe("refreshMemory", () => {
     const memory = (await s.listTimeline(cid)).find((t) => t.kind === "memory");
     expect(memory).toBeTruthy();
     expect(memory!.payload).toMatchObject({ members: 1, demands: 1 });
+  });
+
+  it("ignores stored messages that carry no memberId", async () => {
+    const s = store();
+    const cid = await ws(s);
+    const src = await s.createSource({ communityId: cid, kind: "native", name: "t" });
+    // Raw insert with memberId null — reachable via adapters/importers that
+    // attach members lazily. refreshMemory must not credit or extract from it.
+    await s.insertMessages([
+      message({ communityId: cid, sourceId: src.id, memberId: null, body: "i want a bread workshop see https://tools.example.com" }),
+    ]);
+    await refreshMemory(s, cid);
+    expect(await s.listDemands(cid)).toHaveLength(0);
+    expect(await s.listResources(cid)).toHaveLength(0);
+  });
+
+  it("resource titles strip the protocol and cap at 80 chars", async () => {
+    const s = store();
+    const cid = await ws(s);
+    await seedChat(s, cid, [
+      { author: "Ada", body: `check https://very-long-domain-name.example.com/${"segment/".repeat(12)} for details` },
+    ]);
+    await refreshMemory(s, cid);
+    const res = await s.listResources(cid);
+    expect(res).toHaveLength(1);
+    expect(res[0].title.startsWith("http")).toBe(false);
+    expect(res[0].title.length).toBeLessThanOrEqual(80);
+  });
+
+  it("never nulls an existing member field when re-extracting finds nothing", async () => {
+    const s = store();
+    const cid = await ws(s);
+    await seedChat(s, cid, [{ author: "Ada", body: "i want a bread workshop" }]);
+    await refreshMemory(s, cid);
+    const ada = (await s.listMembers(cid))[0];
+    await s.updateMember(ada.id, { do: "baker" });
+    // A second refresh over messages that yield no 'do' must leave 'baker' —
+    // patch fields are only written when extraction produces a value.
+    await refreshMemory(s, cid);
+    expect((await s.listMembers(cid))[0].do).toBe("baker");
   });
 });
 

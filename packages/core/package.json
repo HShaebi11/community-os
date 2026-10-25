@@ -15,9 +15,11 @@
     "coverage": "vitest run --coverage --coverage.reporter=text --coverage.reporter=lcov"
   },
   "devDependencies": {
+    "@community-os/testkit": "0.1.0",
+    "@stryker-mutator/core": "^10.1.1",
+    "@stryker-mutator/vitest-runner": "^10.1.1",
     "typescript": "^5.9.3",
-    "vitest": "^3.2.4",
-    "@community-os/testkit": "0.1.0"
+    "vitest": "^3.2.4"
   },
   "types": "./src/index.ts"
 }

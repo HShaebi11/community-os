@@ -1,0 +1,82 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`golden — generated public text > draftOutreach > no speakers, no venue 1`] = `"Hey — people in Hacknight have been asking for demo day. a member who offered to help could run it. If you're in, I'll put up our event page and QR. Reply here and I'll go live."`;
+
+exports[`golden — generated public text > draftOutreach > speakers + venue 1`] = `"Hey — people in Bakers have been asking for sourdough night. Ada and Grace could run it at Blue Door. If you're in, I'll put up our event page and QR. Reply here and I'll go live."`;
+
+exports[`golden — generated public text > explainProposal > empty speakers, no venue, no quotes 1`] = `"Demand for potluck. Speakers: no matched speakers yet. Venue: no venue record yet. Evidence: member cards and demand messages."`;
+
+exports[`golden — generated public text > explainProposal > full evidence pack 1`] = `"Demand for meetup. Speakers: Ada, Grace. Venue: Blue Door (Downtown). Evidence: “we need a meetup” “been asking for months” “yes please”"`;
+
+exports[`golden — generated public text > explainProposal > quotes clipped at three 1`] = `"Demand for talk. Speakers: Kai. Venue: Hall. Evidence: “a” “b” “c”"`;
+
+exports[`golden — generated public text > extract helpers > clipQuote truncates long bodies 1`] = `"short"`;
+
+exports[`golden — generated public text > extract helpers > clipQuote truncates long bodies 2`] = `"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx..."`;
+
+exports[`golden — generated public text > extract helpers > scoreApplication decision text 1`] = `
+{
+  "decision": "ask",
+  "score": 28,
+}
+`;
+
+exports[`golden — generated public text > extract helpers > scoreApplication decision text 2`] = `
+{
+  "decision": "ask",
+  "score": 28,
+}
+`;
+
+exports[`golden — generated public text > extract helpers > titleFromTopic 1`] = `"12 people want meetup"`;
+
+exports[`golden — generated public text > extract helpers > titleFromTopic 2`] = `"0 people want sourdough workshop"`;
+
+exports[`golden — generated public text > promoPost + newsletter > newsletter 1`] = `
+"This week: Launch
+
+Demand for meetup. Speakers: Ada.
+
+RSVP: https://c.test/e/launch
+"
+`;
+
+exports[`golden — generated public text > promoPost + newsletter > promoPost 1`] = `"Bakers: Launch. RSVP on our page (not a rented link): https://c.test/e/launch"`;
+
+exports[`golden — generated public text > qr > renders a stable SVG for a public URL 1`] = `"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108" width="108" height="108" shape-rendering="crispEdges" role="img" aria-label="https://community.test/e/launch-abc123"><rect width="100%" height="100%" fill="#f4efe4"/><path fill="#1c1914" d="M12,12h4v4h-4zM16,12h4v4h-4zM20,12h4v4h-4zM24,12h4v4h-4zM28,12h4v4h-4zM32,12h4v4h-4zM36,12h4v4h-4zM48,12h4v4h-4zM52,12h4v4h-4zM60,12h4v4h-4zM68,12h4v4h-4zM72,12h4v4h-4zM76,12h4v4h-4zM80,12h4v4h-4zM84,12h4v4h-4zM88,12h4v4h-4zM92,12h4v4h-4zM12,16h4v4h-4zM36,16h4v4h-4zM60,16h4v4h-4zM68,16h4v4h-4zM92,16h4v4h-4zM12,20h4v4h-4zM20,20h4v4h-4zM24,20h4v4h-4zM28,20h4v4h-4zM36,20h4v4h-4zM44,20h4v4h-4zM48,20h4v4h-4zM56,20h4v4h-4zM68,20h4v4h-4zM76,20h4v4h-4zM80,20h4v4h-4zM84,20h4v4h-4zM92,20h4v4h-4zM12,24h4v4h-4zM20,24h4v4h-4zM24,24h4v4h-4zM28,24h4v4h-4zM36,24h4v4h-4zM52,24h4v4h-4zM56,24h4v4h-4zM60,24h4v4h-4zM68,24h4v4h-4zM76,24h4v4h-4zM80,24h4v4h-4zM84,24h4v4h-4zM92,24h4v4h-4zM12,28h4v4h-4zM20,28h4v4h-4zM24,28h4v4h-4zM28,28h4v4h-4zM36,28h4v4h-4zM48,28h4v4h-4zM68,28h4v4h-4zM76,28h4v4h-4zM80,28h4v4h-4zM84,28h4v4h-4zM92,28h4v4h-4zM12,32h4v4h-4zM36,32h4v4h-4zM44,32h4v4h-4zM48,32h4v4h-4zM52,32h4v4h-4zM68,32h4v4h-4zM92,32h4v4h-4zM12,36h4v4h-4zM16,36h4v4h-4zM20,36h4v4h-4zM24,36h4v4h-4zM28,36h4v4h-4zM32,36h4v4h-4zM36,36h4v4h-4zM56,36h4v4h-4zM60,36h4v4h-4zM68,36h4v4h-4zM72,36h4v4h-4zM76,36h4v4h-4zM80,36h4v4h-4zM84,36h4v4h-4zM88,36h4v4h-4zM92,36h4v4h-4zM44,40h4v4h-4zM56,40h4v4h-4zM60,40h4v4h-4zM20,44h4v4h-4zM24,44h4v4h-4zM28,44h4v4h-4zM36,44h4v4h-4zM52,44h4v4h-4zM60,44h4v4h-4zM64,44h4v4h-4zM68,44h4v4h-4zM72,44h4v4h-4zM84,44h4v4h-4zM92,44h4v4h-4zM12,48h4v4h-4zM16,48h4v4h-4zM20,48h4v4h-4zM28,48h4v4h-4zM32,48h4v4h-4zM48,48h4v4h-4zM52,48h4v4h-4zM60,48h4v4h-4zM64,48h4v4h-4zM72,48h4v4h-4zM76,48h4v4h-4zM80,48h4v4h-4zM84,48h4v4h-4zM92,48h4v4h-4zM12,52h4v4h-4zM20,52h4v4h-4zM24,52h4v4h-4zM32,52h4v4h-4zM40,52h4v4h-4zM44,52h4v4h-4zM52,52h4v4h-4zM56,52h4v4h-4zM64,52h4v4h-4zM72,52h4v4h-4zM76,52h4v4h-4zM80,52h4v4h-4zM88,52h4v4h-4zM12,56h4v4h-4zM20,56h4v4h-4zM24,56h4v4h-4zM32,56h4v4h-4zM36,56h4v4h-4zM40,56h4v4h-4zM52,56h4v4h-4zM56,56h4v4h-4zM64,56h4v4h-4zM76,56h4v4h-4zM84,56h4v4h-4zM88,56h4v4h-4zM92,56h4v4h-4zM16,60h4v4h-4zM32,60h4v4h-4zM36,60h4v4h-4zM40,60h4v4h-4zM44,60h4v4h-4zM56,60h4v4h-4zM68,60h4v4h-4zM76,60h4v4h-4zM80,60h4v4h-4zM84,60h4v4h-4zM44,64h4v4h-4zM48,64h4v4h-4zM52,64h4v4h-4zM60,64h4v4h-4zM76,64h4v4h-4zM80,64h4v4h-4zM92,64h4v4h-4zM12,68h4v4h-4zM16,68h4v4h-4zM20,68h4v4h-4zM24,68h4v4h-4zM28,68h4v4h-4zM32,68h4v4h-4zM36,68h4v4h-4zM48,68h4v4h-4zM56,68h4v4h-4zM60,68h4v4h-4zM64,68h4v4h-4zM76,68h4v4h-4zM80,68h4v4h-4zM88,68h4v4h-4zM92,68h4v4h-4zM12,72h4v4h-4zM36,72h4v4h-4zM44,72h4v4h-4zM52,72h4v4h-4zM72,72h4v4h-4zM80,72h4v4h-4zM84,72h4v4h-4zM88,72h4v4h-4zM92,72h4v4h-4zM12,76h4v4h-4zM20,76h4v4h-4zM24,76h4v4h-4zM28,76h4v4h-4zM36,76h4v4h-4zM48,76h4v4h-4zM52,76h4v4h-4zM64,76h4v4h-4zM72,76h4v4h-4zM84,76h4v4h-4zM92,76h4v4h-4zM12,80h4v4h-4zM20,80h4v4h-4zM24,80h4v4h-4zM28,80h4v4h-4zM36,80h4v4h-4zM44,80h4v4h-4zM48,80h4v4h-4zM52,80h4v4h-4zM60,80h4v4h-4zM64,80h4v4h-4zM72,80h4v4h-4zM76,80h4v4h-4zM92,80h4v4h-4zM12,84h4v4h-4zM20,84h4v4h-4zM24,84h4v4h-4zM28,84h4v4h-4zM36,84h4v4h-4zM44,84h4v4h-4zM64,84h4v4h-4zM72,84h4v4h-4zM76,84h4v4h-4zM80,84h4v4h-4zM88,84h4v4h-4zM12,88h4v4h-4zM36,88h4v4h-4zM44,88h4v4h-4zM52,88h4v4h-4zM56,88h4v4h-4zM64,88h4v4h-4zM68,88h4v4h-4zM72,88h4v4h-4zM84,88h4v4h-4zM88,88h4v4h-4zM12,92h4v4h-4zM16,92h4v4h-4zM20,92h4v4h-4zM24,92h4v4h-4zM28,92h4v4h-4zM32,92h4v4h-4zM36,92h4v4h-4zM52,92h4v4h-4zM56,92h4v4h-4zM64,92h4v4h-4zM68,92h4v4h-4zM76,92h4v4h-4z"/></svg>"`;
+
+exports[`golden — generated public text > runSheet > all TBD fallbacks 1`] = `
+"# Run sheet — TBD Event
+
+- When: TBD
+- Where: TBD
+- Speakers: TBD
+
+## Night of
+1. Doors + QR check-in
+2. Welcome (5 min)
+3. Main session
+4. Intros / close
+
+## Follow-up
+- Thank-you in the original chat (lead sends)
+- Attach guest list from native RSVP"
+`;
+
+exports[`golden — generated public text > runSheet > complete sheet 1`] = `
+"# Run sheet — Launch Night
+
+- When: 2025-06-01T18:00:00Z
+- Where: Blue Door
+- Speakers: Ada
+
+## Night of
+1. Doors + QR check-in
+2. Welcome (5 min)
+3. Main session
+4. Intros / close
+
+## Follow-up
+- Thank-you in the original chat (lead sends)
+- Attach guest list from native RSVP"
+`;

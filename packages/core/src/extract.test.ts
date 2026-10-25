@@ -47,8 +47,13 @@ describe("topicFrom", () => {
   });
 
   it("falls back to the first three content words, else null", () => {
-    expect(topicFrom("please someone organize this thing")).toBeTruthy();
+    expect(topicFrom("please someone organize this thing")).toBe("organize thing");
     expect(topicFrom("a an the to for")).toBeNull();
+  });
+
+  it("drops words of two letters or fewer", () => {
+    // "we"/"go"/"up"/"it" are all <=2 chars or stopwords — nothing remains.
+    expect(topicFrom("we go up it")).toBeNull();
   });
 });
 
@@ -59,6 +64,13 @@ describe("clipQuote", () => {
     const clipped = clipQuote(long);
     expect(clipped.length).toBe(180);
     expect(clipped.endsWith("...")).toBe(true);
+  });
+
+  it("keeps exactly-180 quotes whole and clips at 181", () => {
+    const exact = "y".repeat(180);
+    expect(clipQuote(exact)).toBe(exact);
+    const over = "y".repeat(181);
+    expect(clipQuote(over)).toBe(`${"y".repeat(177)}...`);
   });
 });
 

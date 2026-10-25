@@ -14,3 +14,7 @@ dist/
 coverage/
 .cos-whatsapp/
 *.tgz
+
+# Stryker
+.stryker-tmp/
+reports/

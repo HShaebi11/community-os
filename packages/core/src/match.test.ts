@@ -43,6 +43,14 @@ describe("matchSpeakers", () => {
   it("ignores members with no profile text", () => {
     expect(matchSpeakers([member({ displayName: "blank" })], "bread")).toHaveLength(0);
   });
+
+  it("matches on ANY single topic word (some, not every)", () => {
+    // "workshop" appears in the blob, "bread" does not — a partial match must
+    // still score > 0, or long-tail offers never surface.
+    const members = [member({ displayName: "partial", offer: "i run a workshop on pottery" })];
+    const ranked = matchSpeakers(members, "bread workshop");
+    expect(ranked.map((m) => m.displayName)).toEqual(["partial"]);
+  });
 });
 
 describe("matchVenues", () => {
@@ -57,6 +65,11 @@ describe("matchVenues", () => {
     // null capacity is treated as 9999 — sorts last, after real capacities.
     expect(ranked.map((v) => v.name)).toEqual(["fits", "huge", "unknown"]);
     expect(ranked.map((v) => v.name)).not.toContain("tiny");
+  });
+
+  it("treats capacity === people as a fit (inclusive bound)", () => {
+    const venues = [venueF({ name: "exact", capacity: 20 }), venueF({ name: "under", capacity: 19 })];
+    expect(matchVenues(venues, 20).map((v) => v.name)).toEqual(["exact"]);
   });
 });
 
