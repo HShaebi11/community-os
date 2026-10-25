@@ -1,0 +1,42 @@
+.gitignore
+  h_c628d8a6509c22 17-20
+package-lock.json
+  h_c628d8a6509c22 114-661,669-1067,1070-1073,1076-1081,1083,1086-1089,1093-1146,1152-1166,2917-3263,3266-3271,3273,3275-3281,5842-5848,5862-5874,5882-6061,6379-6392,6609-6618,6776-6809,7011-7017,7056-7065,7190-7196,7289-7299,7316-7322,7979-7985,7993-8002,8170-8196,8311-8327,8344-8353,8379-8394,8428-8437,8496-8505,8575-8591,8749-8758,8775-8785,8820-8832,8839-8864,8983-8989,8997-9016,9029-9041,9355-9361,9493-9499,9545-9591,9732-9771,9793-9806,9839-9851,10049-10074,10894-10906,11706-11715,11770-11812,11834-11840,11868-11880,11890-11920,11973-11985,12610-12616,12834-12846,12969-12970
+package.json
+  h_c628d8a6509c22 21-23,29
+packages/core/package.json
+  h_c628d8a6509c22 18-20,22
+packages/core/src/__snapshots__/golden.test.ts.snap
+  h_c628d8a6509c22 1-82
+packages/core/src/extract.test.ts
+  h_c628d8a6509c22 50,53-57,68-74
+packages/core/src/golden.test.ts
+  h_c628d8a6509c22 1-117
+packages/core/src/kernel.invariants.test.ts
+  h_c628d8a6509c22 47,106-113
+packages/core/src/kernel.memory.test.ts
+  h_c628d8a6509c22 2,106-145
+packages/core/src/match.test.ts
+  h_c628d8a6509c22 46-53,69-73
+packages/core/src/noise.test.ts
+  h_c628d8a6509c22 42-59
+packages/core/src/qr.test.ts
+  h_c628d8a6509c22 15-22
+packages/core/vitest.config.ts
+  h_c628d8a6509c22 6
+scripts/test-dist.mjs
+  h_c628d8a6509c22 1-71
+stryker.config.json
+  h_c628d8a6509c22 1-37
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9401945338b397a0f1880a52429467c63a65cfb2",
+  "prompts": {},
+  "humans": {
+    "h_c628d8a6509c22": {
+      "author": "Hamza <hshaebi.11@gmail.com>"
+    }
+  }
+}
