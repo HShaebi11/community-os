@@ -1,6 +1,6 @@
 import { createDb } from "@community-os/db";
 import { createApp, memoryStore } from "./app.ts";
-import { createDrizzleStore } from "./drizzle-store.ts";
+import { createDrizzleStore } from "@community-os/db";
 
 type WorkerEnv = {
   DATABASE_URL?: string;

@@ -18,8 +18,8 @@ import {
   venues,
   webhookSubscriptions,
   workspaces,
-  type Database,
-} from "@community-os/db";
+  } from "./schema.ts";
+import type { Database } from "./index.ts";
 import { and, eq } from "drizzle-orm";
 
 export function createDrizzleStore(db: Database): Store {

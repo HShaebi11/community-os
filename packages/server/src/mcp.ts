@@ -1,6 +1,6 @@
 import type { Context, Hono } from "hono";
 import { handleMcpRequest } from "@community-os/mcp/remote";
-import type { AppEnv } from "./app.ts";
+import type { AppEnv } from "./index.ts";
 
 export function mountMcp(app: Hono<AppEnv>) {
   const handler = (c: Context<AppEnv>) =>

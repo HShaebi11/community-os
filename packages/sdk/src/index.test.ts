@@ -1,8 +1,9 @@
 import { createHmac } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { readFileSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { MemoryStore } from "@community-os/core";
+import { SqliteStore } from "@community-os/store-sqlite";
 import { describe, expect, it } from "vitest";
 import { createApp } from "../../../apps/api/src/app.ts";
 import { ApiError, CommunityOS, verifyWebhookSignature } from "./index.ts";
@@ -93,6 +94,42 @@ describe("embedded transport (CommunityOS.memory)", () => {
     const cos = CommunityOS.memory();
     await expect(cos.getWorkspace("nope")).rejects.toMatchObject({ status: 404 });
     await expect(cos.getMember("nope")).rejects.toBeInstanceOf(ApiError);
+  });
+});
+
+describe("embedded transport on SQLite (CommunityOS.store)", () => {
+  it("runs the full kernel loop on a real database", async () => {
+    const sqlite = new SqliteStore();
+    await kernelLoop(CommunityOS.store(sqlite, { publicOrigin: "https://pub.test" }));
+    sqlite.close();
+  });
+
+  it("persists across instances — same file, new process-level store", async () => {
+    const path = join(dirname(fileURLToPath(import.meta.url)), "../.test-persist.db");
+    let ws: { id: string };
+    {
+      const sqlite = new SqliteStore(path);
+      ws = await CommunityOS.store(sqlite).createWorkspace({ name: "Persisted" });
+      sqlite.close();
+    }
+    {
+      const sqlite = new SqliteStore(path);
+      const cos = CommunityOS.store(sqlite);
+      expect((await cos.getWorkspace(ws.id)).name).toBe("Persisted");
+      expect((await cos.getWorkspaceBySlug("persisted")).id).toBe(ws.id);
+      sqlite.close();
+    }
+    rmSync(path, { force: true });
+  });
+});
+
+describe("serve()", () => {
+  it("serves the real /v1 API on an embedded store", async () => {
+    const cos = CommunityOS.memory();
+    const { port, close } = await cos.serve({ port: 0 });
+    const res = await fetch(`http://localhost:${port}/v1/health`);
+    expect((await res.json()) as { ok: boolean }).toMatchObject({ ok: true });
+    close();
   });
 });
 

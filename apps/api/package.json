@@ -14,6 +14,7 @@
     "@community-os/core": "0.1.0",
     "@community-os/db": "0.1.0",
     "@community-os/mcp": "0.1.0",
+    "@community-os/server": "0.1.0",
     "@community-os/whatsapp-import": "0.1.0",
     "@hono/node-server": "^2.1.5",
     "drizzle-orm": "^0.45.2",

@@ -1,27 +1,60 @@
 # @community-os/sdk
 
-Community OS as a library. One package, two ways to run:
-
-- **Remote** — typed client for a deployed Community OS API.
-- **Embedded** — `CommunityOS.memory()` runs the entire kernel in-process on an
-  in-memory store. No server, no database, no auth. The same method surface
-  either way.
+**Community OS is this package.** Not a client for it — the whole product,
+as a library: WhatsApp/Discord ingest, cited member memory, demand
+extraction, proposal packs, native event pages + RSVPs, applications,
+blocklist, webhooks, export — with persistence left to you.
 
 ```bash
 npm i @community-os/sdk
 ```
 
-Requires Node 20+ (or any runtime with `fetch` + `crypto.subtle`).
+Requires Node 20+ (`node:sqlite` adapters need Node 22.5+).
 
-## Embedded mode
-
-Everything works without a server:
+## Pick your storage — or none
 
 ```ts
 import { CommunityOS } from "@community-os/sdk";
+import { SqliteStore } from "@community-os/store-sqlite"; // or your own Store
 
-const cos = CommunityOS.memory();
+const cos = CommunityOS.memory();                        // scratch / tests
+const cos = CommunityOS.store(new SqliteStore("./community.db")); // durable, zero services
+const cos = CommunityOS.store(createDrizzleStore(db));   // Postgres (@community-os/db)
+const cos = CommunityOS.store(myStore);                  // anything implementing Store
+```
 
+Storage is a contract (`Store`), not a product decision. SQLite, Postgres,
+Turso, D1, files — implement ~40 methods and the entire community OS runs on
+it. The two in-repo adapters: `SqliteStore` (embedded, zero deps) and
+`createDrizzleStore` (Postgres via Drizzle).
+
+## Serve it
+
+The same instance exposes the real `/v1` HTTP API + MCP endpoint:
+
+```ts
+const cos = CommunityOS.store(new SqliteStore("./community.db"));
+const { port, close } = await cos.serve({ port: 5173 }); // npm i @hono/node-server
+```
+
+That's the actual API — `apps/api` is just this wrapped for deployment
+(Cloudflare Worker or `node`). Self-hosting can literally be a six-line
+file.
+
+## Remote mode
+
+Point it at any deployed API instead:
+
+```ts
+const cos = new CommunityOS({ baseUrl: "http://localhost:5173" });
+```
+
+Same methods either way — embedded calls the kernel, remote calls the
+routes, and the error semantics match (`ApiError` with `.status`).
+
+## The loop
+
+```ts
 const ws = await cos.createWorkspace({ name: "Weird Stuff" });
 await cos.importChat(ws.id, chatExportText, "_chat.txt"); // string, bytes, Blob, or .zip
 const { members, demands } = await cos.refreshMemory(ws.id);
@@ -29,61 +62,37 @@ const pack = await cos.createProposal(ws.id, demands[0].id);
 await cos.approveProposal(pack.id);
 const event = await cos.goLive(pack.id);
 await cos.rsvp(event.slug, { name: "Ada", email: "ada@test.dev" });
+const backup = await cos.exportWorkspace(ws.id);          // everything, as JSON
 ```
 
-Volatile — state lives until the process exits. Great for tests, scripts,
-prototypes, and agents. Persist with `exportWorkspace(ws.id)`, or run the API
-if you need durability.
+## Ingest adapters
 
-## Remote mode
+`importChat` defaults to WhatsApp parsing. In embedded mode pass any
+`IngestAdapter` — `parse(bytes, filename) → { transcript, files }` — to teach
+it Slack, Telegram, or whatever format your community exports. Writing an
+adapter is the intended contribution path for new platforms.
 
-Point it at any deployed Community OS API:
+## Webhooks
 
-```ts
-const cos = new CommunityOS({
-  baseUrl: "http://localhost:5173",
-  publicOrigin: "https://community.example.com", // optional; sent as X-Public-Origin
-  fetch: customFetch,                            // optional
-});
-```
-
-No API key — the open core is unauthenticated by design (single trusted
-operator per deployment; put network auth in front of anything exposed).
-
-## Surface
-
-Workspaces (`createWorkspace`, `listWorkspaces`, `getWorkspace`,
-`getWorkspaceBySlug`, `updateWorkspace`) · evidence (`importChat`,
-`ingestDiscord`, `listMessages`, `listFiles`, `listTimeline`,
-`exportWorkspace`) · memory (`refreshMemory`, `listMembers`, `getMember`,
-`updateMember`, `briefing`, `listDemands`, `getDemand`, `listResources`,
-`search`) · proposals → events (`createProposal`, `getProposal`,
-`approveProposal`, `draftOutreach`, `goLive`, `listEvents`, `getEventChain`,
-`listGuests`, `autopilot`) · public front door (`publicCommunity`,
-`publicEvent`, `publicMember`, `rsvp`) · gatekeeper (`submitApplication`,
-`listApplications`, `addBlocklist`) · webhooks (`createWebhook`, `listWebhooks`,
-`deleteWebhook`).
-
-Errors throw `ApiError` with `.status` — embedded mode mirrors the remote
-API's status codes (404 for missing records, 400 for domain errors).
-
-## Webhook verification
+`createWebhook` / `listWebhooks` / `deleteWebhook` manage subscriptions; the
+secret (`whsec_…`) is returned once at creation. Receivers verify with:
 
 ```ts
 import { verifyWebhookSignature } from "@community-os/sdk";
-
-const ok = await verifyWebhookSignature(rawBody, req.headers["x-communityos-signature"], "whsec_…");
+const ok = await verifyWebhookSignature(rawBody, req.headers["x-communityos-signature"], secret);
 ```
 
-Subscriptions are created with `createWebhook` — the `whsec_` secret is shown
-once. Deliveries are `POST`ed as `{ id, kind, workspaceId, occurredAt, data }`
-with `X-CommunityOS-Signature: sha256=<hmac>`. Embedded mode registers
-subscriptions but does not deliver — delivery is a server concern.
+Embedded mode registers subscriptions but only `serve()`/remote deployments
+deliver them.
 
-## Notes
+## Ground rules
 
-- Drafts only: `draftOutreach` returns text for a human to send. The SDK will
-  never ship a `send` — that's the product's design.
-- The public front-door methods only ever return opted-in data.
+- No accounts or API keys — the open core is single-operator. Put network
+  auth in front of anything exposed; a hosted edition layers it on at the
+  edge.
+- Drafts only: `draftOutreach` returns text for a human to send. There is no
+  `send`, ever.
+- The public front-door methods (`publicCommunity`, `publicEvent`,
+  `publicMember`, `rsvp`) only ever return opted-in data.
 
 MIT · part of the [Community OS](https://github.com/HShaebi11/community-os) monorepo.

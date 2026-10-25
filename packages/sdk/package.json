@@ -1,7 +1,7 @@
 {
   "name": "@community-os/sdk",
   "version": "0.1.0",
-  "description": "Community OS as a library — typed client for the /v1 API plus an in-process embedded mode",
+  "description": "Community OS as a library \u2014 typed client for the /v1 API plus an in-process embedded mode",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
@@ -12,8 +12,12 @@
       "default": "./dist/index.js"
     }
   },
-  "files": ["dist"],
-  "engines": { "node": ">=20" },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "build": "tsup",
     "test": "vitest run",
@@ -21,7 +25,11 @@
   },
   "devDependencies": {
     "@community-os/core": "0.1.0",
+    "@community-os/mcp": "0.1.0",
+    "@community-os/server": "0.1.0",
+    "@community-os/store-sqlite": "0.1.0",
     "@community-os/whatsapp-import": "0.1.0",
+    "@hono/node-server": "^2.1.5",
     "tsup": "^8.5.0",
     "typescript": "^5.9.3",
     "vitest": "^3.2.4"
@@ -33,5 +41,17 @@
   },
   "publishConfig": {
     "access": "public"
+  },
+  "peerDependencies": {
+    "@cloudflare/codemode": "*",
+    "@hono/node-server": "^2.1.5"
+  },
+  "peerDependenciesMeta": {
+    "@hono/node-server": {
+      "optional": true
+    },
+    "@cloudflare/codemode": {
+      "optional": true
+    }
   }
 }

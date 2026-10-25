@@ -24,3 +24,5 @@ export function createNodeDb(url: string) {
 // Shared query surface of both drivers (Neon HTTP + postgres.js).
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type Database = PgDatabase<any, typeof schema>;
+
+export { createDrizzleStore } from "./drizzle-store.ts";

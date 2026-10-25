@@ -1,7 +1,7 @@
 import { serve } from "@hono/node-server";
 import { createNodeDb } from "@community-os/db";
 import { createApp, memoryStore } from "./app.ts";
-import { createDrizzleStore } from "./drizzle-store.ts";
+import { createDrizzleStore } from "@community-os/db";
 
 // Plain-Node entrypoint for self-hosting without Cloudflare. Same Hono app,
 // same store contract — only the transport and DB driver differ. Code Mode

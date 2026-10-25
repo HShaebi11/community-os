@@ -40,6 +40,7 @@ import type {
   Resource,
   Source,
   Sponsor,
+  Store,
   TimelineEvent,
   Venue,
   WebhookSubscription,
@@ -121,6 +122,15 @@ export type WorkspaceExport = {
   messages: Array<Omit<Message, "body" | "communityId">>;
 };
 
+/** Pluggable ingest for importChat in embedded mode. Matches the signature
+ *  of @community-os/whatsapp-import's parseWhatsAppExport. */
+export type IngestAdapter = {
+  parse(data: Uint8Array, filename: string): {
+    transcript: string;
+    files: Array<{ name: string; mime: string; bytes: Uint8Array }>;
+  };
+};
+
 export type WebhookKind = "import" | "memory" | "proposal" | "published" | "rsvp" | "application";
 export type WebhookPayload<T = unknown> = {
   id: string;
@@ -173,9 +183,30 @@ export class CommunityOS {
 
   /** The whole kernel in-process on a volatile in-memory store. */
   static memory(options: { publicOrigin?: string } = {}): CommunityOS {
+    return CommunityOS.store(new MemoryStore(), options);
+  }
+
+  /** The whole kernel in-process on YOUR store — any implementation of the
+   *  Store contract: SQLite (@community-os/store-sqlite), Postgres
+   *  (createDrizzleStore in @community-os/db), or your own. Persistence is
+   *  the developer's choice; the product is the same. */
+  static store(store: Store, options: { publicOrigin?: string } = {}): CommunityOS {
     const cos = Object.create(CommunityOS.prototype) as CommunityOS;
-    cos.local = { store: new MemoryStore(), origin: options.publicOrigin ?? DEFAULT_ORIGIN };
+    cos.local = { store: store as CoreStore, origin: options.publicOrigin ?? DEFAULT_ORIGIN };
     return cos;
+  }
+
+  /** Serve the real HTTP API (every /v1 route + /mcp) in-process on this
+   *  instance's store. Requires @hono/node-server (peer dep, Node only). */
+  async serve(options: { port?: number; hostname?: string } = {}): Promise<{ port: number; close: () => void }> {
+    if (!this.local) throw new ApiError(500, "serve() needs an embedded instance — CommunityOS.memory() or CommunityOS.store()");
+    const { createApp } = await import("@community-os/server");
+    const { serve } = await import("@hono/node-server");
+    const app = createApp(this.local.store);
+    const server = serve({ fetch: app.fetch, port: options.port ?? 5173, hostname: options.hostname });
+    const address = server.address();
+    const port = typeof address === "object" && address ? address.port : (options.port ?? 5173);
+    return { port, close: () => server.close() };
   }
 
   // -- plumbing ---------------------------------------------------------------
@@ -224,9 +255,9 @@ export class CommunityOS {
     }
   }
 
-  private domainParse(bytes: Uint8Array, filename: string) {
+  private domainParse(bytes: Uint8Array, filename: string, adapter?: IngestAdapter) {
     try {
-      return parseWhatsAppExport(bytes, filename);
+      return adapter ? adapter.parse(bytes, filename) : parseWhatsAppExport(bytes, filename);
     } catch (err) {
       throw new ApiError(400, err instanceof Error ? err.message : "error");
     }
@@ -267,11 +298,14 @@ export class CommunityOS {
 
   // -- Evidence ------------------------------------------------------------
 
-  /** Import a WhatsApp export — .txt transcript (string or bytes) or .zip with media. */
+  /** Import a chat export — .txt transcript (string or bytes) or .zip with
+   *  media. Embedded mode accepts an `adapter` — any IngestAdapter (Slack,
+   *  Telegram, …); remote mode always parses server-side. */
   async importChat(
     workspaceId: string,
     data: string | Blob | ArrayBuffer | Uint8Array,
     filename = "_chat.txt",
+    adapter?: IngestAdapter,
   ): Promise<ImportResult> {
     if (this.local) {
       this.need(await this.store.getWorkspace(workspaceId), "workspace");
@@ -280,7 +314,7 @@ export class CommunityOS {
         : data instanceof Uint8Array ? data
         : data instanceof ArrayBuffer ? new Uint8Array(data)
         : new Uint8Array(await data.arrayBuffer());
-      const parsed = this.domainParse(bytes, filename);
+      const parsed = this.domainParse(bytes, filename, adapter);
       return this.domainCall(() => importWhatsApp(
         this.store,
         workspaceId,

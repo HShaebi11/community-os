@@ -1,0 +1,25 @@
+{
+  "name": "@community-os/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@community-os/core": "0.1.0",
+    "@community-os/mcp": "0.1.0",
+    "@community-os/whatsapp-import": "0.1.0",
+    "hono": "^4.11.3"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}
