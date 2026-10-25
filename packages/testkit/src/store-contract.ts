@@ -101,12 +101,67 @@ export function testStoreContract<S extends Store>(
     });
 
     describe("messages + files", () => {
-      it("dedupes on (communityId, sourceMessageId) not message id", async () => {
+      it("dedupes on (communityId, sourceId, sourceMessageId) not message id", async () => {
         const s = await fresh();
         const w = await s.createWorkspace({ name: "W", createdBy: "lead" });
         const m = message({ communityId: w.id, sourceMessageId: "ext-1" });
         expect(await s.insertMessages([m])).toEqual({ inserted: 1, skipped: 0 });
         expect(await s.insertMessages([{ ...m, id: makeId() }])).toEqual({ inserted: 0, skipped: 1 });
+      });
+
+      it("does NOT dedupe the same platform id across different sources", async () => {
+        const s = await fresh();
+        const w = await s.createWorkspace({ name: "W", createdBy: "lead" });
+        // Platform ids are only unique within their source — a Slack "1" and a
+        // Discord "1" are different messages and both must land.
+        const res = await s.insertMessages([
+          message({ communityId: w.id, sourceId: "src-slack", sourceMessageId: "1" }),
+          message({ communityId: w.id, sourceId: "src-discord", sourceMessageId: "1" }),
+        ]);
+        expect(res).toEqual({ inserted: 2, skipped: 0 });
+        expect(await s.listMessages(w.id)).toHaveLength(2);
+      });
+
+      it("dedupes within a single batch and across concurrent calls", async () => {
+        const s = await fresh();
+        const w = await s.createWorkspace({ name: "W", createdBy: "lead" });
+        const batch = [
+          message({ communityId: w.id, sourceId: "s1", sourceMessageId: "a" }),
+          message({ communityId: w.id, sourceId: "s1", sourceMessageId: "a" }),
+          message({ communityId: w.id, sourceId: "s1", sourceMessageId: "b" }),
+        ];
+        expect(await s.insertMessages(batch)).toEqual({ inserted: 2, skipped: 1 });
+        // Two overlapping deliveries racing (webhook retry + live event) must
+        // still net exactly the unique ids — the dedupe check is atomic.
+        const overlap = [
+          message({ communityId: w.id, sourceId: "s1", sourceMessageId: "b" }),
+          message({ communityId: w.id, sourceId: "s1", sourceMessageId: "c" }),
+        ];
+        const [r1, r2] = await Promise.all([s.insertMessages(overlap), s.insertMessages(overlap)]);
+        expect(r1.inserted + r2.inserted).toBe(1);
+        expect(r1.skipped + r2.skipped).toBe(3);
+        expect(await s.listMessages(w.id)).toHaveLength(3);
+      });
+
+      it("round-trips hostile strings verbatim — injection, unicode, control chars", async () => {
+        const s = await fresh();
+        const w = await s.createWorkspace({ name: "W", createdBy: "lead" });
+        const bodies = [
+          `'; DROP TABLE messages; --`,
+          `" OR "1"="1`,
+          "emoji 👋🏽 and rtl \u202Etxet and accents café naïve",
+          "null byte inline",
+          "line1\nline2\r\nline3\ttab",
+          "x".repeat(50_000),
+        ];
+        for (const [i, body] of bodies.entries()) {
+          await s.insertMessages([message({ communityId: w.id, sourceId: "s1", sourceMessageId: `h${i}`, body })]);
+        }
+        const list = await s.listMessages(w.id);
+        expect(list).toHaveLength(bodies.length);
+        for (const [i, body] of bodies.entries()) {
+          expect(list.find((m) => m.sourceMessageId === `h${i}`)?.body).toBe(body);
+        }
       });
 
       it("counts the same platform id in a different community as distinct", async () => {
@@ -159,6 +214,16 @@ export function testStoreContract<S extends Store>(
         expect(older.lastActive).toBe("2025-02-01T00:00:00Z");
         const newer = await s.upsertMember("c1", "ada", "2025-03-01T00:00:00Z");
         expect(newer.lastActive).toBe("2025-03-01T00:00:00Z");
+        expect(await s.listMembers("c1")).toHaveLength(1);
+      });
+
+      it("normalizes padded names — ' Ada ' is the same member as 'Ada'", async () => {
+        const s = await fresh();
+        // Adapters upstream pass raw author strings; padding must not fork the
+        // member into two identities.
+        const a = await s.upsertMember("c1", "Ada", null);
+        const padded = await s.upsertMember("c1", "  Ada  ", "2025-01-01T00:00:00Z");
+        expect(padded.id).toBe(a.id);
         expect(await s.listMembers("c1")).toHaveLength(1);
       });
 

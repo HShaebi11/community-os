@@ -55,7 +55,8 @@ CREATE TABLE IF NOT EXISTS sources (id TEXT PRIMARY KEY, communityId TEXT NOT NU
 CREATE INDEX IF NOT EXISTS idx_sources_ws ON sources(communityId);
 CREATE TABLE IF NOT EXISTS messages (id TEXT PRIMARY KEY, communityId TEXT NOT NULL, sourceId TEXT NOT NULL, sourceMessageId TEXT NOT NULL, authorRaw TEXT NOT NULL, memberId TEXT, body TEXT NOT NULL, sentAt TEXT NOT NULL, isNoise INTEGER NOT NULL);
 CREATE INDEX IF NOT EXISTS idx_messages_ws ON messages(communityId);
-CREATE UNIQUE INDEX IF NOT EXISTS idx_messages_dedup ON messages(communityId, sourceMessageId);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_messages_dedup_v2 ON messages(communityId, sourceId, sourceMessageId);
+DROP INDEX IF EXISTS idx_messages_dedup;
 CREATE TABLE IF NOT EXISTS files (id TEXT PRIMARY KEY, communityId TEXT NOT NULL, messageId TEXT, name TEXT NOT NULL, storagePath TEXT NOT NULL, mime TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS idx_files_ws ON files(communityId);
 CREATE TABLE IF NOT EXISTS members (id TEXT PRIMARY KEY, communityId TEXT NOT NULL, displayName TEXT NOT NULL, aliases TEXT NOT NULL, "do" TEXT, want TEXT, offer TEXT, notes TEXT, publicOptIn INTEGER NOT NULL, publicSlug TEXT, lastActive TEXT, leadLockedFields TEXT NOT NULL);
@@ -217,7 +218,13 @@ export class SqliteStore implements Store {
     let inserted = 0;
     let skipped = 0;
     for (const message of messages) {
-      if (this.one("messages", "communityId = ? AND sourceMessageId = ?", [message.communityId, message.sourceMessageId])) {
+      if (
+        this.one("messages", "communityId = ? AND sourceId = ? AND sourceMessageId = ?", [
+          message.communityId,
+          message.sourceId,
+          message.sourceMessageId,
+        ])
+      ) {
         skipped++;
         continue;
       }
@@ -244,9 +251,10 @@ export class SqliteStore implements Store {
   }
 
   async upsertMember(communityId: string, displayName: string, lastActive: string | null) {
+    displayName = displayName.trim();
     const existing = this.one<Member>(
       "members",
-      `communityId = ? AND EXISTS (SELECT 1 FROM json_each(members.aliases) WHERE lower(value) = lower(?))`,
+      `communityId = ? AND EXISTS (SELECT 1 FROM json_each(members.aliases) WHERE lower(trim(value)) = lower(?))`,
       [communityId, displayName],
     );
     if (existing) {

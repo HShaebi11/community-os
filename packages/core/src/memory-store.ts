@@ -93,7 +93,10 @@ export class MemoryStore implements Store {
     let skipped = 0;
     for (const message of messages) {
       const dup = [...this.messages.values()].some(
-        (m) => m.communityId === message.communityId && m.sourceMessageId === message.sourceMessageId,
+        (m) =>
+          m.communityId === message.communityId &&
+          m.sourceId === message.sourceId &&
+          m.sourceMessageId === message.sourceMessageId,
       );
       if (dup) {
         skipped++;
@@ -124,8 +127,9 @@ export class MemoryStore implements Store {
   }
 
   async upsertMember(communityId: string, displayName: string, lastActive: string | null) {
+    displayName = displayName.trim();
     const existing = [...this.members.values()].find(
-      (m) => m.communityId === communityId && m.aliases.some((a) => a.toLowerCase() === displayName.toLowerCase()),
+      (m) => m.communityId === communityId && m.aliases.some((a) => a.trim().toLowerCase() === displayName.toLowerCase()),
     );
     if (existing) {
       if (lastActive && (!existing.lastActive || lastActive > existing.lastActive)) existing.lastActive = lastActive;

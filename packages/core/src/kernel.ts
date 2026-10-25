@@ -372,9 +372,15 @@ export async function rsvp(
     members.find((m) => m.displayName.toLowerCase() === name.toLowerCase()) ??
     members.find((m) => (m.notes ?? "").toLowerCase().includes(email)) ??
     null;
-  const existing = (await store.listGuests(event.id)).find((g) => g.email === email);
+  const guests = await store.listGuests(event.id);
+  const existing = guests.find((g) => g.email === email);
   if (existing) {
     return store.updateGuest(existing.id, { name, memberId: member?.id ?? existing.memberId });
+  }
+  const proposal = await store.getProposal(event.proposalId);
+  const venue = proposal?.venueId ? await store.getVenue(proposal.venueId) : null;
+  if (venue?.capacity != null && guests.length >= venue.capacity) {
+    throw new Error(`event at capacity (${venue.capacity})`);
   }
   const guest = await store.createGuest({
     id: createId(),
@@ -482,8 +488,13 @@ export async function assignPublicSlug(store: Store, memberId: string) {
   if (!member) throw new Error("member not found");
   if (member.publicSlug) return member.publicSlug;
   const base = slugify(member.displayName);
-  const taken = await store.getMemberByPublicSlug(base);
-  const slug = taken && taken.id !== member.id ? `${base}-${member.id.slice(0, 6)}` : base;
+  // Two checks: opted-in members globally (getMemberByPublicSlug filters opt-in),
+  // plus every member in this community — dormant slugs still hold their claim
+  // so an opted-out member keeps their URL when they opt back in.
+  const dormant = await store.getMemberBySlug(member.communityId, base);
+  const live = await store.getMemberByPublicSlug(base);
+  const taken = [dormant, live].find((m) => m && m.id !== member.id);
+  const slug = taken ? `${base}-${member.id.slice(0, 6)}` : base;
   await store.updateMember(member.id, { publicSlug: slug }, true);
   return slug;
 }

@@ -144,6 +144,27 @@ describe("webhook lifecycle — the signed fan-out", () => {
     expect(payload).toMatchObject({ kind: "import", workspaceId: w.id });
   });
 
+  it("the verifier REJECTS tampered bodies, wrong secrets, and malformed headers", async () => {
+    const { app, deliveries, createWorkspace } = make();
+    const w = await createWorkspace();
+    const created = await app.request(`/v1/workspaces/${w.id}/webhooks`, json({ url: "https://hook.test/x", kinds: ["import"] }));
+    const { secret } = (await created.json()) as { secret: string };
+    await app.request(
+      "/v1/ingest",
+      json({ communityId: w.id, source: { kind: "slack", name: "s" }, messages: [normalizedMessage()] }),
+    );
+    const d = deliveries[0];
+    const signature = d.headers["x-communityos-signature"];
+    // Body modified in transit → reject.
+    expect(await verifyWebhookSignature(d.body + " ", signature, secret)).toBe(false);
+    expect(await verifyWebhookSignature(d.body.replace("import", "rsvp"), signature, secret)).toBe(false);
+    // Wrong secret (e.g. replay aimed at another subscription) → reject.
+    expect(await verifyWebhookSignature(d.body, signature, "wrong-secret")).toBe(false);
+    // Malformed/missing signature header → reject.
+    expect(await verifyWebhookSignature(d.body, "", secret)).toBe(false);
+    expect(await verifyWebhookSignature(d.body, "md5=abc", secret)).toBe(false);
+  });
+
   it("kind-filtered subscriptions only receive matching events", async () => {
     const { app, deliveries, createWorkspace } = make();
     const w = await createWorkspace();
@@ -279,5 +300,74 @@ describe("search + export", () => {
     const res = await app.request(`/v1/workspaces/${w.id}/export`);
     expect(res.headers.get("content-disposition")).toContain("bread-town-export.json");
     expect((await res.json()) as { version: number }).toMatchObject({ version: 1 });
+  });
+});
+
+describe("http-layer adversarial inputs", () => {
+  it("non-JSON content-type and malformed JSON bodies fail as 400, not a crash", async () => {
+    const { app } = make();
+    const res1 = await app.request("/v1/workspaces", {
+      method: "POST",
+      headers: { "content-type": "text/plain" },
+      body: "name=W",
+    });
+    expect([400, 415]).toContain(res1.status);
+    const res2 = await app.request("/v1/workspaces", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: "{not json",
+    });
+    expect(res2.status).toBe(400);
+  });
+
+  it("unknown JSON fields are ignored; immutable fields cannot be reassigned", async () => {
+    const { app, store, createWorkspace } = make();
+    const w = await createWorkspace();
+    const m = await store.upsertMember(w.id, "Ada", null);
+    const res = await app.request(`/v1/members/${m.id}`, patch({ id: "hijacked", communityId: "other", do: "baker", unknownField: 1 }));
+    expect(res.status).toBe(200);
+    const after = await store.getMember(m.id);
+    expect(after?.id).toBe(m.id);
+    expect(after?.communityId).toBe(w.id);
+    expect(after?.do).toBe("baker");
+  });
+
+  it("ingest with an empty messages array is a clean no-op", async () => {
+    const { app, createWorkspace } = make();
+    const w = await createWorkspace();
+    const res = await app.request("/v1/ingest", json({ communityId: w.id, source: { kind: "native", name: "t" }, messages: [] }));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ inserted: 0, skipped: 0 });
+  });
+
+  it("cross-source ingest over HTTP keeps colliding platform ids", async () => {
+    const { app, store, createWorkspace } = make();
+    const w = await createWorkspace();
+    const send = (kind: string) =>
+      app.request("/v1/ingest", json({ communityId: w.id, source: { kind, name: kind }, messages: [{ id: "1", author: "Ada", body: `via ${kind}`, sentAt: "2025-01-01T00:00:00Z" }] }));
+    await send("slack");
+    await send("discord");
+    expect(await store.listMessages(w.id)).toHaveLength(2);
+  });
+
+  it("rsvp over HTTP enforces the matched venue's capacity as a 400", async () => {
+    const { app, store, createWorkspace } = make();
+    const w = await createWorkspace();
+    // Capacity >= max(members, 10) so the proposal matcher binds this venue.
+    await store.upsertVenue({ id: "v1", communityId: w.id, name: "Tiny", area: null, capacity: 10, contact: null });
+    await app.request("/v1/ingest", json({ communityId: w.id, source: { kind: "whatsapp", name: "t" }, messages: [{ id: "1", author: "Ada", body: "i want a bread workshop", sentAt: "2025-01-01T00:00:00Z" }] }));
+    await app.request(`/v1/workspaces/${w.id}/memory`, { method: "POST" });
+    const demands = (await (await app.request(`/v1/workspaces/${w.id}/demands`)).json()) as Array<{ id: string }>;
+    const pack = (await (await app.request(`/v1/workspaces/${w.id}/proposals`, json({ demandId: demands[0].id }))).json()) as { id: string; venueId: string | null };
+    expect(pack.venueId).toBe("v1");
+    await app.request(`/v1/proposals/${pack.id}/approve`, json({}));
+    const event = (await (await app.request(`/v1/proposals/${pack.id}/go-live`, json({}))).json()) as { slug: string };
+    for (let i = 0; i < 10; i++) {
+      const r = await app.request(`/v1/public/events/${event.slug}/rsvp`, json({ name: `G${i}`, email: `g${i}@x.com` }));
+      expect(r.status).toBe(201);
+    }
+    const overflow = await app.request(`/v1/public/events/${event.slug}/rsvp`, json({ name: "Eleven", email: "e11@x.com" }));
+    expect(overflow.status).toBe(400);
+    expect(await overflow.json()).toMatchObject({ error: expect.stringContaining("capacity") });
   });
 });

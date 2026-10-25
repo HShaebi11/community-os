@@ -198,4 +198,38 @@ describe.each(transports)("parity over $name transport", ({ cos }) => {
     await expect(c.createProposal(w.id, "nope")).rejects.toMatchObject({ status: 400 });
     await expect(c.rsvp("nope", { name: "A", email: "a@b.c" })).rejects.toMatchObject({ status: 400 });
   });
+
+  it("edge: cross-source id collision + padded author names + hostile bodies", async () => {
+    const c = cos();
+    const w = await c.createWorkspace({ name: "Edge" });
+    // Same platform id from two different sources — both messages land.
+    await c.ingest(w.id, { source: { kind: "slack", name: "#a" }, messages: [normalizedMessage({ id: "1", author: "Ada" })] });
+    await c.ingest(w.id, { source: { kind: "discord", name: "#b" }, messages: [normalizedMessage({ id: "1", author: "Ada" })] });
+    expect(await c.listMessages(w.id)).toHaveLength(2);
+    // Padded author name — same person, not a second member.
+    expect(await c.listMembers(w.id)).toHaveLength(1);
+    await c.ingest(w.id, { source: { kind: "slack", name: "#a" }, messages: [normalizedMessage({ id: "2", author: "  Ada  " })] });
+    expect(await c.listMembers(w.id)).toHaveLength(1);
+    // Hostile bodies round-trip intact through every transport.
+    await c.ingest(w.id, { source: { kind: "native", name: "t" }, messages: [normalizedMessage({ id: "h1", author: "Eve", body: "'; DROP TABLE members; -- 👋🏽" })] });
+    const hostile = (await c.listMessages(w.id)).find((m) => m.sourceMessageId === "h1");
+    expect(hostile?.body).toBe("'; DROP TABLE members; -- 👋🏽");
+  });
+
+  it("edge: rsvp enforces the matched venue capacity on every transport", async () => {
+    const c = cos();
+    const w = await c.createWorkspace({ name: "Cap" });
+    await c.createVenue(w.id, { name: "Tiny", capacity: 10 });
+    await c.ingest(w.id, { source: { kind: "whatsapp", name: "t" }, messages: [normalizedMessage({ id: "1", author: "Ada", body: "i want a bread workshop" })] });
+    await c.refreshMemory(w.id);
+    const [demand] = await c.listDemands(w.id);
+    const pack = await c.createProposal(w.id, demand.id);
+    await c.approveProposal(pack.id);
+    const event = await c.goLive(pack.id);
+    for (let i = 0; i < 10; i++) await c.rsvp(event.slug, { name: `G${i}`, email: `g${i}@x.com` });
+    await expect(c.rsvp(event.slug, { name: "Eleven", email: "e11@x.com" })).rejects.toMatchObject({ status: 400 });
+    // Updating an existing guest still works at capacity.
+    const updated = await c.rsvp(event.slug, { name: "G0 Renamed", email: "g0@x.com" });
+    expect(updated.name).toBe("G0 Renamed");
+  });
 });
