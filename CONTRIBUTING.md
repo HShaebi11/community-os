@@ -25,12 +25,35 @@ contributing, read [`docs/PRODUCT.md`](docs/PRODUCT.md) (what this is),
 ```sh
 npm install
 npm run validate     # tests + typecheck — must be green before you PR
+npm run coverage     # coverage + enforced thresholds (vitest.config.ts per workspace)
 npm run dev:app      # API :5173 + app :3002, in-memory store
 ```
 
-- Tests are `vitest`: API tests construct a `MemoryStore` and call routes
-  directly (`apps/api/src/app.test.ts`); `kernel-loop.test.ts` encodes the
-  whole product loop and is the canonical "did I break it" check.
+### The test suite
+
+Layers, bottom-up — put a test in the layer it exercises:
+
+- **`@community-os/testkit`** (`packages/testkit`) — shared harnesses:
+  `testStoreContract` (the executable Store contract), `FakeWebSocket`,
+  fixtures, signing helpers, real-zip builders. Reuse before inventing.
+- **Store adapters** must pass `testStoreContract` — that *is* the definition
+  of "done" for `packages/store-*`. See `packages/core/src/store-contract.test.ts`
+  and `packages/store-sqlite/src/index.test.ts`.
+- **Kernel** domain suites live beside the kernel (`kernel.*.test.ts`);
+  pure helpers (`extract`, `noise`, `match`, `qr`) have unit suites.
+- **Server routes**: `packages/server/src/index.test.ts` — happy paths,
+  validation, 404s, webhook signature delivery.
+- **SDK**: `packages/sdk/src/parity.test.ts` runs the same domain suite on all
+  three transports (remote/memory/sqlite). New SDK methods get a parity case.
+- **Channel adapters**: lifecycle tests use `FakeWebSocket` / `vi.mock` —
+  never a real socket.
+- **e2e**: `apps/api/src/e2e.test.ts` — the full product loop over real HTTP
+  and a real SQLite file.
+
+Coverage thresholds are enforced per workspace (`vitest.config.ts`) — seeded
+at current levels and meant to ratchet upward, never down. If a change makes
+you lower a threshold, that's a conversation to have in the PR, not a fix.
+
 - With a `DATABASE_URL`, `npm run db:push` syncs the Drizzle schema.
 - Match the existing style: compact, typed, no speculative abstractions.
 

@@ -698,7 +698,7 @@ export class CommunityOS {
   async createProposal(workspaceId: string, demandId: string): Promise<ProposalPack> {
     if (this.local) {
       this.need(await this.store.getWorkspace(workspaceId), "workspace");
-      return createProposalFromDemand(this.store, workspaceId, demandId) as Promise<ProposalPack>;
+      return this.domainCall(() => createProposalFromDemand(this.store, workspaceId, demandId)) as Promise<ProposalPack>;
     }
     return this.post(`/v1/workspaces/${workspaceId}/proposals`, { demandId });
   }

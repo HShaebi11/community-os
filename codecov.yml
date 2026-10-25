@@ -1,0 +1,34 @@
+coverage:
+  status:
+    # Informational-only for now — local vitest thresholds in each workspace's
+    # vitest.config.ts are the hard gate. Flip these to real targets once the
+    # baselines stabilize.
+    project:
+      default:
+        informational: true
+    patch:
+      default:
+        informational: true
+comment:
+  layout: "reach, diff, flags, files"
+flags:
+  core:
+    paths: ["packages/core"]
+  whatsapp-import:
+    paths: ["packages/whatsapp-import"]
+  server:
+    paths: ["packages/server"]
+  api:
+    paths: ["apps/api"]
+  mcp:
+    paths: ["apps/mcp"]
+  sdk:
+    paths: ["packages/sdk"]
+  store-sqlite:
+    paths: ["packages/store-sqlite"]
+  channel-discord:
+    paths: ["packages/channel-discord"]
+  channel-slack:
+    paths: ["packages/channel-slack"]
+  channel-whatsapp:
+    paths: ["packages/channel-whatsapp"]

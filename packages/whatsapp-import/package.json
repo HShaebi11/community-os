@@ -20,13 +20,17 @@
   },
   "scripts": {
     "build": "tsup",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "coverage": "vitest run --coverage --coverage.reporter=text --coverage.reporter=lcov"
   },
   "devDependencies": {
     "@community-os/core": "0.1.0",
     "fflate": "^0.8.2",
     "tsup": "^8.5.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "@community-os/testkit": "0.1.0",
+    "vitest": "^3.2.4"
   },
   "publishConfig": {
     "access": "public"
