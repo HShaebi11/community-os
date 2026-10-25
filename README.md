@@ -1,5 +1,7 @@
 # Community OS
 
+[![CI](https://github.com/HShaebi11/community-os/actions/workflows/ci.yml/badge.svg)](https://github.com/HShaebi11/community-os/actions/workflows/ci.yml)
+
 The operating system for a community: import the chat, remember the people,
 publish a native event page, own the RSVP.
 
