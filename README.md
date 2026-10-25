@@ -53,6 +53,30 @@ Database: [community-os](https://console.neon.tech/app/projects/delicate-mud-187
 
 ## MCP
 
+The same six tools, two ways to reach them — all calls hit `/v1` with your
+permissions (`cos_` token), never a second API. There is no send-to-chat tool.
+
+**Remote** — the API Worker serves Streamable HTTP MCP at `/mcp`. Point an MCP
+client at `https://<worker>/mcp?workspace=<workspaceId>` with a bearer token:
+
+```json
+{
+  "mcpServers": {
+    "community-os": {
+      "url": "http://localhost:5173/mcp?workspace=<workspaceId>",
+      "headers": { "Authorization": "Bearer cos_..." }
+    }
+  }
+}
+```
+
+`/mcp/code` wraps the same tools in Cloudflare Code Mode: one `code` tool runs
+model-written JavaScript in a Dynamic Worker sandbox as
+`await codemode.search_memory(...)` etc. The sandbox cannot fetch anything
+outside the workspace functions.
+
+**Local (stdio)** — same tools over stdio for clients that want a process:
+
 ```sh
 COMMUNITY_OS_API_URL=http://localhost:5173 \
 COMMUNITY_OS_TOKEN=cos_... \
@@ -60,7 +84,7 @@ COMMUNITY_OS_WORKSPACE_ID=... \
 npm start -w @community-os/mcp
 ```
 
-Tools: `search_memory`, `get_member`, `list_demand`, `create_proposal`, `get_event`, `draft_message`. There is no send-to-chat tool.
+Tools: `search_memory`, `get_member`, `list_demand`, `create_proposal`, `get_event`, `draft_message`.
 
 ## Curl quick start
 

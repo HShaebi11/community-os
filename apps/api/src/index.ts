@@ -6,10 +6,11 @@ import { createDrizzleStore } from "./drizzle-store.ts";
 type WorkerEnv = AuthEnv & {
   DATABASE_URL?: string;
   ALLOW_DEV_AUTH?: string;
+  LOADER?: unknown;
 };
 
 export default {
-  fetch(request: Request, env: WorkerEnv): Promise<Response> | Response {
+  fetch(request: Request, env: WorkerEnv, ctx: ExecutionContext): Promise<Response> | Response {
     const url = new URL(request.url);
     console.log(JSON.stringify({ message: "incoming request", method: request.method, path: url.pathname }));
     const db = env.DATABASE_URL ? createDb(env.DATABASE_URL) : null;
@@ -27,6 +28,6 @@ export default {
       allowDevAuth: env.ALLOW_DEV_AUTH === "true" || !db,
       appOrigins,
       providers,
-    }).fetch(request);
+    }).fetch(request, env, ctx);
   },
 };

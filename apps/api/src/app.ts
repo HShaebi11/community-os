@@ -29,6 +29,7 @@ import { cors } from "hono/cors";
 import { HTTPException } from "hono/http-exception";
 import type { Auth } from "./auth.ts";
 import { devOutbox } from "./email.ts";
+import { mountMcp } from "./mcp.ts";
 
 export type AuthKind = "session" | "token" | "cookie";
 
@@ -440,6 +441,8 @@ export function createApp(store: Store, auth?: Auth, opts: AppOptions = {}) {
     }
     return c.json(hits);
   });
+
+  mountMcp(app);
 
   return app;
 }

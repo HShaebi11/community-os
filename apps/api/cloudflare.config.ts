@@ -5,6 +5,7 @@ export default defineConfig({
   worker: {
     name: "community-os-api",
     compatibilityDate: "2026-10-22",
+    compatibilityFlags: ["nodejs_compat"],
     entrypoint,
     observability: {
       enabled: true,
@@ -20,6 +21,7 @@ export default defineConfig({
       GOOGLE_CLIENT_ID: bindings.secret(),
       GOOGLE_CLIENT_SECRET: bindings.secret(),
       ALLOW_DEV_AUTH: bindings.secret(),
+      LOADER: bindings.workerLoader(),
     },
   },
 });

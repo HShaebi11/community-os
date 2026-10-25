@@ -58,7 +58,7 @@ describe("MCP tools", () => {
       "get_event",
       "draft_message",
     ]);
-    expect(tools.some((t) => t.name === "send_message")).toBe(false);
+    expect(tools.some((t) => (t.name as string) === "send_message")).toBe(false);
     await expect(dispatch("send_message", {}, ctx)).rejects.toThrow("unknown tool");
 
     const hits = (await dispatch("search_memory", { q: "workshop" }, ctx)) as Array<{ type: string }>;

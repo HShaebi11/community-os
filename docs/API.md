@@ -297,7 +297,12 @@ not exist yet — don't fake it client-side.
   `GET /v1/workspaces/:id/demands`, `create_proposal` →
   `POST /v1/workspaces/:id/proposals`, `get_event` →
   `GET /v1/public/events/:slug`, `draft_message` →
-  `POST /v1/proposals/:id/outreach`.
+  `POST /v1/proposals/:id/outreach`. Reachable three ways: stdio
+  (`npm start -w @community-os/mcp`), Streamable HTTP on this Worker at
+  `POST /mcp?workspace=<workspaceId>` (Bearer required), and Cloudflare Code
+  Mode at `POST /mcp/code` — a single `code` tool that runs model-written
+  JavaScript in a Dynamic Worker sandbox where the six functions are
+  `codemode.<name>(args)` and outbound fetch is blocked.
 
 ---
 
