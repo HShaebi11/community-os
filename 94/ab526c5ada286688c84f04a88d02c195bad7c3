@@ -1,0 +1,25 @@
+docs/CHANNELS.md
+  s_f543e96f7d277f::t_5b80dd3f0b942a 5,9-13,49-73
+packages/sdk/README.md
+  s_f543e96f7d277f::t_3e1fedeeb6e22e 106-110
+packages/sdk/src/index.test.ts
+  s_f543e96f7d277f::t_a96dba3078b3fe 15,210-268
+packages/sdk/src/index.ts
+  s_f543e96f7d277f::t_044b3e1c34a53c 130-137,139-140,142-144,496-499,506-552,555,557
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "94ab526c5ada286688c84f04a88d02c195bad7c3",
+  "prompts": {},
+  "sessions": {
+    "s_f543e96f7d277f": {
+      "agent_id": {
+        "tool": "devin",
+        "id": "s_f543e96f7d277f",
+        "model": "unknown"
+      },
+      "human_author": "Hamza <hshaebi.11@gmail.com>"
+    }
+  }
+}
