@@ -1,0 +1,65 @@
+apps/api/package.json
+  s_a55128958e32cf::t_270ad58890900d 17
+apps/api/src/app.ts
+  s_a55128958e32cf::t_5fe93c97d6880c 1-10
+apps/api/src/index.ts
+  s_a55128958e32cf::t_b44150bd8994b2 3
+apps/api/src/node.ts
+  s_a55128958e32cf::t_c3b2ea7373f346 4
+package-lock.json
+  s_a55128958e32cf::t_4ac523cb5f4507 22,418-425,9979,9995-9997,9999,10006-10038
+package.json
+  s_a55128958e32cf::t_2c85e31ebc4514 11-12
+packages/db/package.json
+  s_a55128958e32cf::t_530dc9deb028e5 16
+packages/db/src/drizzle-store.ts
+  s_a55128958e32cf::t_6cf2d26aeff7c4 21-22
+packages/db/src/index.ts
+  s_a55128958e32cf::t_b3a3610a6bd80f 27-28
+packages/sdk/README.md
+  s_a55128958e32cf::t_4a0a205fe33b31 3-6,12,14,18,20-24,26-37,40-42,46,49,52-53,55,57-66,68,70-78,82,85-86,88,90-96
+packages/sdk/package.json
+  s_a55128958e32cf::t_a66a30a2440b64 4,15-20,28-30,32,44-55
+packages/sdk/src/drift-check.ts
+  s_a55128958e32cf::t_72ca92ea6a9510 33
+packages/sdk/src/index.test.ts
+  s_a55128958e32cf::t_99f6fd9281d50f 2,6,100-135
+packages/sdk/src/index.ts
+  s_a55128958e32cf::t_0e8898e0d43f7d 43,125-133,186-193,195,199-211,258,260,301-303,308,317
+packages/sdk/src/types.ts
+  s_a55128958e32cf::t_c46c569156a88e 182-268
+packages/sdk/tsup.config.ts
+  s_a55128958e32cf::t_03ab09760e5eb5 6,8-15
+packages/server/package.json
+  s_a55128958e32cf::t_38f0c0481b2373 1-25
+packages/server/src/index.ts
+  s_a55128958e32cf::t_84344afda4757e 1-477
+packages/server/src/mcp.ts
+  s_a55128958e32cf::t_64914ad4797dae 3
+packages/server/tsconfig.json
+  s_a55128958e32cf::t_1ce5a97cd16bb3 1-15
+packages/store-sqlite/package.json
+  s_a55128958e32cf::t_cd41ddd6ac2849 1-25
+packages/store-sqlite/src/index.test.ts
+  s_a55128958e32cf::t_9993b8caada6d9 1-90
+packages/store-sqlite/src/index.ts
+  s_a55128958e32cf::t_eab9393b1b9b2b 1-487
+packages/store-sqlite/tsconfig.json
+  s_a55128958e32cf::t_dc9eb3160aada3 1-16
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3d2cbf7c242600aaae4853ba3f82a0300a20d9d8",
+  "prompts": {},
+  "sessions": {
+    "s_a55128958e32cf": {
+      "agent_id": {
+        "tool": "devin",
+        "id": "s_a55128958e32cf",
+        "model": "unknown"
+      },
+      "human_author": "Hamza <hshaebi.11@gmail.com>"
+    }
+  }
+}
