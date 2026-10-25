@@ -1,0 +1,19 @@
+package.json
+  s_e9497a95ca7c95::t_9a87601b279634 12,17-20
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "51777e035c5a5d8e38b9697cc8949e6e3957319b",
+  "prompts": {},
+  "sessions": {
+    "s_e9497a95ca7c95": {
+      "agent_id": {
+        "tool": "devin",
+        "id": "s_e9497a95ca7c95",
+        "model": "unknown"
+      },
+      "human_author": "Hamza <hshaebi.11@gmail.com>"
+    }
+  }
+}
