@@ -82,8 +82,13 @@ export function createDrizzleStore(db: Database): Store {
             sentAt: new Date(message.sentAt),
           });
           inserted++;
-        } catch {
-          skipped++;
+        } catch (error) {
+          // Only unique-violation counts as a dedupe skip; real failures (FK,
+          // connection, schema) must surface instead of being silently eaten.
+          // Drizzle wraps driver errors — the SQLSTATE lives on the cause.
+          const e = error as { code?: string; cause?: { code?: string } };
+          if (e.code === "23505" || e.cause?.code === "23505") skipped++;
+          else throw error;
         }
       }
       return { inserted, skipped };
@@ -104,8 +109,11 @@ export function createDrizzleStore(db: Database): Store {
       return db.select().from(files).where(eq(files.communityId, communityId));
     },
     async upsertMember(communityId, displayName, lastActive) {
+      displayName = displayName.trim();
       const rows = await db.select().from(members).where(eq(members.communityId, communityId));
-      const existing = rows.find((m) => (m.aliases ?? []).some((a) => a.toLowerCase() === displayName.toLowerCase()));
+      const existing = rows.find((m) =>
+        (m.aliases ?? []).some((a) => a.trim().toLowerCase() === displayName.toLowerCase()),
+      );
       if (existing) {
         if (lastActive && (!existing.lastActive || new Date(lastActive) > existing.lastActive)) {
           await db.update(members).set({ lastActive: new Date(lastActive) }).where(eq(members.id, existing.id));

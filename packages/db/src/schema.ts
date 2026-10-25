@@ -54,7 +54,7 @@ export const messages = cos.table(
     sentAt: timestamp("sent_at", { withTimezone: true }).notNull(),
     isNoise: boolean("is_noise").notNull().default(false),
   },
-  (t) => [uniqueIndex("messages_source_id").on(t.communityId, t.sourceMessageId)],
+  (t) => [uniqueIndex("messages_dedup").on(t.communityId, t.sourceId, t.sourceMessageId)],
 );
 
 export const files = cos.table("files", {
